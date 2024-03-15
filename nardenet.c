@@ -15,7 +15,7 @@ int main() {
 
 	int num_of_layers = 3;
 	network net = new_network(num_of_layers);
-	char* filename = "D:/TonyDev/NardeNet/test.cfg";
+	char* filename = "D:/TonyDev/NardeNet/nardenet.cfg";
 	load_cfg(filename, &net);
 
 	//list lst = *make_list();

@@ -29,7 +29,7 @@ size_t tokens_length(char** tokens);
 void free_tokens(char** tokens);
 void print_cfg_input(cfg_input* s);
 void print_cfg_training(cfg_training* s);
-void print_cfg_conv(cfg_training* s);
+void print_cfg_conv(cfg_conv* s);
 void print_cfg(list* sections);
 void print_tokens(char** tokens);
 
@@ -46,12 +46,13 @@ void load_cfg(char* filename, network* net) {
 	while (line = read_line(file), line != 0) {
 		clean_string(line);
 		char** tokens = split_string(line, "=,");
+		if (tokens == NULL) continue;
 		if (tokens[0][0] == '[') {
 			int i = 0;
 			while (headers[i][0] != '\0') {
 				if (strcmp(tokens[0], headers[i]) == 0) {
 					h = i;
-					printf("Appending cfg section. h = %d header = %s\n", h, headers[h]);
+					printf("Appending cfg section: %s\n", headers[h]);
 					append_cfg_section(sections, headers[h]);
 					break;
 				}
@@ -63,7 +64,7 @@ void load_cfg(char* filename, network* net) {
 			section = (cfg_section*)(sections->last->val);
 			section->set_param(section, tokens);
 		}
-		free_tokens(tokens);
+		xfree(tokens);
 	}
 	print_cfg(sections);
 }
@@ -93,7 +94,7 @@ cfg_input* new_cfg_input() {
 cfg_training* new_cfg_training() {
 	cfg_training* section = (cfg_training*)xcalloc(1, sizeof(cfg_training));
 	section->header = headers[1];
-	section->set_param = set_param_cfg_input;
+	section->set_param = set_param_cfg_training;
 	return section;
 }
 
@@ -119,7 +120,7 @@ void set_param_cfg_input(cfg_section* section, char** tokens) {
 		sec->channels = str2sizet(tokens[1]);
 		return;
 	}
-	fprintf(stderr, "Error: No parameter named %s in section %s.", param, sec->header);
+	fprintf(stderr, "Error: No parameter named %s in section %s.\n", param, sec->header);
 	exit(EXIT_FAILURE);
 }
 
@@ -151,7 +152,7 @@ void set_param_cfg_training(cfg_section* section, char** tokens) {
 		return;
 	}
 	if (strcmp(param, "step_scaling") == 0) {
-		sec->step_percents = tokens2floatarr(tokens, 1);
+		sec->step_scaling = tokens2floatarr(tokens, 1);
 		return;
 	}
 	if (strcmp(param, "ease_in") == 0) {
@@ -187,27 +188,27 @@ void set_param_cfg_conv(cfg_section* section, char** tokens) {
 		sec->id = str2sizet(tokens[1]);
 		return;
 	}
-	if (strcmp(param, "batch_normalize")) {
+	if (strcmp(param, "batch_normalize") == 0) {
 		sec->batch_normalize = str2sizet(tokens[1]);
 		return;
 	}
-	if (strcmp(param, "filters")) {
+	if (strcmp(param, "filters") == 0) {
 		sec->n_filters = str2sizet(tokens[1]);
 		return;
 	}
-	if (strcmp(param, "kernel_size")) {
+	if (strcmp(param, "kernel_size") == 0) {
 		sec->kernel_size = str2sizet(tokens[1]);
 		return;
 	}
-	if (strcmp(param, "stride")) {
+	if (strcmp(param, "stride") == 0) {
 		sec->stride = str2sizet(tokens[1]);
 		return;
 	}
-	if (strcmp(param, "pad")) {
+	if (strcmp(param, "pad") == 0) {
 		sec->pad = str2sizet(tokens[1]);
 		return;
 	}
-	if (strcmp(param, "activation")) {
+	if (strcmp(param, "activation") == 0) {
 		sec->activation = str2activation(tokens[1]);
 		return;
 	}
@@ -398,7 +399,7 @@ void print_cfg(list* sections) {
 
 void print_cfg_input(cfg_input* s) {
 	printf("Section: [input]\n");
-	printf("width = %zu\nheight = %zu\nchannels = %zu\nSECTION END\n", s->width, s->height, s->channels);
+	printf("width = %zu\nheight = %zu\nchannels = %zu\nSECTION END\n\n", s->width, s->height, s->channels);
 }
 
 void print_cfg_training(cfg_training* s) {
@@ -423,18 +424,18 @@ void print_cfg_training(cfg_training* s) {
 	print_floatarr(s->exposure);
 	printf("hue = ");
 	print_floatarr(s->hue);
-	printf("SECTION END\n");
+	printf("SECTION END\n\n");
 }
 
 void print_cfg_conv(cfg_conv* s) {
 	printf("Section: [conv]\n");
-	printf("batch_normalize = %zu", s->batch_normalize);
-	printf("filters = %zu", s->n_filters);
-	printf("kernel_size = %zu", s->kernel_size);
-	printf("stride = %zu", s->stride);
-	printf("pad = %zu", s->pad);
+	printf("batch_normalize = %zu\n", s->batch_normalize);
+	printf("filters = %zu\n", s->n_filters);
+	printf("kernel_size = %zu\n", s->kernel_size);
+	printf("stride = %zu\n", s->stride);
+	printf("pad = %zu\n", s->pad);
 	if (s->activation == RELU) {
 		printf("activation = relu\n");
 	}
-	printf("SECTION END\n");
+	printf("SECTION END\n\n");
 }

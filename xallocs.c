@@ -36,9 +36,8 @@ void* zz_xrealloc(void* existing_mem, const size_t num_bytes_to_reallocate, cons
 }
 
 void zz_xfree(void* ptr, const char* const filename, const char* const funcname, const int line) {
-    printf("location: %s, %s, line %d\n", filename, funcname, line);
     free(ptr);
-    //ptr = NULL;
+    ptr = NULL;
 }
 
 static void print_location_and_exit(const char * const filename, const char * const funcname, const int line) {
