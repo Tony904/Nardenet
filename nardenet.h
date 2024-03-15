@@ -1,6 +1,7 @@
 #ifndef NARDENET_H
 #define NARDENET_H
 
+#include "utils.h"
 
 
 #ifdef __cplusplus
@@ -27,18 +28,19 @@ extern "C" {
     } ACTIVATION;
 
     typedef enum LR_POLICY {
-        STEPS
+        LR_STEPS
     } LR_POLICY;
 
     typedef struct matrix {
-        int rows, cols;
+        size_t rows;
+        size_t cols;
         float** vals;
     } matrix;
 
     typedef struct image {
-        int w;
-        int h;
-        int c;
+        size_t w;
+        size_t h;
+        size_t c;
         float* data;
     } image;
 
@@ -48,21 +50,21 @@ extern "C" {
         void(*forward)   (struct layer, struct net_state);
         void(*backward)  (struct layer, struct net_state);
         void(*update)    (struct layer, int, float, float, float); //layer, batch, learning rate, momentum, decay
-        int batch_size;
-        int w;
-        int h;
-        int c;
-        int out_w;
-        int out_h;
-        int out_c;
-        int n_filters;
-        int filter_size;
-        int stride;
-        int padding;
-        int n_inputs;
-        int n_outputs;
+        size_t batch_size;
+        size_t w;
+        size_t h;
+        size_t c;
+        size_t out_w;
+        size_t out_h;
+        size_t out_c;
+        size_t n_filters;
+        size_t filter_size;
+        size_t stride;
+        size_t padding;
+        size_t n_inputs;
+        size_t n_outputs;
         float* output;
-        int n_weights; // = c * n_filter * filter_size * filter_size;
+        size_t n_weights; // = c * n_filter * filter_size * filter_size;
         float* weights;
         float* biases;
         float* delta;
@@ -74,23 +76,26 @@ extern "C" {
     } layer;
 
     typedef struct network {
-        int n_layers;
-        int w;
-        int h; 
-        int c;
-        int batch_size;  // number of images per batch
-        int subbatch_size;  // number of images per sub-batch, must divide evenly into batch_size
-        int max_iterations;  // maximum number of training iterations before automatically ending training
-        float* learning_rate;
+        size_t n_layers;
+        size_t w;
+        size_t h;
+        size_t c;
+        size_t batch_size;  // number of images per batch
+        size_t subbatch_size;  // number of images per sub-batch, must divide evenly into batch_size
+        size_t max_iterations;  // maximum number of training iterations before automatically ending training
+        float learning_rate;
+        LR_POLICY lr_policy;
+        floatarr step_percents;
+        floatarr step_scaling;
+        size_t ease_in;
         float momentum;
         float decay;
         float* output;
-        int iteration;  // current iteration, one iteration = one batch processed
-        int epoch_size;  // number of batches to complete one epoch
-        float saturation[2];
-        float exposure[2];
-        float hue[2];
-        LR_POLICY policy;
+        size_t iteration;  // current iteration, one iteration = one batch processed
+        size_t epoch_size;  // number of batches to complete one epoch
+        float* saturation;
+        float* exposure;
+        float* hue;
         layer* layers;
 
     } network;
@@ -101,7 +106,7 @@ extern "C" {
         float* delta;
         float* workspace;
         int train;
-        int index;
+        size_t index;
     } net_state;
 
 #ifdef __cplusplus

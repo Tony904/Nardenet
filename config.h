@@ -21,59 +21,59 @@ extern "C" {
 	typedef struct cfg_section {
 		char* header;
 		void(*set_param) (void* section, char** tokens);
-	};
+	} cfg_section;
 
 	typedef struct cfg_input {
 		char* header;
-		void(*set_param) (struct cfg_input, char** tokens);
-		int width;
-		int height;
-		int channels;
+		void(*set_param) (void* section, char** tokens);
+		size_t width;
+		size_t height;
+		size_t channels;
 	} cfg_input;
 
 	typedef struct cfg_training {
 		char* header;
-		void(*set_param) (struct cfg_training, char** tokens);
-		int batch_size;
-		int subbatch_size;
-		int max_iterations;
+		void(*set_param) (void* section, char** tokens);
+		size_t batch_size;
+		size_t subbatch_size;
+		size_t max_iterations;
 		float learning_rate;
 		LR_POLICY lr_policy;
-		float* step_percents;
-		float* step_scaling;
-		int ease_in;
+		floatarr* step_percents;
+		floatarr* step_scaling;
+		size_t ease_in;
 		float momentum;
 		float decay;
-		float saturation[2];
-		float exposure[2];
-		float hue[2];
+		floatarr* saturation;
+		floatarr* exposure;
+		floatarr* hue;
 	} cfg_training;
 
 	typedef struct cfg_conv {
 		char* header;
-		void(*set_param) (struct cfg_conv, char** tokens);
-		int id;
-		int batch_normalize;
-		int n_filters;
-		int kernel_size;
-		int stride;
-		int pad;
+		void(*set_param) (void* section, char** tokens);
+		size_t id;
+		size_t batch_normalize;
+		size_t n_filters;
+		size_t kernel_size;
+		size_t stride;
+		size_t pad;
 		ACTIVATION activation;
 	} cfg_conv;
 
 	typedef struct cfg_yolo {
 		char* header;
-		void(*set_param) (struct cfg_yolo, char** tokens);
-		int id;
-		int n_filters;
-		int kernel_size;
-		int stride;
-		int pad;
-		int* anchors;
+		void(*set_param) (void* section, char** tokens);
+		size_t id;
+		size_t n_filters;
+		size_t kernel_size;
+		size_t stride;
+		size_t pad;
+		size_t* anchors;
 	} cfg_yolo;
 
 
-#ifdef def __cplusplus
+#ifdef __cplusplus
 }
 #endif
 #endif
