@@ -19,6 +19,9 @@ size_t zz_str2sizet(char* string, const char* const filename, const char* const 
 #define str2float(str) zz_str2float(str, UTILS_LOCATION)
 #define str2sizet(str) zz_str2sizet(str, UTILS_LOCATION)
 
+int char_in_string(char c, char* str);
+void free_floatarr(floatarr* farr);
+
 typedef struct floatarr floatarr;
 typedef struct intarr intarr;
 

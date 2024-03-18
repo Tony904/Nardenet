@@ -23,7 +23,7 @@ extern "C" {
 	} node;
 
 	typedef struct list {
-		size_t size;
+		size_t length;
 		node* first;
 		node* last;
 	} list;

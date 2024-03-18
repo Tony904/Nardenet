@@ -5,37 +5,31 @@
 
 
 node* new_node(void* item) {
-	node* n = (node*)xmalloc(sizeof(node));
+	node* n = (node*)xcalloc(1, sizeof(node));
 	n->val = item;
-	n->next = NULL;
-	n->prev = NULL;
 	return n;
 }
 
 list* new_list() {
-	list* lst = (list*)xmalloc(sizeof(list));
-	lst->size = 0;
-	lst->first = NULL;
-	lst->last = NULL;
-	return lst;
+	return (list*)xcalloc(1, sizeof(list));
 }
 
 void list_append(list* lst, void* item) {
 	node* n = new_node(item);
-	if (lst->size == 0) {
+	if (lst->length == 0) {
 		lst->first = n;
 		lst->last = n;
-		lst->size++;
+		lst->length++;
 		return 0;
 	}
 	lst->last->next = n;
 	n->prev = lst->last;
 	lst->last = n;
-	lst->size++;
+	lst->length++;
 }
 
 void* list_get_item(list* lst, size_t index) {
-	if (!(lst->size > index)) return NULL;
+	if (!(lst->length > index)) return NULL;
 	node* n = lst->first;
 	for (size_t i = 0; i < index; i++) {
 		n = n->next;

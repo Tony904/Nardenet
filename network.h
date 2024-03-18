@@ -9,7 +9,7 @@ extern "C" {
 #endif
 
 
-network new_network(int num_of_layers);
+network* new_network(int num_of_layers);
 void free_network(network net);
 
 

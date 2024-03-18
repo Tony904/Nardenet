@@ -15,22 +15,6 @@ extern "C" {
     typedef struct network network;
     typedef struct net_state net_state;
 
-    typedef enum LAYER_TYPE {
-        CONVOLUTIONAL,
-        MAXPOOL,
-        SOFTMAX,
-        YOLO
-    } LAYER_TYPE;
-
-    typedef enum ACTIVATION {
-        RELU,
-        MISH
-    } ACTIVATION;
-
-    typedef enum LR_POLICY {
-        LR_STEPS
-    } LR_POLICY;
-
     typedef struct matrix {
         size_t rows;
         size_t cols;
@@ -44,12 +28,31 @@ extern "C" {
         float* data;
     } image;
 
+    typedef enum ACTIVATION {
+        RELU,
+        MISH
+    } ACTIVATION;
+
+    typedef enum LR_POLICY {
+        LR_STEPS
+    } LR_POLICY;
+
+    typedef enum LAYER_TYPE {
+        UNDEF_LAYER = -1,
+        NOT_A_LAYER,
+        CONV,
+        MAXPOOL,
+        SOFTMAX,
+        YOLO
+    } LAYER_TYPE;
+
     typedef struct layer {
+        int id;
         LAYER_TYPE type;
         ACTIVATION activation;
-        void(*forward)   (struct layer, struct net_state);
-        void(*backward)  (struct layer, struct net_state);
-        void(*update)    (struct layer, int, float, float, float); //layer, batch, learning rate, momentum, decay
+        void(*forward)   (layer*, net_state*);
+        void(*backward)  (layer*, net_state*);
+        void(*update)    (layer*, int, float, float, float); //layer, batch, learning rate, momentum, decay
         size_t batch_size;
         size_t w;
         size_t h;
@@ -58,20 +61,22 @@ extern "C" {
         size_t out_h;
         size_t out_c;
         size_t n_filters;
-        size_t filter_size;
+        size_t k_size;
         size_t stride;
         size_t padding;
         size_t n_inputs;
         size_t n_outputs;
-        float* output;
         size_t n_weights; // = c * n_filter * filter_size * filter_size;
+        float* output;
         float* weights;
         float* biases;
         float* delta;
         float* means;
         float* variances;
         float* losses;
+        size_t* anchors;
         int train;
+        int batch_norm;
 
     } layer;
 
@@ -93,9 +98,9 @@ extern "C" {
         float* output;
         size_t iteration;  // current iteration, one iteration = one batch processed
         size_t epoch_size;  // number of batches to complete one epoch
-        float* saturation;
-        float* exposure;
-        float* hue;
+        float saturation[2];
+        float exposure[2];
+        float hue[2];
         layer* layers;
 
     } network;

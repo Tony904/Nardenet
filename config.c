@@ -1,4 +1,6 @@
 #include "config.h"
+#include "nardenet.h"
+#include "network.c"
 #include "xallocs.h"
 #include "list.h"
 #include "file_utils.h"
@@ -8,12 +10,10 @@
 #include <assert.h>
 
 
-
+list* get_cfg_sections(char* filename, size_t* n_layers);
 char* read_line(FILE* file);
 void clean_string(char* s);
 char** split_string(char* str, char* delimiters);
-int char_in_string(char c, char* str);
-void print_tokens(char** tokens);
 void append_cfg_section(list* lst, char* header);
 cfg_input* new_cfg_input();
 cfg_training* new_cfg_training();
@@ -26,18 +26,128 @@ LR_POLICY str2lr_policy(char* str);
 ACTIVATION str2activation(char* str);
 floatarr* tokens2floatarr(char** tokens, size_t offset);
 size_t tokens_length(char** tokens);
-void free_tokens(char** tokens);
+void print_tokens(char** tokens);
 void print_cfg_input(cfg_input* s);
 void print_cfg_training(cfg_training* s);
 void print_cfg_conv(cfg_conv* s);
 void print_cfg(list* sections);
 void print_tokens(char** tokens);
+LAYER_TYPE header2layertype(char* header);
+int load_cfg_section_to_layer(cfg_section* sec, layer* lay);
+void load_cfg_conv_to_layer(cfg_conv* section, layer* lay);
 
 static char* headers[] = { "[input]", "[training]", "[conv]", "[yolo]", "\0"};
 
 
 
-void load_cfg(char* filename, network* net) {
+network* create_network_from_cfg(char* cfg_filename) {
+	size_t n_layers = 0;
+	list* sections = get_cfg_sections(cfg_filename, &n_layers);
+	network* net = new_network(n_layers);
+	load_layers_to_network(net, sections);
+
+}
+
+void load_layers_to_network(network* net, list* sections) {
+	size_t length = sections->length;
+	size_t n = net->n_layers;
+	node* noed = sections->first;
+	cfg_section* sec;
+	size_t i = 0;
+	while (noed != NULL) {
+		sec = (cfg_section*)noed->val;
+		if (sec->header == "[input]") {
+			load_cfg_input_to_network((cfg_input*)sec, net);
+		}
+		else if (sec->header == "[training]") {
+			load_cfg_training_to_network((cfg_training*)sec, net);
+		}
+		else if (load_cfg_section_to_layer(sec, &(net->layers[i]))) {
+			i++;
+		}
+		noed = noed->next;
+	}
+	assert(n == i); // number of layers counted equals number of layers loaded
+}
+
+void load_cfg_input_to_network(cfg_input* sec, network* net) {
+	net->w = sec->width;
+	net->h = sec->height;
+	net->c = sec->channels;
+}
+
+void load_cfg_training_to_network(cfg_training* s, network* n) {
+	n->batch_size = s->batch_size;
+	n->subbatch_size = s->subbatch_size;
+	n->max_iterations = s->max_iterations;
+	n->learning_rate = s->learning_rate;
+	n->lr_policy = s->lr_policy;
+	n->step_percents = *(s->step_percents);
+	n->step_scaling = *(s->step_scaling);
+	n->ease_in = s->ease_in;
+	n->momentum = s->momentum;
+	n->decay = s->decay;
+	n->saturation[0] = 1.0;
+	n->saturation[1] = 1.0;
+	if (s->saturation->length > 0) {
+		n->saturation[0] = s->saturation->vals[0];
+		if (s->saturation->length == 2) {
+			n->saturation[1] = s->saturation->vals[1];
+		}
+	}
+	n->exposure[0] = 1.0;
+	n->exposure[1] = 1.0;
+	if (s->exposure->length > 0) {
+		n->exposure[0] = s->saturation->vals[0];
+		if (s->saturation->length == 2) {
+			n->saturation[1] = s->saturation->vals[1];
+		}
+	}
+	n->hue[0] = 1.0;
+	n->hue[1] = 1.0;
+	if (s->hue->length > 0) {
+		n->hue[0] = s->hue->vals[0];
+		if (s->hue->length == 2) {
+			n->hue[1] = s->hue->vals[1];
+		}
+	}
+}
+
+int load_cfg_section_to_layer(cfg_section* sec, layer* lay) {
+	LAYER_TYPE ltype = header2layertype(sec->header);
+	if (ltype == CONV) {
+		load_cfg_conv_to_layer((cfg_conv*)sec, lay);
+		return 1;
+	}
+	if (ltype == YOLO) {
+		load_cfg_yolo_to_layer((cfg_yolo*)sec, lay);
+		return 1;
+	}
+	return 0;
+}
+
+void load_cfg_conv_to_layer(cfg_conv* s, layer* l) {
+	l->type = CONV;
+	l->id = s->id;
+	l->batch_norm = s->batch_normalize;
+	l->n_filters = s->n_filters;
+	l->k_size = s->kernel_size;
+	l->stride = s->stride;
+	l->padding = s->pad;
+}
+
+void load_cfg_yolo_to_layer(cfg_yolo* s, layer* l) {
+	l->type = CONV;
+	l->id = s->id;
+	l->n_filters = s->n_filters;
+	l->k_size = s->kernel_size;
+	l->stride = s->stride;
+	l->padding = s->pad;
+	l->anchors = s->anchors;
+}
+
+list* get_cfg_sections(char* filename, size_t* n_layers) {
+	*n_layers = 0;
 	FILE* file = get_file(filename, "r");
 	char* line;
 	list* sections = new_list();
@@ -54,6 +164,7 @@ void load_cfg(char* filename, network* net) {
 					h = i;
 					printf("Appending cfg section: %s\n", headers[h]);
 					append_cfg_section(sections, headers[h]);
+					if (is_layer_header(headers[h])) *n_layers++;
 					break;
 				}
 				i++;
@@ -66,7 +177,21 @@ void load_cfg(char* filename, network* net) {
 		}
 		xfree(tokens);
 	}
+	close_filestream(file);
 	print_cfg(sections);
+	return sections;
+}
+
+int is_layer_header(char* header) {
+	if (strcmp(header, "[conv]") == 0) return 1;
+	if (strcmp(header, "[yolo]") == 0) return 1;
+	else return 0;
+}
+
+LAYER_TYPE header2layertype(char* header) {
+	if (strcmp(header, "[conv]") == 0) return CONV;
+	if (strcmp(header, "[yolo]") == 0) return YOLO;
+	return NOT_A_LAYER;
 }
 
 void append_cfg_section(list* lst, char* header) {
@@ -221,7 +346,7 @@ Returns 0 if fgets failed.
 */
 char* read_line(FILE* file) {
 	int size = 512;
-	char* line = (char*)xmalloc(size * sizeof(char));
+	char* line = (char*)xcalloc(size, sizeof(char));
 	if (!fgets(line, size, file)) {  // fgets returns null pointer on fail or end-of-file
 		free(line);
 		return 0;
@@ -283,25 +408,6 @@ char** split_string(char* str, char* delimiters) {
 		}
 	strings[count] = NULL;
 	return strings;
-}
-
-void free_tokens(char** tokens) {
-	printf("Freeing tokens: ");
-	print_tokens(tokens);
-	size_t n = tokens_length(tokens);
-	for (int i = 0; i < n; i++) {
-		xfree(tokens[i]);
-	}
-	xfree(tokens);
-}
-
-int char_in_string(char c, char* str) {
-	size_t length = strlen(str);
-	size_t i;
-	for (i = 0; i < length; i++) {
-		if (c == str[i]) return 1;
-	}
-	return 0;
 }
 
 floatarr* tokens2floatarr(char** tokens, size_t offset) {
@@ -375,9 +481,9 @@ void print_floatarr(floatarr* p) {
 }
 
 void print_cfg(list* sections) {
-	printf("print_cfg():\n");
-	size_t n = sections->size;
-	printf("# of sections = %zu\n", n);
+	printf("\nprint_cfg():\n");
+	size_t n = sections->length;
+	printf("# of sections = %zu\n\n", n);
 	cfg_section* section;
 	for (int i = 0; i < n; i++) {
 		section = (cfg_section*)list_get_item(sections, i);
@@ -398,12 +504,12 @@ void print_cfg(list* sections) {
 }
 
 void print_cfg_input(cfg_input* s) {
-	printf("Section: [input]\n");
+	printf("SECTION: [input]\n");
 	printf("width = %zu\nheight = %zu\nchannels = %zu\nSECTION END\n\n", s->width, s->height, s->channels);
 }
 
 void print_cfg_training(cfg_training* s) {
-	printf("Section: [training]\n");
+	printf("SECTION: [training]\n");
 	printf("batch_size = %zu\n", s->batch_size);
 	printf("subbatch_size = %zu\n", s->subbatch_size);
 	printf("max_iterations = %zu\n", s->max_iterations);
@@ -428,7 +534,7 @@ void print_cfg_training(cfg_training* s) {
 }
 
 void print_cfg_conv(cfg_conv* s) {
-	printf("Section: [conv]\n");
+	printf("SECTION: [conv]\n");
 	printf("batch_normalize = %zu\n", s->batch_normalize);
 	printf("filters = %zu\n", s->n_filters);
 	printf("kernel_size = %zu\n", s->kernel_size);

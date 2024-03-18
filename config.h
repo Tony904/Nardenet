@@ -10,7 +10,7 @@ extern "C" {
 #endif
 
 
-	void load_cfg(char* filename, network* net);
+	network* create_network_from_cfg(char* filename);
 
 	typedef struct cfg_section cfg_section;
 	typedef struct cfg_input cfg_input;

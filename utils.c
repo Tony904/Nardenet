@@ -1,4 +1,5 @@
 #include "utils.h"
+#include "xallocs.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
@@ -58,6 +59,20 @@ float zz_str2float(char* str, const char* const filename, const char* const func
 		print_location_and_exit(filename, funcname, line);
 	}
 	return ret;
+}
+
+void free_floatarr(floatarr* farr) {
+	xfree(farr->vals);
+	xfree(farr);
+}
+
+int char_in_string(char c, char* str) {
+	size_t length = strlen(str);
+	size_t i;
+	for (i = 0; i < length; i++) {
+		if (c == str[i]) return 1;
+	}
+	return 0;
 }
 
 static void print_location_and_exit(const char* const filename, const char* const funcname, const int line) {
