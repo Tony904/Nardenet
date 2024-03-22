@@ -1,8 +1,8 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#include "nardenet.h"
-#include "list.h"
+
+#include "network.h"
 
 
 #ifdef __cplusplus
@@ -16,7 +16,6 @@ extern "C" {
 	typedef struct cfg_input cfg_input;
 	typedef struct cfg_training cfg_training;
 	typedef struct cfg_conv_layer cfg_conv_layer;
-
 
 	typedef struct cfg_section {
 		char* header;
@@ -52,8 +51,8 @@ extern "C" {
 	typedef struct cfg_conv {
 		char* header;
 		void(*set_param) (void* section, char** tokens);
-		size_t id;
-		size_t batch_normalize;
+		int id;
+		int batch_normalize;
 		size_t n_filters;
 		size_t kernel_size;
 		size_t stride;
@@ -64,7 +63,7 @@ extern "C" {
 	typedef struct cfg_yolo {
 		char* header;
 		void(*set_param) (void* section, char** tokens);
-		size_t id;
+		int id;
 		size_t n_filters;
 		size_t kernel_size;
 		size_t stride;

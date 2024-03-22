@@ -1,26 +1,23 @@
 #include "nardenet.h"
-#include <stdio.h>
-#include <stdlib.h>
-
 #include "xallocs.h"
-#include "network.h"
-#include "config.h"
-
-
-
-
+#include "xopencv.h"
 
 
 int main() {
+#ifdef _DEBUG
+	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+	_CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_DEBUG);
+	printf(" _DEBUG defined.\n");
+#endif
+	
 
-	char* filename = "D:/TonyDev/NardeNet/nardenet.cfg";
-	network* net = create_network_from_cfg(filename);
-
-	//list lst = *make_list();
-	//char* string = "hello";
-	//list_append(&lst, string);
-	//printf("list size: %zu\n", lst.size);
-	//printf("first item: %s", (char*)lst.first->val);
+	//char* filename = "D:/TonyDev/NardeNet/nardenet.cfg";
+	//network* net = create_network_from_cfg(filename);
+	//print_network(net);
+	//image img = load_file_to_image();
+	//print_image_matrix(&img);
+	//xfree(img.data);
+	//free_image(&img);
 
 
 #ifdef _DEBUG

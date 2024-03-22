@@ -1,8 +1,8 @@
 #ifndef LIST_H
 #define LIST_H
 
-#include <stdlib.h>
 
+#include <stdlib.h>
 
 
 #ifdef __cplusplus
@@ -27,6 +27,7 @@ extern "C" {
 		node* first;
 		node* last;
 	} list;
+
 
 #ifdef __cplusplus
 }

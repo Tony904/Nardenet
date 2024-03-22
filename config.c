@@ -1,8 +1,6 @@
 #include "config.h"
-#include "nardenet.h"
-#include "network.c"
-#include "xallocs.h"
 #include "list.h"
+#include "xallocs.h"
 #include "file_utils.h"
 #include "utils.h"
 #include <stdio.h>
@@ -33,22 +31,26 @@ void print_cfg_conv(cfg_conv* s);
 void print_cfg(list* sections);
 void print_tokens(char** tokens);
 LAYER_TYPE header2layertype(char* header);
-int load_cfg_section_to_layer(cfg_section* sec, layer* lay);
-void load_cfg_conv_to_layer(cfg_conv* section, layer* lay);
+int is_layer_header(char* header);
+void load_cfg_to_network(network* net, list* sections);
+void load_cfg_input_to_network(cfg_input* s, network* n);
+void load_cfg_training_to_network(cfg_training* s, network* n);
+int load_cfg_section_to_layer(cfg_section* s, layer* l);
+void load_cfg_conv_to_layer(cfg_conv* s, layer* l);
+void load_cfg_yolo_to_layer(cfg_yolo* s, layer* l);
 
 static char* headers[] = { "[input]", "[training]", "[conv]", "[yolo]", "\0"};
-
 
 
 network* create_network_from_cfg(char* cfg_filename) {
 	size_t n_layers = 0;
 	list* sections = get_cfg_sections(cfg_filename, &n_layers);
 	network* net = new_network(n_layers);
-	load_layers_to_network(net, sections);
-
+	load_cfg_to_network(net, sections);
+	return net;
 }
 
-void load_layers_to_network(network* net, list* sections) {
+void load_cfg_to_network(network* net, list* sections) {
 	size_t length = sections->length;
 	size_t n = net->n_layers;
 	node* noed = sections->first;
@@ -70,10 +72,10 @@ void load_layers_to_network(network* net, list* sections) {
 	assert(n == i); // number of layers counted equals number of layers loaded
 }
 
-void load_cfg_input_to_network(cfg_input* sec, network* net) {
-	net->w = sec->width;
-	net->h = sec->height;
-	net->c = sec->channels;
+void load_cfg_input_to_network(cfg_input* s, network* n) {
+	n->w = s->width;
+	n->h = s->height;
+	n->c = s->channels;
 }
 
 void load_cfg_training_to_network(cfg_training* s, network* n) {
@@ -164,7 +166,7 @@ list* get_cfg_sections(char* filename, size_t* n_layers) {
 					h = i;
 					printf("Appending cfg section: %s\n", headers[h]);
 					append_cfg_section(sections, headers[h]);
-					if (is_layer_header(headers[h])) *n_layers++;
+					if (is_layer_header(headers[h])) (*n_layers)++;
 					break;
 				}
 				i++;
@@ -310,11 +312,11 @@ void set_param_cfg_conv(cfg_section* section, char** tokens) {
 	cfg_conv* sec = (cfg_conv*)section;
 	char* param = tokens[0];
 	if (strcmp(param, "id") == 0) {
-		sec->id = str2sizet(tokens[1]);
+		sec->id = str2int(tokens[1]);
 		return;
 	}
 	if (strcmp(param, "batch_normalize") == 0) {
-		sec->batch_normalize = str2sizet(tokens[1]);
+		sec->batch_normalize = str2int(tokens[1]);
 		return;
 	}
 	if (strcmp(param, "filters") == 0) {
@@ -470,20 +472,10 @@ void print_tokens(char** tokens) {
 	}
 }
 
-void print_floatarr(floatarr* p) {
-	size_t n = p->length;
-	assert(n > 0);
-	size_t i;
-	for (i = 0; i < n - 1; i++) {
-		printf("%f, ", p->vals[i]);
-	}
-	printf("%f\n", p->vals[i]);
-}
-
 void print_cfg(list* sections) {
-	printf("\nprint_cfg():\n");
+	printf("\n[CFG]\n");
 	size_t n = sections->length;
-	printf("# of sections = %zu\n\n", n);
+	printf("# of sections = %zu\n", n);
 	cfg_section* section;
 	for (int i = 0; i < n; i++) {
 		section = (cfg_section*)list_get_item(sections, i);
@@ -500,16 +492,19 @@ void print_cfg(list* sections) {
 			continue;
 		}
 	}
-	printf("END CFG\n\n");
+	printf("[END CFG]\n\n");
 }
 
 void print_cfg_input(cfg_input* s) {
-	printf("SECTION: [input]\n");
-	printf("width = %zu\nheight = %zu\nchannels = %zu\nSECTION END\n\n", s->width, s->height, s->channels);
+	printf("\n[SECTION]\n");
+	printf("[input]\n");
+	printf("width = %zu\nheight = %zu\nchannels = %zu\nSECTION END\n", s->width, s->height, s->channels);
+	printf("[END SECTION]\n");
 }
 
 void print_cfg_training(cfg_training* s) {
-	printf("SECTION: [training]\n");
+	printf("\n[SECTION]\n");
+	printf("[training]\n");
 	printf("batch_size = %zu\n", s->batch_size);
 	printf("subbatch_size = %zu\n", s->subbatch_size);
 	printf("max_iterations = %zu\n", s->max_iterations);
@@ -530,12 +525,13 @@ void print_cfg_training(cfg_training* s) {
 	print_floatarr(s->exposure);
 	printf("hue = ");
 	print_floatarr(s->hue);
-	printf("SECTION END\n\n");
+	printf("[END SECTION]\n");
 }
 
 void print_cfg_conv(cfg_conv* s) {
-	printf("SECTION: [conv]\n");
-	printf("batch_normalize = %zu\n", s->batch_normalize);
+	printf("\n[SECTION]\n");
+	printf("[conv]\n");
+	printf("batch_normalize = %d\n", s->batch_normalize);
 	printf("filters = %zu\n", s->n_filters);
 	printf("kernel_size = %zu\n", s->kernel_size);
 	printf("stride = %zu\n", s->stride);
@@ -543,5 +539,5 @@ void print_cfg_conv(cfg_conv* s) {
 	if (s->activation == RELU) {
 		printf("activation = relu\n");
 	}
-	printf("SECTION END\n\n");
+	printf("[END SECTION]\n");
 }

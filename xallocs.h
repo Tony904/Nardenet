@@ -1,9 +1,8 @@
 #ifndef XALLOCS_H
 #define XALLOCS_H
 
-#include <stdlib.h>  // provides access to size_t datatype
+#include <stdlib.h>
 #include <stdio.h>
-
 
 
 #ifdef __cplusplus
