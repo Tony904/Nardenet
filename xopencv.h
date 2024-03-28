@@ -2,9 +2,6 @@
 #define XOPENCV_H
 
 
-
-
-
 #include "image.h"
 
 
@@ -12,9 +9,13 @@
 extern "C" {
 #endif
 
+#ifdef OPENCV
 
-	//image load_file_to_image();
 
+	//image* load_file_to_image();
+
+
+#endif
 
 #ifdef __cplusplus
 }

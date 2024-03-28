@@ -71,38 +71,6 @@ int char_in_string(char c, char* str) {
 	return 0;
 }
 
-void print_lrpolicy(LR_POLICY lrp) {
-	if (lrp == LR_STEPS) {
-		printf("steps\n");
-		return;
-	}
-	printf("none\n");
-}
-
-void print_layertype(LAYER_TYPE lt) {
-	if (lt == CONV) {
-		printf("conv\n");
-		return;
-	}
-	if (lt == YOLO) {
-		printf("yolo\n");
-		return;
-	}
-	printf("none\n");
-}
-
-void print_activation(ACTIVATION a) {
-	if (a == RELU) {
-		printf("relu\n");
-		return;
-	}
-	if (a == MISH) {
-		printf("mish\n");
-		return;
-	}
-	printf("none\n");
-}
-
 static void print_location_and_exit(const char* const filename, const char* const funcname, const int line) {
 	fprintf(stderr, "Nardenet error location: %s, %s, line %d\n", filename, funcname, line);
 	exit(EXIT_FAILURE);

@@ -1,41 +1,25 @@
-#ifndef NARDENET_API
-#define NARDENET_API
+#ifndef NARDENET_H
+#define NARDENET_H
+
 
 #include <stdlib.h>
-#if defined(_DEBUG) && !defined(_CRTDBG_MAP_ALLOC)
-#define _CRTDBG_MAP_ALLOC
-#include <crtdbg.h>
-#define DEBUG_NEW new(_NORMAL_BLOCK, __FILE__, __LINE__)
-#define new DEBUG_NEW
-#endif
-
 #include <stdio.h>
 
 
-#ifndef LIB_API
-#ifdef LIB_EXPORTS
-#ifdef _MSC_VER  // _MSC_VER is defined when compiling with MS Visual Studio, also provides version info
-#define LIB_API __declspec(dllexport)  // for windows
-#else
-#define LIB_API __attribute__((visibility("default")))  // for linux
-#endif
-#else
-#define LIB_API
-#endif
-#endif
-
-
 //#include "image.h"
-//#include "xopencv.h"
 
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+	// dll note: Importing nardenet.h into the header files of the source files that contain functions
+	// to be exported allows me to not need to put __declspec(dllexport) in the function definition
+	// in the source files. I only need to add __declspec(dllexport) in the declaration of exporting
+	// functions in this file.
 
-	//LIB_API image load_file_to_image();
-
+	// image.c
+	//LIB_API int square(int x);
 
 
 #ifdef __cplusplus

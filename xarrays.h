@@ -12,6 +12,11 @@ extern "C" {
 	typedef struct floatarr floatarr;
 	typedef struct intarr intarr;
 
+	void free_floatarr(floatarr* p);
+	void print_floatarr(floatarr* p);
+	void free_intarr(intarr* p);
+	void print_intarr(intarr* p);
+
 	typedef struct floatarr {
 		size_t length;
 		float* vals;

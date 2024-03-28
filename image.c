@@ -3,13 +3,12 @@
 
 
 
-image new_image(size_t w, size_t h, size_t c) {
-    //image* img = (image*)xcalloc(1, sizeof(image));
-    image img = { 0 };
-    img.w = w;
-    img.h = h;
-    img.c = c;
-    img.data = (float*)xcalloc(h * w * c, sizeof(float));
+image* new_image(size_t w, size_t h, size_t c) {
+    image* img = (image*)xcalloc(1, sizeof(image));
+    img->w = w;
+    img->h = h;
+    img->c = c;
+    img->data = (float*)xcalloc(h * w * c, sizeof(float));
     return img;
 }
 
@@ -52,4 +51,9 @@ void print_image_matrix(image* im) {
         for (j = 0; j < 4 * img.w - 1; ++j) printf(" ");
         printf("__|\n");
     }
+}
+
+LIB_API int square(int x) {
+    int y = x * 2;
+    return y;
 }

@@ -1,10 +1,13 @@
 #include "xopencv.h"
 
+
+#ifdef OPENCV
 #include <opencv2/opencv.hpp>
-//#include <opencv2/imgcodecs.hpp>
-//#include <opencv2/highgui.hpp>
-//#include <opencv2/imgproc.hpp>
-//#include <opencv2/calib3d.hpp>
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/highgui.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/calib3d.hpp>
+#endif
 
 
 #include <iostream>
@@ -13,10 +16,11 @@
 extern "C" {
 
 
-    image mat_to_image(cv::Mat* in_mat);
+    image* mat_to_image(cv::Mat* in_mat);
+    void show_image(cv::Mat* mat);
     
 
-    extern "C" void show_image(cv::Mat* mat) {
+    void show_image(cv::Mat* mat) {
         std::string window_name = "dst";
         cv::namedWindow(window_name);
         cv::moveWindow(window_name, 40, 30);
@@ -40,21 +44,22 @@ extern "C" {
 
         //show_image(mat_ptr);
 
-        return mat_to_image(&mat);
+        return *mat_to_image(&mat);
     }
 
-    extern "C" image mat_to_image(cv::Mat * cvmat) {
+    image* mat_to_image(cv::Mat * cvmat) {
         cv::Mat mat = *cvmat;
         int w = mat.cols;
         int h = mat.rows;
         int c = mat.channels();
-        image img = new_image(w, h, c);
-        unsigned char* data = (unsigned char*)mat.data;
+        image* img = new_image(w, h, c);
+        float* img_data = img->data;
+        unsigned char* mat_data = (unsigned char*)mat.data;
         int stride = mat.step;
         for (int y = 0; y < h; ++y) {
             for (int k = 0; k < c; ++k) {
                 for (int x = 0; x < w; ++x) {
-                    img.data[k * w * h + y * w + x] = data[y * stride + x * c + k] / 255.0f;
+                    img_data[k * w * h + y * w + x] = mat_data[y * stride + x * c + k] / 255.0f;
                 }
             }
         }
