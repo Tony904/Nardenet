@@ -90,6 +90,7 @@ void* zz_xrealloc(void* existing_mem, const size_t new_num_bytes, const char * c
 #pragma warning(suppress: 4100)  // C4100: Unused parameter(s).
 void zz_xfree(void* ptr, const char* const filename, const char* const funcname, const int line) {
     //print_location_and_exit(filename, funcname, line);
+    if (!ptr) return;
     alloc_list_free_node((void* const)ptr);
     free(ptr);
     ptr = NULL;
@@ -108,7 +109,6 @@ void alloc_list_free_node(void* const p) {
 }
 
 alloc_node* alloc_list_get_node(void* const p) {
-    if (allocs.length < 1) print_location_and_exit(NARDENET_LOCATION);
     alloc_node* node = allocs.first;
     for (int i = 0; i < allocs.length; i++) {
         if (node->p == p) return node;
@@ -119,6 +119,7 @@ alloc_node* alloc_list_get_node(void* const p) {
 
 alloc_node* alloc_list_pop(void* const p) {
     alloc_node* node = alloc_list_get_node(p);
+    if (!node) return NULL;
     alloc_node* a = node->prev;
     alloc_node* b = node->next;
     if (!a) {  // popped node is first in list
@@ -190,7 +191,8 @@ void print_alloc_list(void) {
     alloc_node* node = allocs.first;
     alloc_node n = { 0 };
     int i = 0;
-    printf("\n\n[ALLOC LIST]\n\n");
+    printf("\n\n[ALLOC LIST]\n");
+    printf("alloc list length: %d\n\n", allocs.length);
     while (node) {
         n = *node;
         printf("[NODE %d]\n", i);
@@ -206,7 +208,6 @@ void print_alloc_list(void) {
         i++;
     }
     assert(i == allocs.length);
-    printf("alloc list length: %d\n", i);
     printf("[END ALLOC LIST]\n");
 }
 

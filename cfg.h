@@ -15,7 +15,6 @@ extern "C" {
 	typedef struct cfg_section cfg_section;
 	typedef struct cfg_input cfg_input;
 	typedef struct cfg_training cfg_training;
-	typedef struct cfg_conv_layer cfg_conv_layer;
 
 	typedef struct cfg_section {
 		char* header;

@@ -22,8 +22,8 @@ void set_param_cfg_conv(cfg_section* section, char** tokens);
 int* tokens2intarray(char** tokens, size_t offset, size_t* array_length);
 LR_POLICY str2lr_policy(char* str);
 ACTIVATION str2activation(char* str);
-floatarr* tokens2floatarr(char** tokens, size_t offset);
-intarr* tokens2intarr(char** tokens, size_t offset);
+floatarr tokens2floatarr(char** tokens, size_t offset);
+intarr tokens2intarr(char** tokens, size_t offset);
 size_t tokens_length(char** tokens);
 void print_tokens(char** tokens);
 void print_cfg_input(cfg_input* s);
@@ -39,6 +39,12 @@ void load_cfg_training_to_network(cfg_training* s, network* n);
 int load_cfg_section_to_layer(cfg_section* s, network* n);
 void load_cfg_conv_to_layer(cfg_conv* s, layer* l);
 void load_cfg_yolo_to_layer(cfg_yolo* s, layer* l);
+void free_sections(list* lst);
+void free_section(cfg_section* s);
+void free_cfg_input(cfg_input* s);
+void free_cfg_training(cfg_training* s);
+void free_cfg_conv(cfg_conv* s);
+void free_cfg_yolo(cfg_yolo* s);
 
 static char* headers[] = { "[input]", "[training]", "[conv]", "[yolo]", "\0"};
 
@@ -237,11 +243,11 @@ void set_param_cfg_training(cfg_section* section, char** tokens) {
 		return;
 	}
 	if (strcmp(param, "step_percents") == 0) {
-		sec->step_percents = *tokens2floatarr(tokens, 1);
+		sec->step_percents = tokens2floatarr(tokens, 1);
 		return;
 	}
 	if (strcmp(param, "step_scaling") == 0) {
-		sec->step_scaling = *tokens2floatarr(tokens, 1);
+		sec->step_scaling = tokens2floatarr(tokens, 1);
 		return;
 	}
 	if (strcmp(param, "ease_in") == 0) {
@@ -257,15 +263,15 @@ void set_param_cfg_training(cfg_section* section, char** tokens) {
 		return;
 	}
 	if (strcmp(param, "saturation") == 0) {
-		sec->saturation = *tokens2floatarr(tokens, 1);
+		sec->saturation = tokens2floatarr(tokens, 1);
 		return;
 	}
 	if (strcmp(param, "exposure") == 0) {
-		sec->exposure = *tokens2floatarr(tokens, 1);
+		sec->exposure = tokens2floatarr(tokens, 1);
 		return;
 	}
 	if (strcmp(param, "hue") == 0) {
-		sec->hue = *tokens2floatarr(tokens, 1);
+		sec->hue = tokens2floatarr(tokens, 1);
 		return;
 	}
 }
@@ -306,11 +312,11 @@ void set_param_cfg_conv(cfg_section* section, char** tokens) {
 		return;
 	}
 	if (strcmp(param, "in_ids") == 0) {
-		sec->in_ids = *tokens2intarr(tokens, 1);
+		sec->in_ids = tokens2intarr(tokens, 1);
 		return;
 	}
 	if (strcmp(param, "out_ids") == 0) {
-		sec->out_ids = *tokens2intarr(tokens, 1);
+		sec->out_ids = tokens2intarr(tokens, 1);
 		return;
 	}
 }
@@ -325,7 +331,10 @@ list* get_cfg_sections(char* filename, size_t* n_layers) {
 	while (line = read_line(file), line != 0) {
 		clean_string(line);
 		char** tokens = split_string(line, "=,");
-		if (tokens == NULL) continue;
+		if (tokens == NULL) {
+			xfree(line);
+			continue;
+		}
 		if (tokens[0][0] == '[') {
 			int i = 0;
 			while (headers[i][0] != '\0') {
@@ -345,14 +354,64 @@ list* get_cfg_sections(char* filename, size_t* n_layers) {
 			section->set_param(section, tokens);
 		}
 		xfree(line);
+		xfree(tokens);
 	}
 	close_filestream(file);
-	print_cfg(sections);
+	//print_cfg(sections);
 	return sections;
 }
 
 void free_sections(list* l) {
+	node* n = l->first;
+	while (n) {
+		free_section((cfg_section*)n->val);
+		n = n->next;
+	}
+	free_list(l);
+}
 
+void free_section(cfg_section* sec) {
+	if (strcmp(sec->header, headers[0]) == 0) {
+		free_cfg_input((cfg_input*)sec);
+		return;
+	}
+	if (strcmp(sec->header, headers[1]) == 0) {
+		free_cfg_training((cfg_training*)sec);
+		return;
+	}
+	if (strcmp(sec->header, headers[2]) == 0) {
+		free_cfg_conv((cfg_conv*)sec);
+		return;
+	}
+	if (strcmp(sec->header, headers[3]) == 0) {
+		free_cfg_yolo((cfg_yolo*)sec);
+		return;
+	}
+}
+
+void free_cfg_input(cfg_input* s) {
+	xfree(s);
+}
+
+void free_cfg_training(cfg_training* s) {
+	xfree(s->step_percents.a);
+	xfree(s->step_scaling.a);
+	xfree(s->saturation.a);
+	xfree(s->exposure.a);
+	xfree(s->hue.a);
+	xfree(s);
+}
+
+void free_cfg_conv(cfg_conv* s) {
+	//xfree(s->in_ids.a);  keep around to be stored in layer
+	//xfree(s->out_ids.a);
+	xfree(s);
+}
+
+void free_cfg_yolo(cfg_yolo* s) {
+	//xfree(s->in_ids.a);
+	xfree(s->anchors);
+	xfree(s);
 }
 
 int is_layer_header(char* header) {
@@ -376,7 +435,7 @@ char* read_line(FILE* file) {
 	int size = 512;
 	char* line = (char*)xcalloc(size, sizeof(char));
 	if (!fgets(line, size, file)) {  // fgets returns null pointer on fail or end-of-file
-		free(line);
+		xfree(line);
 		return 0;
 	}
 	return line;
@@ -438,28 +497,28 @@ char** split_string(char* str, char* delimiters) {
 	return strings;
 }
 
-floatarr* tokens2floatarr(char** tokens, size_t offset) {
+floatarr tokens2floatarr(char** tokens, size_t offset) {
 	size_t n = tokens_length(tokens);
 	assert(n > offset);
-	floatarr* farr = (floatarr*)xcalloc(1, sizeof(floatarr));
+	floatarr farr = { 0 };
 	size_t length = n - offset;
-	farr->n = length;
-	farr->a = (float*)xcalloc(length, sizeof(float));
+	farr.n = length;
+	farr.a = (float*)xcalloc(length, sizeof(float));
 	for (size_t i = 0; i < length; i++) {
-		farr->a[i] = str2float(tokens[i + offset]);
+		farr.a[i] = str2float(tokens[i + offset]);
 	}
 	return farr;
 }
 
-intarr* tokens2intarr(char** tokens, size_t offset) {
+intarr tokens2intarr(char** tokens, size_t offset) {
 	size_t n = tokens_length(tokens);
 	assert(n > offset);
-	intarr* iarr = (intarr*)xcalloc(1, sizeof(intarr));
+	intarr iarr = { 0 };
 	size_t length = n - offset;
-	iarr->n = length;
-	iarr->a = (int*)xcalloc(length, sizeof(int));
+	iarr.n = length;
+	iarr.a = (int*)xcalloc(length, sizeof(int));
 	for (size_t i = 0; i < length; i++) {
-		iarr->a[i] = str2int(tokens[i + offset]);
+		iarr.a[i] = str2int(tokens[i + offset]);
 	}
 	return iarr;
 }
