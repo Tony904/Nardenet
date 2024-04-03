@@ -1,5 +1,4 @@
 #include "list.h"
-
 #include "xallocs.h"
 
 
@@ -10,7 +9,7 @@ node* new_node(void* item) {
 	return n;
 }
 
-list* new_list() {
+list* new_list(void) {
 	return (list*)xcalloc(1, sizeof(list));
 }
 
@@ -20,7 +19,7 @@ void list_append(list* lst, void* item) {
 		lst->first = n;
 		lst->last = n;
 		lst->length++;
-		return 0;
+		return;
 	}
 	lst->last->next = n;
 	n->prev = lst->last;

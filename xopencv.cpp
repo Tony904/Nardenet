@@ -55,7 +55,7 @@ extern "C" {
         image* img = new_image(w, h, c);
         float* img_data = img->data;
         unsigned char* mat_data = (unsigned char*)mat.data;
-        int stride = mat.step;
+        int stride = (int)mat.step;
         for (int y = 0; y < h; ++y) {
             for (int k = 0; k < c; ++k) {
                 for (int x = 0; x < w; ++x) {

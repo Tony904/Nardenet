@@ -44,14 +44,14 @@ extern "C" {
 		size_t max_iterations;
 		float learning_rate;
 		LR_POLICY lr_policy;
-		floatarr* step_percents;
-		floatarr* step_scaling;
+		floatarr step_percents;
+		floatarr step_scaling;
 		size_t ease_in;
 		float momentum;
 		float decay;
-		floatarr* saturation;
-		floatarr* exposure;
-		floatarr* hue;
+		floatarr saturation;
+		floatarr exposure;
+		floatarr hue;
 	} cfg_training;
 
 	typedef struct cfg_conv {
@@ -59,22 +59,27 @@ extern "C" {
 		void(*set_param) (void* section, char** tokens);
 		int id;
 		int batch_normalize;
+		intarr in_ids;
+		intarr out_ids;
 		size_t n_filters;
 		size_t kernel_size;
 		size_t stride;
 		size_t pad;
 		ACTIVATION activation;
+		int train;
 	} cfg_conv;
 
 	typedef struct cfg_yolo {
 		char* header;
 		void(*set_param) (void* section, char** tokens);
 		int id;
+		intarr in_ids;
 		size_t n_filters;
 		size_t kernel_size;
 		size_t stride;
 		size_t pad;
 		size_t* anchors;
+		int train;
 	} cfg_yolo;
 
 

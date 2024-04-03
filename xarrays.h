@@ -18,13 +18,13 @@ extern "C" {
 	void print_intarr(intarr* p);
 
 	typedef struct floatarr {
-		size_t length;
-		float* vals;
+		size_t n;  // length of array
+		float* a;
 	} floatarr;
 
 	typedef struct intarr {
-		size_t length;
-		int* vals;
+		size_t n;  // length of array
+		int* a;
 	} intarr;
 
 

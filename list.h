@@ -12,7 +12,7 @@ extern "C" {
 	typedef struct node node;
 	typedef struct list list;
 
-	list* new_list();
+	list* new_list(void);
 	void list_append(list* lst, void* item);
 	void* list_get_item(list* lst, size_t index);
 
