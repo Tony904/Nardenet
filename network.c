@@ -7,6 +7,9 @@
 void build_first_layer(network* net);
 void build_layer(int i, network* net);
 void build_conv_layer(int i, network* net);
+void free_network(network* net);
+void free_layers(network* net);
+void free_layer_members(layer* l);
 
 
 network* new_network(size_t num_of_layers) {
@@ -17,7 +20,7 @@ network* new_network(size_t num_of_layers) {
 }
 
 void build_network(network* net) {
-	for (int i = 1; i < net->n_layers; i++) {
+	for (int i = 0; i < net->n_layers; i++) {
 		build_layer(i, net);
 	}
 }
@@ -36,7 +39,6 @@ void build_layer(int i, network* net) {
 }
 
 void build_first_layer(network* net) {
-	// assume first layer is conv, for now.
 	layer* l = &(net->layers[0]);
 	l->w = net->w;
 	l->h = net->h;
@@ -52,6 +54,7 @@ void build_first_layer(network* net) {
 	l->biases = (float*)xcalloc(l->n_filters, sizeof(float));
 }
 
+// i = layer index in net->layers
 void build_conv_layer(int i, network* net) {
 	layer* l = &(net->layers[i]);
 	layer* ls = net->layers;
@@ -90,6 +93,38 @@ void build_conv_layer(int i, network* net) {
 	l->weights.n = l->n_filters * l->ksize * l->ksize * l->c;
 	l->weights.a = (float*)xcalloc(l->weights.n, sizeof(float));
 	l->biases = (float*)xcalloc(l->n_filters, sizeof(float));
+}
+
+void free_network(network* n) {
+	xfree(n->step_percents.a);
+	xfree(n->step_scaling.a);
+	xfree(n->input);
+	free_layers(n);
+	xfree(n->output);
+	xfree(n);
+}
+
+void free_layers(network* net) {
+	for (size_t i = 0; i < net->n_layers; i++) {
+		free_layer_members(&net->layers[i]);
+	}
+	xfree(net->layers);
+}
+
+void free_layer_members(layer* l) {
+	xfree(l->output);
+	xfree(l->weights.a);
+	xfree(l->biases);
+	xfree(l->delta);
+	xfree(l->means);
+	xfree(l->variances);
+	xfree(l->losses);
+	xfree(l->in_ids.a);
+	xfree(l->out_ids.a);
+	xfree(l->in_layers);
+	if (l->type == YOLO) {
+		xfree(l->anchors);
+	}
 }
 
 void print_network(network* n) {
@@ -135,9 +170,9 @@ void print_layer(layer* l) {
 	printf("ksize: %zu\n", l->ksize);
 	printf("stride: %zu\n", l->stride);
 	printf("pad: %zu\n", l->pad);
-	printf("n_inputs: %zu\n", l->n);
-	printf("n_outputs: %zu\n", l->out_n);
-	printf("n_weights: %zu\n", l->weights.n);
+	printf("# of inputs: %zu\n", l->n);
+	printf("# of outputs: %zu\n", l->out_n);
+	printf("# of weights: %zu\n", l->weights.n);
 	printf("train: %d\n", l->train);
 	printf("batch_norm: %d\n", l->batch_norm);
 	printf("in_ids: ");
@@ -178,7 +213,3 @@ void print_activation(ACTIVATION a) {
 	}
 	printf("none\n");
 }
-
-//void free_network(network* net) {
-//	
-//}

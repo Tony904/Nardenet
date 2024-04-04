@@ -60,7 +60,6 @@ network* create_network_from_cfg(char* cfg_filename) {
 }
 
 void load_cfg_to_network(list* sections, network* net) {
-	size_t n = net->n_layers;
 	node* noed = sections->first;
 	cfg_section* sec;
 	size_t i = 0;
@@ -77,7 +76,7 @@ void load_cfg_to_network(list* sections, network* net) {
 		}
 		noed = noed->next;
 	}
-	assert(n == i); // number of layers counted equals number of layers loaded
+	assert(net->n_layers == i); // number of layers counted equals number of layers loaded
 }
 
 void load_cfg_input_to_network(cfg_input* s, network* n) {
@@ -394,8 +393,8 @@ void free_cfg_input(cfg_input* s) {
 }
 
 void free_cfg_training(cfg_training* s) {
-	xfree(s->step_percents.a);
-	xfree(s->step_scaling.a);
+	/*xfree(s->step_percents.a);  keep around to be stored in layer
+	xfree(s->step_scaling.a);*/
 	xfree(s->saturation.a);
 	xfree(s->exposure.a);
 	xfree(s->hue.a);
@@ -403,13 +402,13 @@ void free_cfg_training(cfg_training* s) {
 }
 
 void free_cfg_conv(cfg_conv* s) {
-	//xfree(s->in_ids.a);  keep around to be stored in layer
-	//xfree(s->out_ids.a);
+	/*xfree(s->in_ids.a);  keep around to be stored in layer
+	xfree(s->out_ids.a);*/
 	xfree(s);
 }
 
 void free_cfg_yolo(cfg_yolo* s) {
-	//xfree(s->in_ids.a);
+	//xfree(s->in_ids.a); keep around to be stored in layer
 	xfree(s->anchors);
 	xfree(s);
 }

@@ -18,7 +18,7 @@ extern "C" {
 
     network* new_network(size_t num_of_layers);
     void build_network(network* net);
-    //void free_network(network* net);
+    void free_network(network* net);
     void print_layers(layer* l, size_t num_of_layers);
     void print_layer(layer* l);
     void print_network(network* net);

@@ -41,12 +41,12 @@ alloc_node* new_alloc_node(void* const p, size_t n, size_t s, const char* const 
 void alloc_node_set_location_members(alloc_node* node, const char* const filename, const char* const funcname, const int line);
 
 
+#pragma warning (suppress: 4715)  // Not all control paths return a value. (because one exits the program)
 void* zz_xcalloc(const size_t num_elements, size_t size_per_element, const char * const filename, const char * const funcname, const int line) {
     void* p = calloc(num_elements, size_per_element);
     if (!p) {
         fprintf(stderr, "Failed to calloc %zu * %zu bytes.\n", num_elements, size_per_element);
         print_location_and_exit(filename, funcname, line);
-        return NULL;
     }
     else {
         alloc_node* node = new_alloc_node((void* const)p, num_elements, size_per_element, filename, funcname, line);
@@ -159,12 +159,12 @@ void alloc_list_append(alloc_node* node) {
     allocs.length++;
 }
 
+#pragma warning(suppress: 4715)  // Not all control paths return a value. (because one exits the program)
 alloc_node* new_alloc_node(void* const p, size_t n, size_t s, const char* const filename, const char* const funcname, const int line) {
     alloc_node* node = (alloc_node*)calloc(1, sizeof(alloc_node));
     if (node == NULL) {
         fprintf(stderr, "(allocs_append) Failed to calloc %zu * %zu bytes.\n", n, s);
         print_location_and_exit(filename, funcname, line);
-        return NULL;
     }
     else {
         node->p = p;
