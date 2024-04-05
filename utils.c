@@ -4,6 +4,7 @@
 #include <string.h>
 #include <inttypes.h>
 #include <assert.h>
+#include <math.h>
 
 
 static void print_location_and_exit(const char* const filename, const char* const funcname, const int line);
@@ -72,4 +73,28 @@ int char_in_string(char c, char* str) {
 static void print_location_and_exit(const char* const filename, const char* const funcname, const int line) {
 	fprintf(stderr, "Nardenet error location: %s, %s, line %d\n", filename, funcname, line);
 	exit(EXIT_FAILURE);
+}
+
+double randn(double mean, double stddev) {
+	static double n2 = 0.0;
+	static int n2_cached = 0;
+	if (n2_cached) {
+		n2_cached = 0;
+		return n2 * stddev + mean;
+	}
+	else {
+		double x = 0.0;
+		double y = 0.0;
+		double r = 0.0;
+		while (r == 0.0 || r > 1.0) {
+			x = 2.0 * rand() / RAND_MAX - 1;
+			y = 2.0 * rand() / RAND_MAX - 1;
+			r = x * x + y * y;
+		}
+		double d = sqrt(-2.0 * log(r) / r);
+		n2 = y * d;
+		n2_cached = 1;
+		return x * d * stddev + mean;
+	}
+
 }

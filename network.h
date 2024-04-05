@@ -15,22 +15,26 @@ extern "C" {
     typedef struct layer layer;
     typedef enum LAYER_TYPE LAYER_TYPE;
     typedef enum ACTIVATION ACTIVATION;
+    typedef enum COST_TYPE COST_TYPE;
 
     network* new_network(size_t num_of_layers);
     void build_network(network* net);
     void free_network(network* net);
-    void print_layers(layer* l, size_t num_of_layers);
+    void print_layers(network* net);
     void print_layer(layer* l);
     void print_network(network* net);
     void print_lrpolicy(LR_POLICY lrp);
     void print_layertype(LAYER_TYPE lt);
     void print_activation(ACTIVATION a);
+    void print_cost_type(COST_TYPE c);
 
     typedef struct network {
         size_t n_layers;
         size_t w;
         size_t h;
         size_t c;
+        size_t n_classes;
+        COST_TYPE cost;
         size_t batch_size;  // number of images per batch
         size_t subbatch_size;  // number of images per sub-batch, must divide evenly into batch_size
         size_t max_iterations;  // maximum number of training iterations before automatically ending training
@@ -88,6 +92,8 @@ extern "C" {
         layer** in_layers;
         int train;
         int batch_norm;
+        size_t n_classes;
+        COST_TYPE cost;
         size_t* anchors;
     } layer;
 
@@ -96,13 +102,23 @@ extern "C" {
         CONV,
         MAXPOOL,
         SOFTMAX,
-        YOLO
+        CLASSIFY,
+        OBJ_DET
     } LAYER_TYPE;
 
     typedef enum ACTIVATION {
+        NONE_ACTIVATION,
         RELU,
-        MISH
+        MISH,
+        LOGISTIC
     } ACTIVATION;
+
+    typedef enum COST_TYPE {
+        NONE_COST_TYPE,
+        MSE,  // mean squared error
+        BCE,  // binary cross-entropy, used for 2-class classification (i.e. good/bad, yes/no)
+        CCE  // categorical cross-entropy, used for >2 class classification
+    } COST_TYPE;
 
 #ifdef __cplusplus
 }

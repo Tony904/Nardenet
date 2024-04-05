@@ -13,8 +13,10 @@ extern "C" {
 	network* create_network_from_cfg(char* filename);
 
 	typedef struct cfg_section cfg_section;
-	typedef struct cfg_input cfg_input;
+	typedef struct cfg_net cfg_net;
 	typedef struct cfg_training cfg_training;
+	typedef struct cfg_conv cfg_conv;
+	typedef struct cfg_classify cfg_classify;
 
 	typedef struct cfg_section {
 		char* header;
@@ -27,13 +29,22 @@ extern "C" {
 		int id;
 	} cfg_layer;
 
-	typedef struct cfg_input {
+	typedef struct cfg_net {
 		char* header;
 		void(*set_param) (void* section, char** tokens);
 		size_t width;
 		size_t height;
 		size_t channels;
-	} cfg_input;
+		size_t num_classes;
+		COST_TYPE cost;
+	} cfg_net;
+
+	typedef struct cfg_output {
+		char* header;
+		void(*set_param) (void* section, char** tokens);
+		size_t num_classes;
+		COST_TYPE cost;
+	} cfg_output;
 
 	typedef struct cfg_training {
 		char* header;
@@ -68,18 +79,15 @@ extern "C" {
 		int train;
 	} cfg_conv;
 
-	typedef struct cfg_yolo {
+	typedef struct cfg_classify {
 		char* header;
 		void(*set_param) (void* section, char** tokens);
 		int id;
 		intarr in_ids;
-		size_t n_filters;
-		size_t kernel_size;
-		size_t stride;
-		size_t pad;
-		size_t* anchors;
 		int train;
-	} cfg_yolo;
+		size_t num_classes;
+		COST_TYPE cost;
+	} cfg_classify;
 
 
 #ifdef __cplusplus

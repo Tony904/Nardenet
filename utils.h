@@ -20,6 +20,7 @@ size_t zz_str2sizet(char* string, const char* const filename, const char* const 
 #define str2sizet(str) zz_str2sizet(str, NARDENET_LOCATION)
 
 int char_in_string(char c, char* str);
+double randn(double mean, double stddev);
 
 
 #ifdef _cplusplus

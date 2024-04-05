@@ -13,46 +13,51 @@ char* read_line(FILE* file);
 void clean_string(char* s);
 char** split_string(char* str, char* delimiters);
 void append_cfg_section(list* lst, char* header);
-cfg_input* new_cfg_input(void);
+cfg_net* new_cfg_net(void);
 cfg_training* new_cfg_training(void);
 cfg_conv* new_cfg_conv(void);
-void set_param_cfg_input(cfg_section* section, char** tokens);
+cfg_classify* new_cfg_classify(void);
+void set_param_cfg_net(cfg_section* section, char** tokens);
 void set_param_cfg_training(cfg_section* section, char** tokens);
 void set_param_cfg_conv(cfg_section* section, char** tokens);
+void set_param_cfg_classify(cfg_section* section, char** tokens);
 int* tokens2intarray(char** tokens, size_t offset, size_t* array_length);
 LR_POLICY str2lr_policy(char* str);
 ACTIVATION str2activation(char* str);
+COST_TYPE str2cost(char* str);
 floatarr tokens2floatarr(char** tokens, size_t offset);
 intarr tokens2intarr(char** tokens, size_t offset);
 size_t tokens_length(char** tokens);
 void print_tokens(char** tokens);
-void print_cfg_input(cfg_input* s);
+void print_cfg_net(cfg_net* s);
 void print_cfg_training(cfg_training* s);
 void print_cfg_conv(cfg_conv* s);
+void print_cfg_classify(cfg_classify* s);
 void print_cfg(list* sections);
 void print_tokens(char** tokens);
 LAYER_TYPE header2layertype(char* header);
 int is_layer_header(char* header);
 void load_cfg_to_network(list* sections, network* net);
-void load_cfg_input_to_network(cfg_input* s, network* n);
+void load_cfg_net_to_network(cfg_net* s, network* n);
 void load_cfg_training_to_network(cfg_training* s, network* n);
 int load_cfg_section_to_layer(cfg_section* s, network* n);
 void load_cfg_conv_to_layer(cfg_conv* s, layer* l);
-void load_cfg_yolo_to_layer(cfg_yolo* s, layer* l);
+void load_cfg_classify_to_layer(cfg_classify* s, layer* l);
 void free_sections(list* lst);
 void free_section(cfg_section* s);
-void free_cfg_input(cfg_input* s);
+void free_cfg_net(cfg_net* s);
 void free_cfg_training(cfg_training* s);
 void free_cfg_conv(cfg_conv* s);
-void free_cfg_yolo(cfg_yolo* s);
+void free_cfg_classify(cfg_classify* s);
 
-static char* headers[] = { "[input]", "[training]", "[conv]", "[yolo]", "\0"};
+static char* headers[] = { "[net]", "[training]", "[conv]", "[classify]", "\0"};
 
 
 network* create_network_from_cfg(char* cfg_filename) {
 	size_t n_layers = 0;
 	list* sections = get_cfg_sections(cfg_filename, &n_layers);
 	network* net = new_network(n_layers);
+	print_cfg(sections);
 	load_cfg_to_network(sections, net);
 	free_sections(sections);
 	build_network(net);
@@ -65,8 +70,8 @@ void load_cfg_to_network(list* sections, network* net) {
 	size_t i = 0;
 	while (noed != NULL) {
 		sec = (cfg_section*)noed->val;
-		if (strcmp(sec->header, "[input]") == 0) {
-			load_cfg_input_to_network((cfg_input*)sec, net);
+		if (strcmp(sec->header, "[net]") == 0) {
+			load_cfg_net_to_network((cfg_net*)sec, net);
 		}
 		else if (strcmp(sec->header, "[training]") == 0) {
 			load_cfg_training_to_network((cfg_training*)sec, net);
@@ -79,10 +84,12 @@ void load_cfg_to_network(list* sections, network* net) {
 	assert(net->n_layers == i); // number of layers counted equals number of layers loaded
 }
 
-void load_cfg_input_to_network(cfg_input* s, network* n) {
-	n->w = s->width;
-	n->h = s->height;
-	n->c = s->channels;
+void load_cfg_net_to_network(cfg_net* s, network* net) {
+	net->w = s->width;
+	net->h = s->height;
+	net->c = s->channels;
+	net->n_classes = s->num_classes;
+	net->cost = s->cost;
 }
 
 void load_cfg_training_to_network(cfg_training* s, network* n) {
@@ -126,19 +133,23 @@ int load_cfg_section_to_layer(cfg_section* sec, network* net) {
 	LAYER_TYPE ltype = header2layertype(sec->header);
 	if (ltype == NONE_LAYER) return 0;
 	int id = ((cfg_layer*)sec)->id;
+	layer* l = &(net->layers[id]);
+	if (l->type != (LAYER_TYPE)0) {
+		printf("Layer ID %d already written to. Check for layers with same ID in cfg file.\n", l->id);
+		exit(EXIT_FAILURE);
+	}
 	if (ltype == CONV) {
-		load_cfg_conv_to_layer((cfg_conv*)sec, &(net->layers[id]));
+		load_cfg_conv_to_layer((cfg_conv*)sec, l);
 		return 1;
 	}
-	if (ltype == YOLO) {
-		load_cfg_yolo_to_layer((cfg_yolo*)sec, &(net->layers[id]));
+	if (ltype == CLASSIFY) {
+		load_cfg_classify_to_layer((cfg_classify*)sec, l);
 		return 1;
 	}
 	return 0;
 }
 
 void load_cfg_conv_to_layer(cfg_conv* s, layer* l) {
-	assert(l->type == (LAYER_TYPE)0); // check layer not already written to
 	l->type = CONV;
 	l->id = s->id;
 	l->batch_norm = s->batch_normalize;
@@ -146,40 +157,31 @@ void load_cfg_conv_to_layer(cfg_conv* s, layer* l) {
 	l->ksize = s->kernel_size;
 	l->stride = s->stride;
 	l->pad = s->pad;
+	l->activation = s->activation;
+	l->train = s->train;
 	l->in_ids = s->in_ids;
 	l->out_ids = s->out_ids;
 }
 
-void load_cfg_yolo_to_layer(cfg_yolo* s, layer* l) {
-	l->type = CONV;
+void load_cfg_classify_to_layer(cfg_classify* s, layer* l) {
+	l->type = CLASSIFY;
 	l->id = s->id;
-	l->n_filters = s->n_filters;
-	l->ksize = s->kernel_size;
-	l->stride = s->stride;
-	l->pad = s->pad;
-	l->anchors = s->anchors;
-	l->in_ids = s->in_ids;
+	l->train = s->train;
+	l->n_filters = s->num_classes;
+	l->cost = s->cost;
 }
 
 void append_cfg_section(list* lst, char* header) {
-	if (strcmp(header, headers[0]) == 0) {
-		list_append(lst, new_cfg_input());
-		return;
-	}
-	if (strcmp(header, headers[1]) == 0) {
-		list_append(lst, new_cfg_training());
-		return;
-	}
-	if (strcmp(header, headers[2]) == 0) {
-		list_append(lst, new_cfg_conv());
-		return;
-	}
+	if (strcmp(header, headers[0]) == 0) list_append(lst, new_cfg_net());
+	if (strcmp(header, headers[1]) == 0) list_append(lst, new_cfg_training());
+	if (strcmp(header, headers[2]) == 0) list_append(lst, new_cfg_conv());
+	if (strcmp(header, headers[3]) == 0) list_append(lst, new_cfg_classify());
 }
 
-cfg_input* new_cfg_input(void) {
-	cfg_input* section = (cfg_input*)xcalloc(1, sizeof(cfg_input));
+cfg_net* new_cfg_net(void) {
+	cfg_net* section = (cfg_net*)xcalloc(1, sizeof(cfg_net));
 	section->header = headers[0];
-	section->set_param = set_param_cfg_input;
+	section->set_param = set_param_cfg_net;
 	return section;
 }
 
@@ -196,128 +198,74 @@ cfg_conv* new_cfg_conv(void) {
 	section->set_param = set_param_cfg_conv;
 	// Set non-zero defaults
 	section->train = 1;
+	section->stride = 1;
 	return section;
 }
 
-void set_param_cfg_input(cfg_section* section, char** tokens) {
-	cfg_input* sec = (cfg_input*)section;
+cfg_classify* new_cfg_classify(void) {
+	cfg_classify* section = (cfg_classify*)xcalloc(1, sizeof(cfg_classify));
+	section->header = headers[3];
+	section->set_param = set_param_cfg_classify;
+	// Set non-zero defaults
+	section->train = 1;
+	return section;
+}
+
+void set_param_cfg_net(cfg_section* section, char** tokens) {
+	cfg_net* sec = (cfg_net*)section;
 	char* param = tokens[0];  //pointer to name of param
-	if (strcmp(param, "width") == 0) {
-		sec->width = str2sizet(tokens[1]);
-		return;
+	if (strcmp(param, "width") == 0) sec->width = str2sizet(tokens[1]);
+	else if (strcmp(param, "height") == 0) sec->height = str2sizet(tokens[1]);
+	else if (strcmp(param, "channels") == 0) sec->channels = str2sizet(tokens[1]);
+	else if (strcmp(param, "num_classes") == 0) sec->num_classes = str2sizet(tokens[1]);
+	else if (strcmp(param, "cost") == 0) sec->cost = str2cost(tokens[1]);
+	else {
+		fprintf(stderr, "Error: No parameter named %s in section %s.\n", param, sec->header);
+		exit(EXIT_FAILURE);
 	}
-	if (strcmp(param, "height") == 0) {
-		sec->height = str2sizet(tokens[1]);
-		return;
-	}
-	if (strcmp(param, "channels") == 0) {
-		sec->channels = str2sizet(tokens[1]);
-		return;
-	}
-	fprintf(stderr, "Error: No parameter named %s in section %s.\n", param, sec->header);
-	exit(EXIT_FAILURE);
 }
 
 void set_param_cfg_training(cfg_section* section, char** tokens) {
 	cfg_training* sec = (cfg_training*)section;
 	char* param = tokens[0];
-	if (strcmp(param, "batch_size") == 0) {
-		sec->batch_size = str2sizet(tokens[1]);
-		return;
-	}
-	if (strcmp(param, "subbatch_size") == 0) {
-		sec->subbatch_size = str2sizet(tokens[1]);
-		return;
-	}
-	if (strcmp(param, "max_iterations") == 0) {
-		sec->max_iterations = str2sizet(tokens[1]);
-		return;
-	}
-	if (strcmp(param, "learning_rate") == 0) {
-		sec->learning_rate = str2float(tokens[1]);
-		return;
-	}
-	if (strcmp(param, "lr_policy") == 0) {
-		sec->lr_policy = str2lr_policy(tokens[1]);
-		return;
-	}
-	if (strcmp(param, "step_percents") == 0) {
-		sec->step_percents = tokens2floatarr(tokens, 1);
-		return;
-	}
-	if (strcmp(param, "step_scaling") == 0) {
-		sec->step_scaling = tokens2floatarr(tokens, 1);
-		return;
-	}
-	if (strcmp(param, "ease_in") == 0) {
-		sec->ease_in = str2sizet(tokens[1]);
-		return;
-	}
-	if (strcmp(param, "momentum") == 0) {
-		sec->momentum = str2float(tokens[1]);
-		return;
-	}
-	if (strcmp(param, "decay") == 0) {
-		sec->decay = str2float(tokens[1]);
-		return;
-	}
-	if (strcmp(param, "saturation") == 0) {
-		sec->saturation = tokens2floatarr(tokens, 1);
-		return;
-	}
-	if (strcmp(param, "exposure") == 0) {
-		sec->exposure = tokens2floatarr(tokens, 1);
-		return;
-	}
-	if (strcmp(param, "hue") == 0) {
-		sec->hue = tokens2floatarr(tokens, 1);
-		return;
-	}
+	if (strcmp(param, "batch_size") == 0) sec->batch_size = str2sizet(tokens[1]);
+	else if (strcmp(param, "subbatch_size") == 0) sec->subbatch_size = str2sizet(tokens[1]);
+	else if (strcmp(param, "max_iterations") == 0) sec->max_iterations = str2sizet(tokens[1]);
+	else if (strcmp(param, "learning_rate") == 0) sec->learning_rate = str2float(tokens[1]);
+	else if (strcmp(param, "lr_policy") == 0) sec->lr_policy = str2lr_policy(tokens[1]);
+	else if (strcmp(param, "step_percents") == 0) sec->step_percents = tokens2floatarr(tokens, 1);
+	else if (strcmp(param, "step_scaling") == 0) sec->step_scaling = tokens2floatarr(tokens, 1);
+	else if (strcmp(param, "ease_in") == 0) sec->ease_in = str2sizet(tokens[1]);
+	else if (strcmp(param, "momentum") == 0) sec->momentum = str2float(tokens[1]);
+	else if (strcmp(param, "decay") == 0) sec->decay = str2float(tokens[1]);
+	else if (strcmp(param, "saturation") == 0) sec->saturation = tokens2floatarr(tokens, 1);
+	else if (strcmp(param, "exposure") == 0) sec->exposure = tokens2floatarr(tokens, 1);
+	else if (strcmp(param, "hue") == 0) sec->hue = tokens2floatarr(tokens, 1);
 }
 
 void set_param_cfg_conv(cfg_section* section, char** tokens) {
 	cfg_conv* sec = (cfg_conv*)section;
 	char* param = tokens[0];
-	if (strcmp(param, "id") == 0) {
-		sec->id = str2int(tokens[1]);
-		return;
-	}
-	if (strcmp(param, "batch_normalize") == 0) {
-		sec->batch_normalize = str2int(tokens[1]);
-		return;
-	}
-	if (strcmp(param, "train") == 0) {
-		sec->train = str2int(tokens[1]);
-		return;
-	}
-	if (strcmp(param, "filters") == 0) {
-		sec->n_filters = str2sizet(tokens[1]);
-		return;
-	}
-	if (strcmp(param, "kernel_size") == 0) {
-		sec->kernel_size = str2sizet(tokens[1]);
-		return;
-	}
-	if (strcmp(param, "stride") == 0) {
-		sec->stride = str2sizet(tokens[1]);
-		return;
-	}
-	if (strcmp(param, "pad") == 0) {
-		sec->pad = str2sizet(tokens[1]);
-		return;
-	}
-	if (strcmp(param, "activation") == 0) {
-		sec->activation = str2activation(tokens[1]);
-		return;
-	}
-	if (strcmp(param, "in_ids") == 0) {
-		sec->in_ids = tokens2intarr(tokens, 1);
-		return;
-	}
-	if (strcmp(param, "out_ids") == 0) {
-		sec->out_ids = tokens2intarr(tokens, 1);
-		return;
-	}
+	if (strcmp(param, "id") == 0) sec->id = str2int(tokens[1]);
+	else if (strcmp(param, "batch_normalize") == 0) sec->batch_normalize = str2int(tokens[1]);
+	else if (strcmp(param, "train") == 0) sec->train = str2int(tokens[1]);
+	else if (strcmp(param, "filters") == 0) sec->n_filters = str2sizet(tokens[1]);
+	else if (strcmp(param, "kernel_size") == 0) sec->kernel_size = str2sizet(tokens[1]);
+	else if (strcmp(param, "stride") == 0) sec->stride = str2sizet(tokens[1]);
+	else if (strcmp(param, "pad") == 0) sec->pad = str2sizet(tokens[1]);
+	else if (strcmp(param, "activation") == 0) sec->activation = str2activation(tokens[1]);
+	else if (strcmp(param, "in_ids") == 0) sec->in_ids = tokens2intarr(tokens, 1);
+	else if (strcmp(param, "out_ids") == 0) sec->out_ids = tokens2intarr(tokens, 1);
+}
+
+void set_param_cfg_classify(cfg_section* section, char** tokens) {
+	cfg_classify* sec = (cfg_classify*)section;
+	char* param = tokens[0];
+	if (strcmp(param, "id") == 0) sec->id = str2int(tokens[1]);
+	else if (strcmp(param, "in_ids") == 0) sec->in_ids = tokens2intarr(tokens, 1);
+	else if (strcmp(param, "train") == 0) sec->train = str2int(tokens[1]);
+	else if (strcmp(param, "num_classes") == 0) sec->num_classes = str2sizet(param);
+	else if (strcmp(param, "cost") == 0) sec->cost = str2cost(tokens[1]);
 }
 
 list* get_cfg_sections(char* filename, size_t* n_layers) {
@@ -370,25 +318,13 @@ void free_sections(list* l) {
 }
 
 void free_section(cfg_section* sec) {
-	if (strcmp(sec->header, headers[0]) == 0) {
-		free_cfg_input((cfg_input*)sec);
-		return;
-	}
-	if (strcmp(sec->header, headers[1]) == 0) {
-		free_cfg_training((cfg_training*)sec);
-		return;
-	}
-	if (strcmp(sec->header, headers[2]) == 0) {
-		free_cfg_conv((cfg_conv*)sec);
-		return;
-	}
-	if (strcmp(sec->header, headers[3]) == 0) {
-		free_cfg_yolo((cfg_yolo*)sec);
-		return;
-	}
+	if (strcmp(sec->header, headers[0]) == 0) free_cfg_net((cfg_net*)sec);
+	else if (strcmp(sec->header, headers[1]) == 0) free_cfg_training((cfg_training*)sec);
+	else if (strcmp(sec->header, headers[2]) == 0) free_cfg_conv((cfg_conv*)sec);
+	else if (strcmp(sec->header, headers[3]) == 0) free_cfg_classify((cfg_classify*)sec);
 }
 
-void free_cfg_input(cfg_input* s) {
+void free_cfg_net(cfg_net* s) {
 	xfree(s);
 }
 
@@ -407,21 +343,19 @@ void free_cfg_conv(cfg_conv* s) {
 	xfree(s);
 }
 
-void free_cfg_yolo(cfg_yolo* s) {
-	//xfree(s->in_ids.a); keep around to be stored in layer
-	xfree(s->anchors);
+void free_cfg_classify(cfg_classify* s) {
 	xfree(s);
 }
 
 int is_layer_header(char* header) {
 	if (strcmp(header, "[conv]") == 0) return 1;
-	if (strcmp(header, "[yolo]") == 0) return 1;
+	if (strcmp(header, "[classify]") == 0) return 1;
 	else return 0;
 }
 
 LAYER_TYPE header2layertype(char* header) {
 	if (strcmp(header, "[conv]") == 0) return CONV;
-	if (strcmp(header, "[yolo]") == 0) return YOLO;
+	if (strcmp(header, "[classify]") == 0) return CLASSIFY;
 	return NONE_LAYER;
 }
 
@@ -539,13 +473,18 @@ LR_POLICY str2lr_policy(char* str) {
 }
 
 ACTIVATION str2activation(char* str) {
-	if (strcmp(str, "relu") == 0) {
-		return RELU;
-	}
-	if (strcmp(str, "mish") == 0) {
-		return MISH;
-	}
+	if (strcmp(str, "relu") == 0) return RELU;
+	if (strcmp(str, "mish") == 0) return MISH;
+	if (strcmp(str, "logistic") == 0) return LOGISTIC;
 	fprintf(stderr, "Error: No valid activation named %s.\n", str);
+	exit(EXIT_FAILURE);
+}
+
+COST_TYPE str2cost(char* str) {
+	if (strcmp(str, "mse") == 0) return MSE;
+	if (strcmp(str, "bce") == 0) return BCE;
+	if (strcmp(str, "cce") == 0) return CCE;
+	fprintf(stderr, "Error: No valid cost function named %s.\n", str);
 	exit(EXIT_FAILURE);
 }
 
@@ -564,32 +503,24 @@ void print_cfg(list* sections) {
 	cfg_section* section;
 	for (int i = 0; i < n; i++) {
 		section = (cfg_section*)list_get_item(sections, i);
-		if (strcmp(section->header, "[input]") == 0) {
-			print_cfg_input((cfg_input*)section);
-			continue;
-		}
-		if (strcmp(section->header, "[training]") == 0) {
-			print_cfg_training((cfg_training*)section);
-			continue;
-		}
-		if (strcmp(section->header, "[conv]") == 0) {
-			print_cfg_conv((cfg_conv*)section);
-			continue;
-		}
+		if (strcmp(section->header, "[net]") == 0) print_cfg_net((cfg_net*)section);
+		if (strcmp(section->header, "[training]") == 0) print_cfg_training((cfg_training*)section);
+		if (strcmp(section->header, "[conv]") == 0) print_cfg_conv((cfg_conv*)section);
+		if (strcmp(section->header, "[classify]") == 0) print_cfg_classify((cfg_classify*)section);
 	}
 	printf("[END CFG]\n\n");
 }
 
-void print_cfg_input(cfg_input* s) {
-	printf("\n[SECTION]\n");
-	printf("[input]\n");
-	printf("width = %zu\nheight = %zu\nchannels = %zu\nSECTION END\n", s->width, s->height, s->channels);
-	printf("[END SECTION]\n");
+void print_cfg_net(cfg_net* s) {
+	printf("\n[net]\n");
+	printf("width = %zu\nheight = %zu\nchannels = %zu\n", s->width, s->height, s->channels);
+	printf("num_classes = %zu\n", s->num_classes);
+	printf("cost = ");
+	print_cost_type(s->cost);
 }
 
 void print_cfg_training(cfg_training* s) {
-	printf("\n[SECTION]\n");
-	printf("[training]\n");
+	printf("\n[training]\n");
 	printf("batch_size = %zu\n", s->batch_size);
 	printf("subbatch_size = %zu\n", s->subbatch_size);
 	printf("max_iterations = %zu\n", s->max_iterations);
@@ -610,12 +541,10 @@ void print_cfg_training(cfg_training* s) {
 	print_floatarr(&(s->exposure));
 	printf("hue = ");
 	print_floatarr(&(s->hue));
-	printf("[END SECTION]\n");
 }
 
 void print_cfg_conv(cfg_conv* s) {
-	printf("\n[SECTION]\n");
-	printf("[conv]\n");
+	printf("\n[conv]\n");
 	printf("id = %d\n", s->id);
 	printf("train = %d\n", s->train);
 	printf("batch_normalize = %d\n", s->batch_normalize);
@@ -623,12 +552,20 @@ void print_cfg_conv(cfg_conv* s) {
 	printf("kernel_size = %zu\n", s->kernel_size);
 	printf("stride = %zu\n", s->stride);
 	printf("pad = %zu\n", s->pad);
-	if (s->activation == RELU) {
-		printf("activation = relu\n");
-	}
+	printf("activation = ");
+	print_activation(s->activation);
 	printf("in_ids = ");
 	print_intarr(&(s->in_ids));
 	printf("out_ids = ");
 	print_intarr(&(s->out_ids));
-	printf("[END SECTION]\n");
+}
+
+void print_cfg_classify(cfg_classify* s) {
+	printf("\n[classify]\n");
+	printf("id = %d\n", s->id);
+	printf("train = %d\n", s->train);
+	printf("cost = ");
+	print_cost_type(s->cost);
+	printf("in_ids = ");
+	print_intarr(&(s->in_ids));
 }
