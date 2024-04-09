@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <math.h>
 #include "utils.h"
+#include "image.h"
 
 
 void initialize_weights_kaiming(network* net);
@@ -13,6 +14,10 @@ void train(network* net) {
 	initialize_weights_kaiming(net);
 
 }
+
+//void forward_network_train(network* net, image* img) {
+//
+//}
 
 // Initialize weights using Kaiming Initialization
 void initialize_weights_kaiming(network* net) {

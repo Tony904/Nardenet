@@ -11,43 +11,54 @@
 
 
 #include <iostream>
+#include <fstream>
+
+
+cv::Mat image2cvmat(image* img);
 
 
 extern "C" {
 
 
-    image* mat_to_image(cv::Mat* in_mat);
-    void show_image(cv::Mat* mat);
+    image* cvmat2image(cv::Mat* in_mat);
+    void show_cvmat(cv::Mat* mat);
     
 
-    void show_image(cv::Mat* mat) {
+    void show_cvmat(cv::Mat* mat) {
         std::string window_name = "dst";
         cv::namedWindow(window_name);
         cv::moveWindow(window_name, 40, 30);
         cv::imshow(window_name, *mat);
         cv::waitKey(0);
-        cv::destroyAllWindows();
+        cv::destroyWindow(window_name);
     }
 
-    extern "C" image load_file_to_image() {
-        std::string path = "D:/TonyDev/Learning_C/test_image/Tonys_Digit_Dataset/one_3.jpg";
-        cv::Mat mat = cv::imread(path);
-        //cv::Mat* mat_ptr = NULL;
+    extern "C" void show_image(image* img) {
+        cv::Mat mat = image2cvmat(img);
+        show_cvmat(&mat);
+    }
 
+    extern "C" image* load_file_to_image(void) {
+        std::string path = "D:\\TonyDev\\NardeNet\\images\\one_3.jpg";
+        std::ifstream file(path);
+        if (file.fail()) {
+            std::cout << "No file found with path: " << path << "\n";
+            return NULL;
+        }
+        cv::Mat src = cv::imread(path);
+        std::cout << "mat.channels = " << src.channels() << "\n";
         cv::Mat dst;
-        std::cout << "mat.channels = " << mat.channels() << "\n";
-        if (mat.channels() == 3) cv::cvtColor(mat, dst, cv::COLOR_RGB2BGR);
-        else if (mat.channels() == 4) cv::cvtColor(mat, dst, cv::COLOR_RGBA2BGRA);
-        else dst = mat;
-
-        //mat_ptr = new cv::Mat(dst);
-
-        //show_image(mat_ptr);
-
-        return *mat_to_image(&mat);
+        if (src.channels() == 3) cv::cvtColor(src, dst, cv::COLOR_RGB2BGR);
+        else if (src.channels() == 1) dst = src;
+        else {
+            std::cout << "Incompatible # of channels: " << src.channels() << "\nNardenet only supports images with 1 or 3 channels.\n";
+            return NULL;
+        }
+        show_cvmat(&dst);
+        return cvmat2image(&dst);
     }
 
-    image* mat_to_image(cv::Mat * cvmat) {
+    image* cvmat2image(cv::Mat* cvmat) {
         cv::Mat mat = *cvmat;
         int w = mat.cols;
         int h = mat.rows;
@@ -66,4 +77,22 @@ extern "C" {
         return img;
     }
 
+}
+
+cv::Mat image2cvmat(image* im) {
+    image img = *im;
+    int w = (int)img.w;
+    int h = (int)img.h;
+    int c = (int)img.c;
+    cv::Mat mat = cv::Mat(h, w, CV_8UC(c));
+    int step = (int)mat.step;
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            for (int z = 0; z < c; ++z) {
+                float val = img.data[z * h * w + y * w + x];
+                mat.data[y * step + x * c + z] = (unsigned char)(val * 255);
+            }
+        }
+    }
+    return mat;
 }

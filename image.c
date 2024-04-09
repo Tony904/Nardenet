@@ -18,28 +18,21 @@ void free_image(image* img) {
 }
 
 void print_image_matrix(image* im) {
+    if (!im) return;
     image img = *im;
     int i, j, k;
+    printf("\nimage address: %p\n", im);
     printf("\n%zu X %zu Image:\n", img.w, img.h);
     for (k = 0; k < img.c; ++k) {
-        if (k == 0) {
-            printf("BLUE\n");
-        }
-        else if (k == 1) {
-            printf("GREEN\n");
-        }
-        else {
-            printf("RED\n");
-        }
+        if (k == 0) printf("BLUE\n");
+        else if (k == 1) printf("GREEN\n");
+        else printf("RED\n");
         printf(" __");
-
         for (j = 0; j < 4 * img.w - 1; ++j) printf(" ");
         printf("__ \n");
-
         printf("|  ");
         for (j = 0; j < 4 * img.w - 1; ++j) printf(" ");
         printf("  |\n");
-
         for (i = 0; i < img.h; ++i) {
             printf("|  ");
             for (j = 0; j < img.w; ++j) {
