@@ -4,6 +4,7 @@
 #include "cfg.h"
 #include "train.h"
 #include "xopencv.h"
+#include "im2col.h"
 
 
 
@@ -19,8 +20,7 @@ int main(void) {
 	//free_network(net);
 	//print_alloc_list();
 
-	image* img = load_file_to_image();
-	show_image(img);
+	test_img2col();
 
 
 

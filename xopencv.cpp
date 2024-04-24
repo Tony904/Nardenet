@@ -38,8 +38,9 @@ extern "C" {
         show_cvmat(&mat);
     }
 
-    extern "C" image* load_file_to_image(void) {
-        std::string path = "D:\\TonyDev\\NardeNet\\images\\one_3.jpg";
+    extern "C" image* load_file_to_image(char* filename) {
+        //std::string path = "D:\\TonyDev\\NardeNet\\images\\one_3.jpg";
+        std::string path = filename;
         std::ifstream file(path);
         if (file.fail()) {
             std::cout << "No file found with path: " << path << "\n";
@@ -78,6 +79,7 @@ extern "C" {
     }
 
 }
+
 
 cv::Mat image2cvmat(image* im) {
     image img = *im;

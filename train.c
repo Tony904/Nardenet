@@ -15,9 +15,18 @@ void train(network* net) {
 
 }
 
-//void forward_network_train(network* net, image* img) {
-//
-//}
+void forward_network_train(network* net, image* img) {
+	if (net->w != img->w || net->h != img->h || net->c != img->h) {
+		printf("Input image does not match network dimensions.\n");
+		print_location(NARDENET_LOCATION);
+		exit(EXIT_FAILURE);
+	}
+	net->input = img;
+	for (size_t i = 0; net->n_layers; i++) {
+		net->layers[i].forward(&net->layers[i], net);
+	}
+	// float* prediction = network_get_prediction;
+}
 
 // Initialize weights using Kaiming Initialization
 void initialize_weights_kaiming(network* net) {
