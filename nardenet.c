@@ -20,7 +20,7 @@ int main(void) {
 	//free_network(net);
 	//print_alloc_list();
 
-	test_img2col();
+	test_im2col();
 
 
 

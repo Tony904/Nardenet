@@ -1,72 +1,104 @@
 #include "im2col.h"
 #include <stdlib.h>
 #include "xallocs.h"
+#include "gemm.h"
 
 
-void test_img2col(void);
-void pprint_mat(float* data, int width, int height);
+void test_im2col(void);
+void pprint_mat(float* data, int width, int height, int channels);
 
 
-void img2col(float* img, int width, int height, int channels, 
-	 int ksize, int pad, int stride, 
-	 float* dst)
+inline static int is_a_ge_zero_and_a_lt_b(int a, int b) {
+	return (unsigned)(a) < (unsigned)(b);
+}
+
+// https://github.com/BVLC/caffe/blob/master/src/caffe/util/im2col.cpp
+void im2col_cpu_general(const float* data_im, const int channels,
+	const int height, const int width, const int kernel_h, const int kernel_w,
+	const int pad_h, const int pad_w,
+	const int stride_h, const int stride_w,
+	float* data_col)
 {
-	//float* dst = (float*)xcalloc(
-	//l->out_w = ((l->w + (l->pad * 2) - l->ksize) / l->stride) + 1;
-
-	int out_w = (width + pad * 2 - ksize) / stride + 1;
-	int out_h = (height + pad * 2 - ksize) / stride + 1;
-	int dst_w = out_w * out_h;
-	//int dst_h = ksize * ksize * channels;
-	int ky, kx, c;  // kernel row index, kernel col index, img channel index
-	int dst_x, dst_y;
-	float pixel;
-	printf("\nout_w = %d, out_h = %d, dst_w = %d\n", out_w, out_h, dst_w);
-	printf("\nIMG2COL\n");
-	for (c = 0; c < channels; c++) {
-		for (ky = 0; ky < ksize; ky++) {
-			//printf("--");
-			for (kx = 0; kx < ksize; kx++) {
-				printf("\n");
-				for (int img_y = ky - pad; img_y + (ksize - ky - 1) < out_h * stride; img_y += stride) {
-					for (int img_x = kx - pad; img_x + (ksize - kx - 1) < out_w * stride; img_x += stride) {
-						dst_y = c * ksize * ksize + ky * ksize + kx;
-						int out_y = (img_y + ksize - ky - 1) / stride;
-						dst_x = (out_w * out_y) + (img_x + ksize - kx - 1) / stride;
-						if ((img_y < 0) || (img_x < 0)) { 
-							pixel = 0;
+	const int output_h = (height + 2 * pad_h - kernel_h) / stride_h + 1;
+	const int output_w = (width + 2 * pad_w - kernel_w) / stride_w + 1;
+	const int channel_size = height * width;
+	int channel, kernel_row, kernel_col, output_rows, output_col;
+	for (channel = channels; channel--; data_im += channel_size) {
+		for (kernel_row = 0; kernel_row < kernel_h; kernel_row++) {
+			for (kernel_col = 0; kernel_col < kernel_w; kernel_col++) {
+				int input_row = -pad_h + kernel_row;
+				for (output_rows = output_h; output_rows; output_rows--) {
+					if (!is_a_ge_zero_and_a_lt_b(input_row, height)) {
+						for (output_col = output_w; output_col; output_col--) {
+							*(data_col++) = 0;
 						}
-						else if ((img_y >= height) || (img_x >= width)) {
-							pixel = 0;
-						}
-						else {
-							pixel = img[img_y * width + img_x];
-						}
-						dst[dst_y * dst_w + dst_x] = pixel;
-						if (pixel < 10 && pixel >= 0) printf("  %0.0f ", pixel);
-						else if (pixel < 0) printf(" %0.0f ", pixel);
-						else printf("%0.0f ", pixel);
-						printf(" out_w = %d out_y = %d ", out_w, out_y);
-						printf(" math = %d ", (img_x + ksize - kx - 1) / stride);
-						printf(" dst_y = %d, dst_x = %d, dst_y * dst_w + dst_x = %d\n", dst_y, dst_x, dst_y * dst_w + dst_x);
 					}
-					//printf(" -\n");
+					else {
+						int input_col = -pad_w + kernel_col;
+						for (output_col = output_w; output_col; output_col--) {
+							if (is_a_ge_zero_and_a_lt_b(input_col, width)) {
+								*(data_col++) = data_im[input_row * width + input_col];
+							}
+							else {
+								*(data_col++) = 0;
+							}
+							input_col += stride_w;
+						}
+					}
+					input_row += stride_h;
 				}
 			}
 		}
 	}
-	printf("\nEND\n\n");
 }
 
-void test_img2col(void) {
+void im2col_cpu(const float* data_im, const int channels,
+	const int height, const int width, const int ksize,
+	const int pad, const int stride,
+	float* data_col)
+{
+	const int output_h = (height + 2 * pad - ksize) / stride + 1;
+	const int output_w = (width + 2 * pad - ksize) / stride + 1;
+	const int channel_size = height * width;
+	int channel, kernel_row, kernel_col, output_rows, output_col;
+	for (channel = channels; channel--; data_im += channel_size) {
+		for (kernel_row = 0; kernel_row < ksize; kernel_row++) {
+			for (kernel_col = 0; kernel_col < ksize; kernel_col++) {
+				int input_row = -pad + kernel_row;
+				for (output_rows = output_h; output_rows; output_rows--) {
+					if (!is_a_ge_zero_and_a_lt_b(input_row, height)) {
+						for (output_col = output_w; output_col; output_col--) {
+							*(data_col++) = 0;
+						}
+					}
+					else {
+						int input_col = -pad + kernel_col;
+						for (output_col = output_w; output_col; output_col--) {
+							if (is_a_ge_zero_and_a_lt_b(input_col, width)) {
+								*(data_col++) = data_im[input_row * width + input_col];
+							}
+							else {
+								*(data_col++) = 0;
+							}
+							input_col += stride;
+						}
+					}
+					input_row += stride;
+				}
+			}
+		}
+	}
+}
+
+void test_im2col(void) {
 	int width = 3;
 	int height = 3;
-	int channels = 1;
+	int channels = 3;
 	int img_size = width * height * channels;
 	float* img = (float*)xcalloc(img_size, sizeof(float));
 	int pad = 1;
 	int stride = 1;
-	int ksize = 2;
+	int ksize = 3;
 	int out_w = (width + pad * 2 - ksize) / stride + 1;
 	int out_h = (height + pad * 2 - ksize) / stride + 1;
 	int dst_w = out_w * out_h;
@@ -77,26 +109,37 @@ void test_img2col(void) {
 	for (int i = 0; i < img_size; i++) {
 		img[i] = (float)(i + 1);
 	}
-	pprint_mat(img, width, height);
-	img2col(img, width, height, channels, ksize, pad, stride, dst);
-	for (int i = 0; i < dst_size; i++) {
-		printf("%0.0f ", dst[i]);
-	}
-	printf("\n");
-	//pprint_mat(dst, dst_w, dst_h);
+	pprint_mat(img, width, height, channels);
+	im2col_cpu(img, channels, height, width, ksize, pad, stride, dst);
+	pprint_mat(dst, dst_w, dst_h, 1);
 
+	int n_filters = 1;
+	int Awidth = ksize * ksize * channels;
+	int Aheight = n_filters;
+	int Asize = Awidth * Aheight;
+	float* A = (float*)xcalloc(Asize, sizeof(float));
+	for (int i = 0; i < Asize; i++) {
+		A[i] = ((float)i) * (0.1f);
+	}
+	pprint_mat(A, Awidth, Aheight, 1);
+	float* C = (float*)xcalloc(n_filters * dst_w, sizeof(float));
+	mmm_v2(n_filters, dst_w, Awidth, A, dst, C);
+	pprint_mat(C, out_w, out_h, n_filters);
 }
 
-void pprint_mat(float* data, int width, int height) {
-	printf("\nMATRIX\n");
-	for (int row = 0; row < height; row++) {
-		for (int col = 0; col < width; col++) {
-			float val = data[row * width + col];
-			if (val < 10 && val >= 0) printf("  %0.0f ", val);
-			else if (val < 0) printf(" %0.0f ", val);
-			else printf("%0.0f ", val);
+void pprint_mat(float* data, int width, int height, int channels) {
+	printf("\nMATRIX");
+	for (int channel = 0; channel < channels; channel++) {
+		for (int row = 0; row < height; row++) {
+			printf("\n");
+			for (int col = 0; col < width; col++) {
+				float val = data[channel * width * height + row * width + col];
+				if (val < 10 && val >= 0) printf("%0.1f   ", val);
+				else if (val >= 10 && val < 100) printf("%0.1f  ", val);
+				else printf("%0.1f ", val);
+			}
 		}
-		printf("\n");
+		printf("(ch%d)", channel);
 	}
-	printf("end\n\n");
+	printf("\nend\n\n");
 }
