@@ -6,8 +6,8 @@
 extern "C" {
 #endif
 
-	void mmm_v1(int M, int N, int K, float* A, float* B, float* C);
-	void mmm_v2(int M, int N, int K, float* A, float* B, float* C);
+	void gemm_v1(int M, int N, int K, float* A, float* B, float* C);
+	void gemm(int M, int N, int K, float* A, float* B, float* C);
 
 
 #ifdef __cplusplus

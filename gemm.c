@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 
-void mmm_v1(int M, int N, int K, float* A, float* B, float* C) {
+void gemm_v1(int M, int N, int K, float* A, float* B, float* C) {
 	// M = # of filters
 	// N = # of convolutions/dot products performed per filter
 	// K = # of elements per filter
@@ -25,7 +25,7 @@ void mmm_v1(int M, int N, int K, float* A, float* B, float* C) {
 	printf("\nmmm done.\n");
 }
 
-void mmm_v2(int M, int N, int K, float* A, float* B, float* C) {
+void gemm(int M, int N, int K, float* A, float* B, float* C) {
 	// M = # of filters
 	// N = # of convolutions/dot products performed per filter
 	// K = # of elements per filter

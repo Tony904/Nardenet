@@ -64,6 +64,7 @@ extern "C" {
         int id;
         LAYER_TYPE type;
         ACTIVATION activation;
+        void(*activate)  (layer*);
         void(*forward)   (layer*, network*);
         void(*backward)  (layer*, network*);
         void(*update)    (layer*, int, float, float, float); //layer, batch, learning rate, momentum, decay
@@ -83,6 +84,7 @@ extern "C" {
         float* output;  // n_outputs = out_w * out_h * out_c
         floatarr weights;  // n_weights = ksize * ksize * c * n_filters
         float* biases;
+        float* act_input;
         float* delta;  // predicted - truth (?)
         float* means;
         float* variances;

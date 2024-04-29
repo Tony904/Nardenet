@@ -10,6 +10,10 @@ extern "C" {
 #endif
 
 
+	void forward_layer_first(layer* l, network* net);
+	void forward_layer_conv(layer* l, network* net);
+	void backward_layer_first(layer* l, network* net);
+	void backward_layer_conv(layer* l, network* net);
 
 
 #ifdef __cplusplus

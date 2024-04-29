@@ -1,7 +1,8 @@
 #include "network.h"
-#include "xallocs.h"
 #include <assert.h>
 #include <stdlib.h>
+#include "xallocs.h"
+#include "layer_conv.h"
 
 
 void build_first_layer(network* net);
@@ -50,6 +51,8 @@ void build_first_layer(network* net) {
 	l->weights.n = l->n_filters * l->ksize * l->ksize * l->c;
 	l->weights.a = (float*)xcalloc(l->weights.n, sizeof(float));
 	l->biases = (float*)xcalloc(l->n_filters, sizeof(float));
+	l->forward = forward_layer_first;
+	l->backward = backward_layer_first;
 }
 
 // i = layer index in net->layers
@@ -57,6 +60,8 @@ void build_conv_layer(int i, network* net) {
 	layer* l = &(net->layers[i]);
 	layer* ls = net->layers;
 	assert(l->id == i);
+
+	// Set default in_ids and out_ids if none specified.
 	if (l->in_ids.n == 0) {
 		l->in_ids.a = (int*)xcalloc(1, sizeof(int));
 		l->in_ids.a[0] = i - 1;
@@ -69,6 +74,8 @@ void build_conv_layer(int i, network* net) {
 	}
 	l->w = ls[l->in_ids.a[0]].w;
 	l->h = ls[l->in_ids.a[0]].h;
+
+	// Calculate input dimensions.
 	size_t c = 0;
 	for (size_t j = 0; j < l->in_ids.n; j++) {
 		c += ls[j].out_c;
@@ -78,11 +85,13 @@ void build_conv_layer(int i, network* net) {
 	l->c = c;
 	l->n = l->w * l->h * l->c;
 
+	// Build array of input layer addresses.
 	l->in_layers = (layer**)xcalloc(l->in_ids.n, sizeof(layer*));
 	for (size_t j = 0; j < l->in_ids.n; j++) {
 		l->in_layers[j] = &ls[l->in_ids.a[j]];
 	}
 
+	// Calculate output dimensions.
 	l->out_w = ((l->w + (l->pad * 2) - l->ksize) / l->stride) + 1;
 	l->out_h = ((l->h + (l->pad * 2) - l->ksize) / l->stride) + 1;
 	l->out_c = l->n_filters;
@@ -91,6 +100,9 @@ void build_conv_layer(int i, network* net) {
 	l->weights.n = l->n_filters * l->ksize * l->ksize * l->c;
 	l->weights.a = (float*)xcalloc(l->weights.n, sizeof(float));
 	l->biases = (float*)xcalloc(l->n_filters, sizeof(float));
+
+	l->forward = forward_layer_conv;
+	l->backward = backward_layer_conv;
 }
 
 // i = layer index in net->layers
