@@ -32,6 +32,7 @@ void gemm(int M, int N, int K, float* A, float* B, float* C) {
 	// A = filter matrix (M * K)
 	// B = expanded input matrix (K * N)
 	// C = output dot products (M * N)
+#pragma omp parallel for collapse(3)
 	for (int m = 0; m < M; m++) {
 		for (int k = 0; k < K; k++) {
 			float a = A[m * K + k];

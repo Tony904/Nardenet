@@ -12,7 +12,7 @@ void print_weights(network* net);
 
 void train(network* net) {
 	initialize_weights_kaiming(net);
-
+	//forward_network_train(net, img);
 }
 
 void forward_network_train(network* net, image* img) {

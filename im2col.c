@@ -52,7 +52,7 @@ void im2col_cpu_general(const float* data_im, const int channels,
 	}
 }
 
-void im2col_cpu(const float* data_im, const int channels,
+float* im2col_cpu(const float* data_im, const int channels,
 	const int height, const int width, const int ksize,
 	const int pad, const int stride,
 	float* data_col)
@@ -88,6 +88,7 @@ void im2col_cpu(const float* data_im, const int channels,
 			}
 		}
 	}
+	return data_col;
 }
 
 void test_im2col(void) {
