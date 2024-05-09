@@ -173,12 +173,12 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>OPENCV;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard_C>Default</LanguageStandard_C>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <LanguageStandard>Default</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <TreatWarningAsError>true</TreatWarningAsError>
-      <DisableSpecificWarnings>4388;4820;5045</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4388;4820;5045;5054</DisableSpecificWarnings>
       <OpenMPSupport>true</OpenMPSupport>
     </ClCompile>
     <Link>
@@ -198,12 +198,12 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>OPENCV;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard_C>Default</LanguageStandard_C>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <LanguageStandard>Default</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <TreatWarningAsError>true</TreatWarningAsError>
-      <DisableSpecificWarnings>4388;4820;5045</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4388;4820;5045;5054</DisableSpecificWarnings>
       <OpenMPSupport>true</OpenMPSupport>
     </ClCompile>
     <Link>
@@ -225,9 +225,9 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>OPENMP;OPENCV;NDEBUG;_CONSOLE;LIB_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard_C>Default</LanguageStandard_C>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <LanguageStandard>Default</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
       <Optimization>MaxSpeed</Optimization>
       <UndefinePreprocessorDefinitions>
       </UndefinePreprocessorDefinitions>
@@ -237,7 +237,7 @@
       </EnableModules>
       <OpenMPSupport>true</OpenMPSupport>
       <TreatWarningAsError>true</TreatWarningAsError>
-      <DisableSpecificWarnings>4388;4820;5045</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4388;4820;5045;5054</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>

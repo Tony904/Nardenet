@@ -93,7 +93,7 @@ void zz_xfree(void* ptr, const char* const filename, const char* const funcname,
     if (!ptr) return;
     alloc_list_free_node((void* const)ptr);
     free(ptr);
-    ptr = NULL;
+    //ptr = NULL;
 }
 
 static void print_location_and_exit(const char * const filename, const char * const funcname, const int line) {

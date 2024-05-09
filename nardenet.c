@@ -11,16 +11,26 @@
 int main(void) {
 	
 
-	/*char* filename = "D:/TonyDev/NardeNet/nardenet.cfg";
-	network* net = create_network_from_cfg(filename);
-	print_network(net);*/
+	char* cfgfile = "D:/TonyDev/NardeNet/nardenet.cfg";
+	network* net = create_network_from_cfg(cfgfile);
+	print_network(net);
 	
-	//train(net);
+	image* img = load_file_to_image("D:\\TonyDev\\NardeNet\\images\\one_28x28.jpg");
+	net->input = img;
+	train(net);
+
+	layer* l = &net->layers[net->n_layers - 1];
+	image dst = { 0 };
+	dst.data = l->output;
+	dst.w = l->out_w;
+	dst.h = l->out_h;
+	dst.c = 3;
+	show_image(&dst);
 
 	//free_network(net);
 	//print_alloc_list();
 
-	test_im2col();
+	//test_im2col();
 
 
 

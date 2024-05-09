@@ -2,29 +2,39 @@
 
 #include <stdio.h>
 #include <math.h>
+#include <assert.h>
 #include "utils.h"
 #include "image.h"
 
 
+void forward_network_train(network* net, image* img);
 void initialize_weights_kaiming(network* net);
 void print_weights(network* net);
 
 
 void train(network* net) {
 	initialize_weights_kaiming(net);
-	//forward_network_train(net, img);
+	forward_network_train(net, net->input);
 }
 
 void forward_network_train(network* net, image* img) {
-	if (net->w != img->w || net->h != img->h || net->c != img->h) {
+	if (net->w != img->w || net->h != img->h || net->c != img->c) {
 		printf("Input image does not match network dimensions.\n");
+		printf("img w,h,c = %zu,%zu,%zu\n", img->w, img->h, img->c);
+		printf("net w,h,c = %zu,%zu,%zu\n", net->w, net->h, net->c);
 		print_location(NARDENET_LOCATION);
+		printf("\n\nPress ENTER to exit the program.");
+		(void)getchar();
 		exit(EXIT_FAILURE);
 	}
 	net->input = img;
-	for (size_t i = 0; net->n_layers; i++) {
+	for (size_t i = 0; i < net->n_layers; i++) {
+		printf("Forwarding layer index %zu...\n", i);
+		assert(net->layers[i].forward);
 		net->layers[i].forward(&net->layers[i], net);
+		printf("Forward done.\n");
 	}
+	printf("All layers forwarded.\n");
 	// float* prediction = network_get_prediction;
 }
 

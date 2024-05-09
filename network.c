@@ -1,14 +1,17 @@
 #include "network.h"
 #include <assert.h>
 #include <stdlib.h>
+#include <omp.h>
 #include "xallocs.h"
 #include "layer_conv.h"
+#include "layer_classify.h"
 
 
 void build_first_layer(network* net);
 void build_layer(int i, network* net);
 void build_conv_layer(int i, network* net);
 void build_classify_layer(int i, network* net);
+void set_activate(layer* l);
 void free_network(network* net);
 void free_layers(network* net);
 void free_layer_members(layer* l);
@@ -51,8 +54,11 @@ void build_first_layer(network* net) {
 	l->weights.n = l->n_filters * l->ksize * l->ksize * l->c;
 	l->weights.a = (float*)xcalloc(l->weights.n, sizeof(float));
 	l->biases = (float*)xcalloc(l->n_filters, sizeof(float));
+	l->act_input = (float*)xcalloc(l->out_n, sizeof(float));
+
 	l->forward = forward_layer_first;
 	l->backward = backward_layer_first;
+	set_activate(l);
 }
 
 // i = layer index in net->layers
@@ -75,21 +81,21 @@ void build_conv_layer(int i, network* net) {
 	l->w = ls[l->in_ids.a[0]].w;
 	l->h = ls[l->in_ids.a[0]].h;
 
-	// Calculate input dimensions.
-	size_t c = 0;
-	for (size_t j = 0; j < l->in_ids.n; j++) {
-		c += ls[j].out_c;
-		assert(l->w == ls[j].out_w);
-		assert(l->h == ls[j].out_h);
-	}
-	l->c = c;
-	l->n = l->w * l->h * l->c;
-
 	// Build array of input layer addresses.
 	l->in_layers = (layer**)xcalloc(l->in_ids.n, sizeof(layer*));
 	for (size_t j = 0; j < l->in_ids.n; j++) {
 		l->in_layers[j] = &ls[l->in_ids.a[j]];
 	}
+
+	// Calculate input dimensions.
+	l->c = 0;
+	for (size_t j = 0; j < l->in_ids.n; j++) {
+		layer* in_layer = l->in_layers[j];
+		assert(l->w == in_layer->out_w);
+		assert(l->h == in_layer->out_h);
+		l->c += in_layer->out_c;
+	}
+	l->n = l->w * l->h * l->c;
 
 	// Calculate output dimensions.
 	l->out_w = ((l->w + (l->pad * 2) - l->ksize) / l->stride) + 1;
@@ -97,12 +103,15 @@ void build_conv_layer(int i, network* net) {
 	l->out_c = l->n_filters;
 	l->out_n = l->out_w * l->out_h * l->out_c;
 
+	l->output = (float*)xcalloc(l->out_n, sizeof(float));
 	l->weights.n = l->n_filters * l->ksize * l->ksize * l->c;
 	l->weights.a = (float*)xcalloc(l->weights.n, sizeof(float));
 	l->biases = (float*)xcalloc(l->n_filters, sizeof(float));
+	l->act_input = (float*)xcalloc(l->out_n, sizeof(float));
 
 	l->forward = forward_layer_conv;
 	l->backward = backward_layer_conv;
+	set_activate(l);
 }
 
 // i = layer index in net->layers
@@ -142,11 +151,40 @@ void build_classify_layer(int i, network* net) {
 	l->out_c = l->n_filters;
 	l->out_n = l->out_w * l->out_h * l->out_c;
 
+	l->output = (float*)xcalloc(l->out_n, sizeof(float));
 	l->weights.n = l->n_filters * l->n;
 	l->weights.a = (float*)xcalloc(l->weights.n, sizeof(float));
 	l->biases = (float*)xcalloc(l->n_filters, sizeof(float));
-
+	l->act_input = (float*)xcalloc(l->out_n, sizeof(float));
 	l->stride = 1;
+
+	l->forward = forward_layer_classify;
+	l->backward = backward_layer_classify;
+	set_activate(l);
+}
+
+void set_activate(layer* l) {
+	if (l->type == CONV) {
+		switch (l->activation) {
+		case RELU:
+			l->activate = activate_conv_relu;
+			break;
+		case MISH:
+			l->activate = activate_conv_mish;
+			break;
+		case LOGISTIC:
+			l->activate = activate_conv_logistic;
+			break;
+		default:
+			l->activate = activate_conv_none;
+			break;
+		}
+		return;
+	}
+	else if (l->type == CLASSIFY) {
+		l->activate = activate_classify;
+		return;
+	}
 }
 
 void free_network(network* n) {
@@ -288,3 +326,5 @@ void print_cost_type(COST_TYPE c) {
 	else if (c == CCE) printf("cce\n");
 	else printf("NONE\n");
 }
+
+

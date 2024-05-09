@@ -51,7 +51,7 @@ void im2col_cpu_general(const float* data_im, const int channels,
 		}
 	}
 }
-
+// channels, height, width are dimensions of input image data_im
 float* im2col_cpu(const float* data_im, const int channels,
 	const int height, const int width, const int ksize,
 	const int pad, const int stride,
@@ -124,7 +124,7 @@ void test_im2col(void) {
 	}
 	pprint_mat(A, Awidth, Aheight, 1);
 	float* C = (float*)xcalloc(n_filters * dst_w, sizeof(float));
-	mmm_v2(n_filters, dst_w, Awidth, A, dst, C);
+	gemm(n_filters, dst_w, Awidth, A, dst, C);
 	pprint_mat(C, out_w, out_h, n_filters);
 }
 

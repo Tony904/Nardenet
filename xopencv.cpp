@@ -55,7 +55,7 @@ extern "C" {
             std::cout << "Incompatible # of channels: " << src.channels() << "\nNardenet only supports images with 1 or 3 channels.\n";
             return NULL;
         }
-        show_cvmat(&dst);
+        //show_cvmat(&dst);
         return cvmat2image(&dst);
     }
 
