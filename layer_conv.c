@@ -9,7 +9,7 @@
 #include "xarrays.h"
 
 
-void forward_layer_first(layer* l, network* net) {
+void forward_first(layer* l, network* net) {
 	int M = (int)(l->n_filters);
 	int N = (int)(l->out_w * l->out_h);
 	int K = (int)(l->ksize * l->ksize * l->c);
@@ -24,7 +24,7 @@ void forward_layer_first(layer* l, network* net) {
 }
 
 #pragma warning(suppress:4100)
-void forward_layer_conv(layer* l, network* net) {
+void forward_conv(layer* l, network* net) {
 	int M = (int)(l->n_filters);
 	int N = (int)(l->out_w * l->out_h);
 	int K = (int)(l->ksize * l->ksize * l->c);
@@ -34,7 +34,6 @@ void forward_layer_conv(layer* l, network* net) {
 	float* C = l->output;
 	int w = (int)l->w;
 	int h = (int)l->h;
-	// I think this will work...? I dont think it works. Access violations when layer has 2+ in_ids.
 	for (int i = 0; i < l->in_ids.n; i++) {
 		assert(w == (int)l->in_layers[i]->out_w);
 		assert(h == (int)l->in_layers[i]->out_h);
@@ -88,10 +87,10 @@ void activate_conv_none(layer* l) {
 	l;
 }
 
-void backward_layer_first(layer* l, network* net) {
+void backprop_first(layer* l, network* net) {
 	l; net;
 }
 
-void backward_layer_conv(layer* l, network* net) {
+void backprop_conv(layer* l, network* net) {
 	l; net;
 }

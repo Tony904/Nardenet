@@ -25,14 +25,13 @@ int main(void) {
 	dst.w = l->out_w;
 	dst.h = l->out_h;
 	dst.c = 3;
+	print_image_matrix(&dst);
 	show_image(&dst);
 
 	//free_network(net);
 	//print_alloc_list();
 
 	//test_im2col();
-
-
 
 
 #ifdef _DEBUG

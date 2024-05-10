@@ -66,7 +66,7 @@ extern "C" {
         ACTIVATION activation;
         void(*activate)  (layer*);
         void(*forward)   (layer*, network*);
-        void(*backward)  (layer*, network*);
+        void(*backprop)  (layer*, network*);
         void(*update)    (layer*, int, float, float, float); //layer, batch, learning rate, momentum, decay
         size_t batch_size;
         size_t n_filters;

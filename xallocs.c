@@ -99,6 +99,8 @@ void zz_xfree(void* ptr, const char* const filename, const char* const funcname,
 static void print_location_and_exit(const char * const filename, const char * const funcname, const int line) {
 #pragma warning(suppress:4996)  // C4996: Use of deprecated function, variable, or typedef. (strerror)
     fprintf(stderr, "Nardenet error location: %s, %s, line %d\nError Code %d: %s", filename, funcname, line, errno, strerror(errno));
+    printf("\n\nPress ENTER to exit the program.");
+    (void)getchar();
     exit(EXIT_FAILURE);
 }
 

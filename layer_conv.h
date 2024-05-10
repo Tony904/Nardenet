@@ -10,10 +10,10 @@ extern "C" {
 #endif
 
 
-	void forward_layer_first(layer* l, network* net);
-	void forward_layer_conv(layer* l, network* net);
-	void backward_layer_first(layer* l, network* net);
-	void backward_layer_conv(layer* l, network* net);
+	void forward_first(layer* l, network* net);
+	void forward_conv(layer* l, network* net);
+	void backprop_first(layer* l, network* net);
+	void backprop_conv(layer* l, network* net);
 	void activate_conv_relu(layer* l);
 	void activate_conv_mish(layer* l);
 	void activate_conv_logistic(layer* l);

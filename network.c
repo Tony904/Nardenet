@@ -56,8 +56,8 @@ void build_first_layer(network* net) {
 	l->biases = (float*)xcalloc(l->n_filters, sizeof(float));
 	l->act_input = (float*)xcalloc(l->out_n, sizeof(float));
 
-	l->forward = forward_layer_first;
-	l->backward = backward_layer_first;
+	l->forward = forward_first;
+	l->backprop = backprop_first;
 	set_activate(l);
 }
 
@@ -109,8 +109,8 @@ void build_conv_layer(int i, network* net) {
 	l->biases = (float*)xcalloc(l->n_filters, sizeof(float));
 	l->act_input = (float*)xcalloc(l->out_n, sizeof(float));
 
-	l->forward = forward_layer_conv;
-	l->backward = backward_layer_conv;
+	l->forward = forward_conv;
+	l->backprop = backprop_conv;
 	set_activate(l);
 }
 
@@ -146,20 +146,24 @@ void build_classify_layer(int i, network* net) {
 		l->in_layers[j] = &ls[l->in_ids.a[j]];
 	}
 
-	l->out_w = 1;
-	l->out_h = 1;
+	l->pad = 0;
+	l->stride = 1;
+	assert(l->w == l->h);
+	l->ksize = l->w;
+
+	l->out_w = ((l->w + (l->pad * 2) - l->ksize) / l->stride) + 1;
+	l->out_h = ((l->h + (l->pad * 2) - l->ksize) / l->stride) + 1;
 	l->out_c = l->n_filters;
 	l->out_n = l->out_w * l->out_h * l->out_c;
 
 	l->output = (float*)xcalloc(l->out_n, sizeof(float));
-	l->weights.n = l->n_filters * l->n;
+	l->weights.n = l->n_filters * l->ksize * l->ksize * l->c;
 	l->weights.a = (float*)xcalloc(l->weights.n, sizeof(float));
 	l->biases = (float*)xcalloc(l->n_filters, sizeof(float));
 	l->act_input = (float*)xcalloc(l->out_n, sizeof(float));
-	l->stride = 1;
-
-	l->forward = forward_layer_classify;
-	l->backward = backward_layer_classify;
+	
+	l->forward = forward_classify;
+	l->backprop = backprop_classify;
 	set_activate(l);
 }
 
