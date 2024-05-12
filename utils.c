@@ -1,13 +1,19 @@
 #include "utils.h"
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <errno.h>
 #include <string.h>
 #include <inttypes.h>
 #include <assert.h>
 #include <math.h>
+#include "xallocs.h"
+
 
 
 static void print_location_and_exit(const char* const filename, const char* const funcname, const int line);
+int is_valid_fopen_mode(char* mode);
+static void print_error_and_exit(const char* const filename);
 
 
 int zz_str2int(char* str, const char* const filename, const char* const funcname, const int line) {
@@ -70,11 +76,6 @@ int char_in_string(char c, char* str) {
 	return 0;
 }
 
-static void print_location_and_exit(const char* const filename, const char* const funcname, const int line) {
-	fprintf(stderr, "Nardenet error location: %s, %s, line %d\n", filename, funcname, line);
-	exit(EXIT_FAILURE);
-}
-
 double randn(double mean, double stddev) {
 	static double n2 = 0.0;
 	static int n2_cached = 0;
@@ -97,4 +98,126 @@ double randn(double mean, double stddev) {
 		return x * d * stddev + mean;
 	}
 
+}
+
+/*
+Allocates char array of size 512 and stores result of fgets.
+Returns array on success.
+Returns 0 if fgets failed.
+*/
+char* read_line(FILE* file) {
+	int size = 512;
+	char* line = (char*)xcalloc(size, sizeof(char));
+	if (!fgets(line, size, file)) {  // fgets returns null pointer on fail or end-of-file
+		xfree(line);
+		return 0;
+	}
+	return line;
+}
+
+/*
+Removes whitespaces and line-end characters.
+Removes comment character '#' and all characters after.
+*/
+void clean_string(char* str) {
+	size_t length = strlen(str);
+	size_t offset = 0;
+	size_t i;
+	char c;
+	for (i = 0; i < length; i++) {
+		c = str[i];
+		if (c == '#') break;  // '#' is used for comments
+		if (c == ' ' || c == '\n' || c == '\r') offset++;
+		else str[i - offset] = c;
+	}
+	str[i - offset] = '\0';
+}
+
+/*
+Splits string by delimiter and returns a null-terminated char* array with pointers to str.
+Modifies str.
+*/
+char** split_string(char* str, char* delimiters) {
+	size_t length = strlen(str);
+	if (!length) return NULL;
+	size_t i = 0;
+	if (char_in_string(str[0], delimiters) || char_in_string(str[length - 1], delimiters)) {
+		fprintf(stderr, "Line must not start or end with delimiter.\nDelimiters: %s\n Line: %s\n", delimiters, str);
+		exit(EXIT_FAILURE);
+	}
+	size_t count = 1;
+	for (i = 0; i < length; i++) {
+		if (char_in_string(str[i], delimiters)) {
+			if (char_in_string(str[i + 1], delimiters)) {
+				fprintf(stderr, "Line must not contain consecutive delimiters.\nDelimiters: %s\n Line: %s\n", delimiters, str);
+				exit(EXIT_FAILURE);
+			}
+			count++;
+		}
+	}
+	char** strings = (char**)xcalloc(count + 1, sizeof(char*));
+	strings[0] = &str[0];
+	size_t j = 1;
+	if (count > 1)
+		for (i = 1; i < length; i++) {
+			if (char_in_string(str[i], delimiters)) {
+				str[i] = '\0';
+				strings[j] = &str[i + 1];
+				j++;
+				i++;
+			}
+		}
+	strings[count] = NULL;
+	return strings;
+}
+
+FILE* get_filestream(char* filename, char* mode) {
+#pragma warning(suppress:4996)
+	FILE* file = fopen(filename, mode);
+	if (file == 0) {
+		print_error_and_exit(filename);
+	}
+	return file;
+}
+
+void close_filestream(FILE* filestream) {
+	if (fclose(filestream) == EOF) {
+		fprintf(stderr, "Error occured while closing a filestream. Continuing.");
+	}
+	filestream = NULL;
+}
+
+int is_valid_fopen_mode(char* mode) {
+	char* modes[6] = { "r", "w", "a", "r+", "w+", "a+" };
+	for (int i = 0; i < 6; i++) {
+		if (strcmp(mode, modes[i]) == 0) return 1;
+	}
+	return 0;
+}
+
+size_t get_line_count(FILE* file) {
+	const size_t size = (size_t)-1;  // portable way to get max value storeable in a size_t
+	char buf[size];
+	size_t counter = 0;
+	while (1) {
+		size_t ret = fread((void*)buf, 1, size, file);
+		if (ferror(file)) print_location_and_exit(NARDENET_LOCATION);
+		for (size_t i = 0; i < ret; i++) {
+			if (buf[i] == '\n') counter++;
+		}
+		if (feof(file)) break;
+	}
+	rewind(file);
+	return counter;
+}
+
+static void print_error_and_exit(const char* const filename) {
+#pragma warning(suppress:4996)
+	fprintf(stderr, "Failed to open file: %s\nError Code %d: %s", filename, errno, strerror(errno));
+	exit(EXIT_FAILURE);
+}
+
+static void print_location_and_exit(const char* const filename, const char* const funcname, const int line) {
+	fprintf(stderr, "Nardenet error location: %s, %s, line %d\n", filename, funcname, line);
+	exit(EXIT_FAILURE);
 }

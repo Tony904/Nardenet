@@ -1,7 +1,6 @@
 #include "cfg.h"
 #include "list.h"
 #include "xallocs.h"
-#include "file_utils.h"
 #include "utils.h"
 #include <stdio.h>
 #include <string.h>
@@ -9,9 +8,6 @@
 
 
 list* get_cfg_sections(char* filename, size_t* n_layers);
-char* read_line(FILE* file);
-void clean_string(char* s);
-char** split_string(char* str, char* delimiters);
 void append_cfg_section(list* lst, char* header);
 cfg_net* new_cfg_net(void);
 cfg_training* new_cfg_training(void);
@@ -21,7 +17,6 @@ void set_param_cfg_net(cfg_section* section, char** tokens);
 void set_param_cfg_training(cfg_section* section, char** tokens);
 void set_param_cfg_conv(cfg_section* section, char** tokens);
 void set_param_cfg_classify(cfg_section* section, char** tokens);
-int* tokens2intarray(char** tokens, size_t offset, size_t* array_length);
 LR_POLICY str2lr_policy(char* str);
 ACTIVATION str2activation(char* str);
 COST_TYPE str2cost(char* str);
@@ -49,6 +44,7 @@ void free_cfg_net(cfg_net* s);
 void free_cfg_training(cfg_training* s);
 void free_cfg_conv(cfg_conv* s);
 void free_cfg_classify(cfg_classify* s);
+
 
 static char* headers[] = { "[net]", "[training]", "[conv]", "[classify]", "\0"};
 
@@ -270,7 +266,7 @@ void set_param_cfg_classify(cfg_section* section, char** tokens) {
 
 list* get_cfg_sections(char* filename, size_t* n_layers) {
 	*n_layers = 0;
-	FILE* file = get_file(filename, "r");
+	FILE* file = get_filestream(filename, "r");
 	char* line;
 	list* sections = new_list();
 	cfg_section* section;
@@ -357,77 +353,6 @@ LAYER_TYPE header2layertype(char* header) {
 	if (strcmp(header, "[conv]") == 0) return CONV;
 	if (strcmp(header, "[classify]") == 0) return CLASSIFY;
 	return NONE_LAYER;
-}
-
-/*
-Allocates char array of size 512 and stores result of fgets.
-Returns array on success.
-Returns 0 if fgets failed.
-*/
-char* read_line(FILE* file) {
-	int size = 512;
-	char* line = (char*)xcalloc(size, sizeof(char));
-	if (!fgets(line, size, file)) {  // fgets returns null pointer on fail or end-of-file
-		xfree(line);
-		return 0;
-	}
-	return line;
-}
-
-/*
-Removes whitespaces and line-end characters.
-Removes comment character '#' and all characters after.
-*/
-void clean_string(char* str) {
-	size_t length = strlen(str);
-	size_t offset = 0;
-	size_t i;
-	char c;
-	for (i = 0; i < length; i++) {
-		c = str[i];
-		if (c == '#') break;  // '#' is used for comments
-		if (c == ' ' || c == '\n' || c == '\r') offset++;
-		else str[i - offset] = c;
-	}
-	str[i - offset] = '\0';
-}
-
-/*
-Splits string by delimiter and returns a null-terminated char* array with pointers to str.
-Modifies str.
-*/
-char** split_string(char* str, char* delimiters) {
-	size_t length = strlen(str);
-	if (!length) return NULL;
-	size_t i = 0;
-	if (char_in_string(str[0], delimiters) || char_in_string(str[length - 1], delimiters)) {
-		fprintf(stderr, "Line must not start or end with delimiter.\nDelimiters: %s\n Line: %s\n", delimiters, str);
-		exit(EXIT_FAILURE);
-	}
-	size_t count = 1;
-	for (i = 0; i < length; i++) {
-		if (char_in_string(str[i], delimiters)) {
-			if (char_in_string(str[i + 1], delimiters)) {
-				fprintf(stderr, "Line must not contain consecutive delimiters.\nDelimiters: %s\n Line: %s\n", delimiters, str);
-				exit(EXIT_FAILURE);
-			}
-			count++;
-		}
-	}
-	char** strings = (char**)xcalloc(count + 1, sizeof(char*));
-	strings[0] = &str[0];
-	size_t j = 1;
-	if (count > 1)
-		for (i = 1; i < length; i++) {
-			if (char_in_string(str[i], delimiters)) {
-				str[i] = '\0';
-				strings[j] = &str[i + 1];
-				j++;
-				i++;
-			}
-		}
-	strings[count] = NULL;
-	return strings;
 }
 
 floatarr tokens2floatarr(char** tokens, size_t offset) {

@@ -5,7 +5,6 @@
 #include "locmacro.h"
 
 
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -21,6 +20,12 @@ size_t zz_str2sizet(char* string, const char* const filename, const char* const 
 
 int char_in_string(char c, char* str);
 double randn(double mean, double stddev);
+char* read_line(FILE* file);
+void clean_string(char* s);
+char** split_string(char* str, char* delimiters);
+FILE* get_filestream(char* filename, char* mode);
+void close_filestream(FILE* filestream);
+size_t get_line_count(FILE* file);
 
 
 #ifdef _cplusplus
