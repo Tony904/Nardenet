@@ -10,9 +10,10 @@
 #include "xallocs.h"
 
 
+#define BUFSIZE (size_t)1024
 
-static void print_location_and_exit(const char* const filename, const char* const funcname, const int line);
 int is_valid_fopen_mode(char* mode);
+static void print_location_and_exit(const char* const filename, const char* const funcname, const int line);
 static void print_error_and_exit(const char* const filename);
 
 
@@ -171,6 +172,16 @@ char** split_string(char* str, char* delimiters) {
 	return strings;
 }
 
+int file_exists(char* filename) {
+	FILE* file = fopen(filename, "r");
+	if (file) {
+		close_filestream(file);
+		return 1;
+	}
+	printf("File %s does not exist.\n", filename);
+	return 0;
+}
+
 FILE* get_filestream(char* filename, char* mode) {
 #pragma warning(suppress:4996)
 	FILE* file = fopen(filename, mode);
@@ -184,7 +195,6 @@ void close_filestream(FILE* filestream) {
 	if (fclose(filestream) == EOF) {
 		fprintf(stderr, "Error occured while closing a filestream. Continuing.");
 	}
-	filestream = NULL;
 }
 
 int is_valid_fopen_mode(char* mode) {
@@ -196,19 +206,35 @@ int is_valid_fopen_mode(char* mode) {
 }
 
 size_t get_line_count(FILE* file) {
-	const size_t size = (size_t)-1;  // portable way to get max value storeable in a size_t
-	char buf[size];
+	char buf[BUFSIZE];
 	size_t counter = 0;
 	while (1) {
-		size_t ret = fread((void*)buf, 1, size, file);
+		size_t n = fread((void*)buf, 1, BUFSIZE, file);
 		if (ferror(file)) print_location_and_exit(NARDENET_LOCATION);
-		for (size_t i = 0; i < ret; i++) {
+		if (n == 0) return (size_t)0;
+		size_t i;
+		for (i = 0; i < n; i++) {
 			if (buf[i] == '\n') counter++;
 		}
+		if (buf[i] != '\n') counter++;
 		if (feof(file)) break;
 	}
 	rewind(file);
 	return counter;
+}
+
+size_t tokens_length(char** tokens) {
+	size_t i = 0;
+	while (tokens[i] != NULL) {
+		i++;
+	}
+	return i;
+}
+
+void wait_for_key_then_exit(void) {
+	printf("\n\nPress ENTER to exit the program.");
+	(void)getchar();
+	exit(EXIT_FAILURE);
 }
 
 static void print_error_and_exit(const char* const filename) {

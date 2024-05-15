@@ -23,9 +23,12 @@ double randn(double mean, double stddev);
 char* read_line(FILE* file);
 void clean_string(char* s);
 char** split_string(char* str, char* delimiters);
+int file_exists(char* filename);
 FILE* get_filestream(char* filename, char* mode);
 void close_filestream(FILE* filestream);
 size_t get_line_count(FILE* file);
+size_t tokens_length(char** tokens);
+void wait_for_key_then_exit(void);
 
 
 #ifdef _cplusplus

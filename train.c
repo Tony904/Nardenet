@@ -5,19 +5,26 @@
 #include <assert.h>
 #include "utils.h"
 #include "image.h"
+#include "data.h"
+#include "xopencv.h"
 
 
-void forward_network_train(network* net, image* img);
+void forward_network_train(network* net, sample* samp);
 void initialize_weights_kaiming(network* net);
 void print_weights(network* net);
 
 
 void train(network* net) {
 	initialize_weights_kaiming(net);
-	forward_network_train(net, net->input);
+	net->samples = load_samples(net->data_folder);
+	size_t n = net->n_samples;
+	for (size_t i = 0; i < n; i++) {
+		forward_network_train(net, &net->samples[i]);
+	}
 }
 
-void forward_network_train(network* net, image* img) {
+void forward_network_train(network* net, sample* samp) {
+	image* img = load_file_to_image(samp->imgpath);
 	if (net->w != img->w || net->h != img->h || net->c != img->c) {
 		printf("Input image does not match network dimensions.\n");
 		printf("img w,h,c = %zu,%zu,%zu\n", img->w, img->h, img->c);
@@ -27,7 +34,6 @@ void forward_network_train(network* net, image* img) {
 		(void)getchar();
 		exit(EXIT_FAILURE);
 	}
-	net->input = img;
 	for (size_t i = 0; i < net->n_layers; i++) {
 		printf("Forwarding layer index %zu...\n", i);
 		assert(net->layers[i].forward);

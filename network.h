@@ -1,9 +1,10 @@
 #ifndef NETWORK_H
 #define NETWORK_H
 
+#include <stdlib.h>
 #include "xarrays.h"
 #include "image.h"
-#include <stdlib.h>
+#include "data.h"
 
 
 #ifdef __cplusplus
@@ -50,6 +51,9 @@ extern "C" {
         float saturation[2];
         float exposure[2];
         float hue[2];
+        char* data_folder;
+        size_t n_samples;
+        sample* samples;
         image* input;
         layer* layers;
         float* output;

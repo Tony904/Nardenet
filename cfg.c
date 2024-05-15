@@ -22,7 +22,6 @@ ACTIVATION str2activation(char* str);
 COST_TYPE str2cost(char* str);
 floatarr tokens2floatarr(char** tokens, size_t offset);
 intarr tokens2intarr(char** tokens, size_t offset);
-size_t tokens_length(char** tokens);
 void print_tokens(char** tokens);
 void print_cfg_net(cfg_net* s);
 void print_cfg_training(cfg_training* s);
@@ -379,14 +378,6 @@ intarr tokens2intarr(char** tokens, size_t offset) {
 		iarr.a[i] = str2int(tokens[i + offset]);
 	}
 	return iarr;
-}
-
-size_t tokens_length(char** tokens) {
-	size_t i = 0;
-	while (tokens[i] != NULL) {
-		i++;
-	}
-	return i;
 }
 
 LR_POLICY str2lr_policy(char* str) {
