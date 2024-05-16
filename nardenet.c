@@ -7,15 +7,15 @@
 #include "im2col.h"
 
 
-
 int main(void) {
 	
 
-	char* cfgfile = "D:/TonyDev/NardeNet/nardenet.cfg";
+	char* cfgfile = "D:/TonyDev/NardeNet/models/nardenet.cfg";
+	char* datafile = "D:/TonyDev/NardeNet/paths.data";
 	network* net = create_network_from_cfg(cfgfile);
 	print_network(net);
 	
-	image* img = load_file_to_image("D:\\TonyDev\\NardeNet\\images\\one_28x28.jpg");
+	/*image* img = load_file_to_image("D:\\TonyDev\\NardeNet\\images\\one_28x28.jpg");
 	net->input = img;
 	train(net);
 
@@ -26,7 +26,7 @@ int main(void) {
 	dst.h = l->out_h;
 	dst.c = 3;
 	print_image_matrix(&dst);
-	show_image(&dst);
+	show_image(&dst);*/
 
 	//free_network(net);
 	//print_alloc_list();

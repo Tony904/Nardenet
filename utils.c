@@ -109,7 +109,7 @@ Returns 0 if fgets failed.
 char* read_line(FILE* file) {
 	int size = 512;
 	char* line = (char*)xcalloc(size, sizeof(char));
-	if (!fgets(line, size, file)) {  // fgets returns null pointer on fail or end-of-file
+	if (!fgets(line, size, file)) {  // fgets returns null pointer on fail or end-of-file + no chars read
 		xfree(line);
 		return 0;
 	}

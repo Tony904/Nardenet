@@ -13,7 +13,7 @@ sample* load_samples(char* folder) {
 sample* load_sample(char* txtfile, char* imgfile) {
 	if (!file_exists(imgfile)) wait_for_key_then_exit();
 	FILE* file = get_filestream(txtfile, "r");
-	size_t n_lines = get_line_count(txtfile);
+	size_t n_lines = get_line_count(file);
 	sample* samp = (sample*)xcalloc(1, sizeof(sample));
 	samp->nboxes = n_lines;
 	samp->imgpath = imgfile;
@@ -49,4 +49,43 @@ sample* load_sample(char* txtfile, char* imgfile) {
 void free_sample(sample* samp) {
 	xfree(samp->bboxes);
 	xfree(samp);
+}
+
+data_paths* get_data_paths(char* datafile) {
+	if (!file_exists(datafile)) wait_for_key_then_exit();
+	FILE* file = get_filestream(datafile, "r");
+	size_t n = 0;
+	char* line;
+	while (line = read_line(file), line != 0) {
+		clean_string(line);
+		char** tokens = split_string(line, "=");
+		if (tokens == NULL) {
+			printf("Error parsing string.\n");
+			printf("Line %zu, file %s\n", n, datafile);
+			wait_for_key_then_exit();
+		}
+		size_t length = tokens_length(tokens);
+		data_paths* dp = (data_paths*)xcalloc(1, sizeof(data_paths));
+		if (strcmp(tokens[0], "data_directory") == 0) {
+			dp->data_dir = tokens[1];
+		}
+		else if (strcmp(tokens[0], "images_folder") == 0) {
+			dp->images_dir = tokens[1];
+		}
+		else if (strcmp(tokens[0], "annotations_folder") == 0) {
+			dp->annots_dir = tokens[1];
+		}
+		else if (strcmp(tokens[0], "classes_file") == 0) {
+			dp->classes_file = tokens[1];
+		}
+		else if (strcmp(tokens[0], "backup_folder") == 0) {
+			dp->backup_dir = tokens[1];
+		}
+		else if (strcmp(tokens[0], "weights_file") == 0) {
+			dp->weights_file = tokens[1];
+		}
+		else if (strcmp(tokens[0], "cfg_file") == 0) {
+			dp->cfg_file = tokens[1];
+		}
+	}
 }
