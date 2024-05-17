@@ -15,8 +15,9 @@ extern "C" {
 	typedef struct data_paths;
 
 	sample* load_samples(char* folder);
-	sample* load_sample(char* txtfile, char* imgfile);
+	sample* load_sample(char* antfile, char* imgfile);
 	void free_sample(sample* samp);
+	void free_data_paths(data_paths* dp);
 
 
 	typedef struct bbox {
@@ -36,8 +37,8 @@ extern "C" {
 
 	typedef struct data_paths {
 		char* data_dir;
-		char* images_dir;
-		char* annots_dir;
+		char* imgs_dir;
+		char* ants_dir;
 		char* classes_file;
 		char* backup_dir;
 		char* weights_file;
