@@ -8,9 +8,14 @@
 #include <assert.h>
 #include <math.h>
 #include "xallocs.h"
+#include "list.h"
 
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <dirent.h>
+#endif
 
-#define BUFSIZE (size_t)1024
 
 int is_valid_fopen_mode(char* mode);
 static void print_location_and_exit(const char* const filename, const char* const funcname, const int line);
@@ -206,10 +211,10 @@ int is_valid_fopen_mode(char* mode) {
 }
 
 size_t get_line_count(FILE* file) {
-	char buf[BUFSIZE];
+	char buf[1024U];
 	size_t counter = 0;
 	while (1) {
-		size_t n = fread((void*)buf, 1, BUFSIZE, file);
+		size_t n = fread((void*)buf, 1, 1024U, file);
 		if (ferror(file)) print_location_and_exit(NARDENET_LOCATION);
 		if (n == 0) return (size_t)0;
 		size_t i;
@@ -221,6 +226,48 @@ size_t get_line_count(FILE* file) {
 	}
 	rewind(file);
 	return counter;
+}
+
+char** get_files_array(char* dir, char* ext) {
+#ifdef _WIN32
+	WIN32_FIND_DATA filedata;
+	HANDLE handle;
+	char search_path[MAX_PATH];
+	snprintf(search_path, sizeof(search_path), "%s\\*%s", dir, ext);
+	handle = FindFirstFile(search_path, &filedata);
+	if (handle == INVALID_HANDLE_VALUE) {
+		if (GetLastError() == ERROR_NO_MORE_FILES) {
+			printf("No files found in %s with extension %s\n", dir, ext);
+			return (char**)0;
+		}
+		printf("File search failed in directory %s\nError Code: %d\n", dir, GetLastError());
+		print_location_and_exit(NARDENET_LOCATION);
+	}
+	list paths = new_list();
+	size_t count = 0;
+	do {
+		if (!(filedata.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
+			size_t length = strlen(filedata.cFileName);
+			char* path = (char*)xcalloc(length + 1, sizeof(char));
+			strcpy(path, filedata.cFileName);
+			list_append(paths, path);
+			count++;
+		}
+		else if (GetLastError() == ERROR_NO_MORE_FILES) {
+			break;
+		}
+		else {
+			printf("Unexpected error occured while searching for files in directory %s\n", dir);
+			printf("Error Code: %d\n", GetLastError());
+			print_location_and_exit(NARDENET_LOCATION);
+		}
+	} while (FindNextFile(handle, &filedata) != 0);
+
+
+
+#endif
+
+
 }
 
 size_t tokens_length(char** tokens) {
