@@ -6,17 +6,46 @@
 #include "image.h"
 
 
-sample* load_samples(char* folder) {
+#define MAX_DIR_PATH 255U
+#define MIN_FILENAME_LENGTH 5U
 
+
+sample* load_samples(char* directory) {
+	size_t dirlen = strlen(directory);
+	if (dirlen >= MAX_DIR_PATH) {
+		printf("Directory path too long. Must be less than %zu characters.\npath: %s\ncharacters:%zu\n", MAX_DIR_PATH + 1U, directory, dirlen);
+		wait_for_key_then_exit();
+	}
+	char* dir[MAX_DIR_PATH] = { 0 };
+	strcpy(dir, directory);
+	if (dir[dirlen - 1] != '\\') {
+		dir[dirlen] = '\\';
+		dirlen++;
+	}
+	list* imgpaths = get_files_list(dir, ".bmp,.jpg,.jpeg,.png");
+	size_t nimgs = imgpaths->length;
+	sample* samples = (sample*)xcalloc(nimgs, sizeof(sample));
+	node* noed;
+	for (size_t i = 0; i < nimgs; i++) {
+		if (i == 0) noed = imgpaths->first;
+		else noed = noed->next;
+		char* imgfile = (char*)noed->val;
+		char* antfile[MAX_DIR_PATH + MIN_FILENAME_LENGTH] = { 0 };
+		char* dot = strrchr(imgfile, '.');
+		memcpy(antfile, imgfile, strlen(imgfile) - strlen(dot));
+		memcpy(&antfile[strlen(antfile)], ".txt", 4U);
+		load_sample(antfile, imgfile, &samples[i]);
+	}
+	free_list(imgpaths);
 }
 
-sample* load_sample(char* antfile, char* imgfile) {
+void load_sample(char* antfile, char* imgfile, sample* samp) {
 	if (!file_exists(imgfile)) wait_for_key_then_exit();
 	FILE* file = get_filestream(antfile, "r");
 	size_t n_lines = get_line_count(file);
-	sample* samp = (sample*)xcalloc(1, sizeof(sample));
 	samp->nboxes = n_lines;
-	samp->imgpath = imgfile;
+	samp->imgpath = (char*)xcalloc(strlen(imgfile) + 1, sizeof(char));
+	strcpy(samp->imgpath, imgfile);
 	samp->bboxes = (bbox*)xcalloc(n_lines, sizeof(bbox));
 	char* line;
 	size_t n = 0;

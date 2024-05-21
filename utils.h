@@ -1,8 +1,10 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+
 #include <stdio.h>
 #include "locmacro.h"
+#include "list.h"
 
 
 #ifdef __cplusplus
@@ -27,6 +29,7 @@ int file_exists(char* filename);
 FILE* get_filestream(char* filename, char* mode);
 void close_filestream(FILE* filestream);
 size_t get_line_count(FILE* file);
+list* get_files_list(char* dir, char* extensions);
 size_t tokens_length(char** tokens);
 void wait_for_key_then_exit(void);
 

@@ -8,12 +8,12 @@
 #include <assert.h>
 #include <math.h>
 #include "xallocs.h"
-#include "list.h"
+
 
 #ifdef _WIN32
 #include <windows.h>
 #else
-#include <dirent.h>
+#include <dirent.h>  // unix-based systems
 #endif
 
 
@@ -228,46 +228,86 @@ size_t get_line_count(FILE* file) {
 	return counter;
 }
 
-char** get_files_array(char* dir, char* ext) {
+// extensions are a list of extensions separated by a comma. i.e. ".jpg,.jpeg,.bmp"
+list* get_files_list(char* dir, char* extensions) {
+	list* paths = new_list();
+	size_t count = 0U;
+	char buff[100];
+	strcpy(buff, extensions);
+	char** exts = split_string(buff, ",");
 #ifdef _WIN32
 	WIN32_FIND_DATA filedata;
 	HANDLE handle;
 	char search_path[MAX_PATH];
-	snprintf(search_path, sizeof(search_path), "%s\\*%s", dir, ext);
+	snprintf(search_path, sizeof(search_path), "%s\\*.*", dir);
 	handle = FindFirstFile(search_path, &filedata);
 	if (handle == INVALID_HANDLE_VALUE) {
 		if (GetLastError() == ERROR_NO_MORE_FILES) {
-			printf("No files found in %s with extension %s\n", dir, ext);
-			return (char**)0;
+			printf("No files found with extension %s in directory %s\n", extensions, dir);
+			xfree(paths);
+			return (list*)0;
 		}
-		printf("File search failed in directory %s\nError Code: %d\n", dir, GetLastError());
-		print_location_and_exit(NARDENET_LOCATION);
+		printf("Unexpected error occured while searching for first file in directory %s\n", dir);
+		printf("Error Code: %d\n", GetLastError());
+		wait_for_key_then_exit();
 	}
-	list paths = new_list();
-	size_t count = 0;
-	do {
-		if (!(filedata.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
-			size_t length = strlen(filedata.cFileName);
-			char* path = (char*)xcalloc(length + 1, sizeof(char));
-			strcpy(path, filedata.cFileName);
-			list_append(paths, path);
-			count++;
-		}
-		else if (GetLastError() == ERROR_NO_MORE_FILES) {
-			break;
-		}
-		else {
+	int ret = 1;
+	while (1) {
+		if (ret == 0) {
+			if (GetLastError() == ERROR_NO_MORE_FILES) break;
 			printf("Unexpected error occured while searching for files in directory %s\n", dir);
 			printf("Error Code: %d\n", GetLastError());
-			print_location_and_exit(NARDENET_LOCATION);
+			wait_for_key_then_exit();
 		}
-	} while (FindNextFile(handle, &filedata) != 0);
-
-
-
+		if (!(filedata.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
+			char* ext1 = strrchr(filedata.cFileName, '.');
+			if (!ext1) continue;
+			for (size_t i = 0; i < tokens_length(exts); i++) {
+				char* ext2 = strrchr(exts[i], '.');
+				if (strcmp(ext1, ext2) == 0) {
+					printf("%s\n", (char*)filedata.cFileName);
+					size_t length = strlen(filedata.cFileName);
+					char* path = (char*)xcalloc(length + 1, sizeof(char));
+					strcpy(path, filedata.cFileName);
+					list_append(paths, path);
+					count++;
+					break;
+				}
+			}
+		}
+		ret = (int)FindNextFile(handle, &filedata);
+	}
+	printf("# of files found: %zu\n", count);
+	FindClose(handle);
+	return paths;
+#else  // Unix-based systems
+	struct dirent* entry;
+	DIR* dp = opendir(directory);
+	if (dp == NULL) {
+		perror("opendir");
+		return;
+	}
+	while ((entry = readdir(dp))) {
+		char* file_name = entry->d_name;
+		char* ext1 = strrchr(file_name, '.');
+		if (!ext1) continue;
+		for (size_t i = 0; i < tokens_length(exts); i++) {
+			char* ext2 = strrchr(exts[i], '.');
+			if (strcmp(ext1, ext2) == 0) {
+				printf("%s\n", (char*)file_name);
+				size_t length = strlen(file_name);
+				char* path = (char*)xcalloc(length + 1, sizeof(char));
+				strcpy(path, file_name);
+				list_append(paths, path);
+				count++;
+				break;
+			}
+		}
+	}
+	printf("# of files found: %zu\n", count);
+	closedir(dp);
+	return paths;
 #endif
-
-
 }
 
 size_t tokens_length(char** tokens) {

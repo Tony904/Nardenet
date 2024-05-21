@@ -14,7 +14,7 @@ extern "C" {
 	typedef struct sample sample;
 	typedef struct data_paths;
 
-	sample* load_samples(char* folder);
+	sample* load_samples(char* directory);
 	sample* load_sample(char* antfile, char* imgfile);
 	void free_sample(sample* samp);
 	void free_data_paths(data_paths* dp);
