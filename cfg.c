@@ -48,14 +48,15 @@ void free_cfg_classify(cfg_classify* s);
 static char* headers[] = { "[net]", "[training]", "[conv]", "[classify]", "\0"};
 
 
-network* create_network_from_cfg(char* cfg_filename) {
+network* create_network(data_paths* dp) {
 	size_t n_layers = 0;
-	list* sections = get_cfg_sections(cfg_filename, &n_layers);
+	list* sections = get_cfg_sections(dp->cfg_file, &n_layers);
 	network* net = new_network(n_layers);
 	print_cfg(sections);
 	load_cfg_to_network(sections, net);
 	free_sections(sections);
 	build_network(net);
+	net->dp = dp;
 	return net;
 }
 

@@ -51,7 +51,7 @@ extern "C" {
         float saturation[2];
         float exposure[2];
         float hue[2];
-        char* data_folder;
+        data_paths* dp;
         size_t n_samples;
         sample* samples;
         image* input;

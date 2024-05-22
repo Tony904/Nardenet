@@ -372,11 +372,15 @@ void wait_for_key_then_exit(void) {
 
 static void print_error_and_exit(const char* const filename) {
 #pragma warning(suppress:4996)
-	fprintf(stderr, "Failed to open file: %s\nError Code %d: %s", filename, errno, strerror(errno));
+	fprintf(stderr, "Failed to open file: %s\nError Code %d: %s\n", filename, errno, strerror(errno));
+	printf("Press ENTER to exit the program.");
+	(void)getchar();
 	exit(EXIT_FAILURE);
 }
 
 static void print_location_and_exit(const char* const filename, const char* const funcname, const int line) {
 	fprintf(stderr, "Nardenet error location: %s, %s, line %d\n", filename, funcname, line);
+	printf("Press ENTER to exit the program.");
+	(void)getchar();
 	exit(EXIT_FAILURE);
 }

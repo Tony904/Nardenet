@@ -17,9 +17,7 @@ void train(network* net) {
 	initialize_weights_kaiming(net);
 	size_t count[1] = { 0 };
 
-	net->data_folder = "D:\\TonyDev\\NardeNet\\data\\images\\";  // testing
-
-	net->samples = load_samples(net->data_folder, count);
+	net->samples = load_samples(net->dp->imgs_dir, count);
 	size_t n = count[0];
 	net->n_samples = n;
 	print_samples(net->samples, n, 1);

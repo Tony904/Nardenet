@@ -5,18 +5,17 @@
 #include "train.h"
 #include "xopencv.h"
 #include "im2col.h"
+#include "data.h"
 
 
 int main(void) {
 	
 
-	char* cfgfile = "D:/TonyDev/NardeNet/models/nardenet.cfg";
-	//char* datafile = "D:/TonyDev/NardeNet/paths.data";
-	network* net = create_network_from_cfg(cfgfile);
+	char* datafile = "D:/TonyDev/NardeNet/paths.data";
+	data_paths* dp = get_data_paths(datafile);
+	network* net = create_network(dp);
 	//print_network(net);
 	
-	//image* img = load_file_to_image("D:\\TonyDev\\NardeNet\\images\\one_28x28.jpg");
-	//net->input = img;
 	train(net);
 
 	/*layer* l = &net->layers[net->n_layers - 1];

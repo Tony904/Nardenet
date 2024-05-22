@@ -16,6 +16,7 @@ extern "C" {
 
 	sample* load_samples(char* directory, size_t* count_dst);
 	void load_sample(char* antfile, char* imgfile, sample*);
+	data_paths* get_data_paths(char* datafile);
 	void free_sample(sample* samp);
 	void free_data_paths(data_paths* dp);
 	void print_samples(sample* samples, size_t count, int print_annotations);

@@ -3,6 +3,7 @@
 
 
 #include "network.h"
+#include "data.h"
 
 
 #ifdef __cplusplus
@@ -10,7 +11,7 @@ extern "C" {
 #endif
 
 
-	network* create_network_from_cfg(char* filename);
+	network* create_network(data_paths* dp);
 
 	typedef struct cfg_section cfg_section;
 	typedef struct cfg_net cfg_net;
