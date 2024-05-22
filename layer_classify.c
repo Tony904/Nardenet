@@ -55,6 +55,7 @@ void backprop_classify(layer* l, network* net) {
 void softmax_classify(layer* l) {
 	float esum = 0;
 	for (int i = 0; i < l->out_n; i++) {
-		expf(l->output[i]);
+		printf("%f\n", expf(l->output[i]));
 	}
+	esum;
 }

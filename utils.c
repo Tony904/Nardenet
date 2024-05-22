@@ -10,12 +10,23 @@
 #include "xallocs.h"
 
 
-#ifdef _WIN32
+// Need this cus Microsoft says so
+#define MICROSOFT_WINDOWS_WINBASE_H_DEFINE_INTERLOCKED_CPLUSPLUS_OVERLOADS 0
+
+
+#define IS_WIN defined(_WIN32) || defined(_WIN64)
+#ifdef IS_WIN
 #include <windows.h>
 #else
 #include <dirent.h>  // unix-based systems
+#include <sys/stat.h>
 #endif
 
+
+#ifdef IS_WIN
+wchar_t* str2wstr(const char* str);
+char* wstr2str(const wchar_t* wstr);
+#endif
 
 int is_valid_fopen_mode(char* mode);
 static void print_location_and_exit(const char* const filename, const char* const funcname, const int line);
@@ -178,13 +189,24 @@ char** split_string(char* str, char* delimiters) {
 }
 
 int file_exists(char* filename) {
-	FILE* file = fopen(filename, "r");
+#ifdef IS_WIN
+	DWORD fileattr = GetFileAttributesA(filename);
+	if (fileattr == INVALID_FILE_ATTRIBUTES) {
+		printf("File %s does not exist.\n", filename);
+		return 0;
+	}
+	return 1;
+#else
+	struct stat buffer;
+	return (stat(filename, &buffer) == 0);
+#endif
+	/*FILE* file = fopen(filename, "r");
 	if (file) {
 		close_filestream(file);
 		return 1;
 	}
 	printf("File %s does not exist.\n", filename);
-	return 0;
+	return 0;*/
 }
 
 FILE* get_filestream(char* filename, char* mode) {
@@ -228,19 +250,38 @@ size_t get_line_count(FILE* file) {
 	return counter;
 }
 
+#ifdef IS_WIN
+wchar_t* str2wstr(const char* str) {
+	size_t length = strlen(str) + 1;
+	wchar_t* wstr = (wchar_t*)xcalloc(length, sizeof(wchar_t));
+	mbstowcs(wstr, str, length);
+	return wstr;
+}
+
+char* wstr2str(const wchar_t* wstr) {
+	size_t length = wcslen(wstr) + 1;
+	size_t converted = 0;
+	char* str = (char*)xcalloc(length, sizeof(char));
+	wcstombs_s(&converted, str, length, wstr, length - 1);
+	return str;
+}
+#endif
+
 // extensions are a list of extensions separated by a comma. i.e. ".jpg,.jpeg,.bmp"
 list* get_files_list(char* dir, char* extensions) {
+	printf("Searching for %s files in %s\n", extensions, dir);
 	list* paths = new_list();
-	size_t count = 0U;
+	size_t count = 0;
 	char buff[100];
 	strcpy(buff, extensions);
 	char** exts = split_string(buff, ",");
-#ifdef _WIN32
+#ifdef IS_WIN
 	WIN32_FIND_DATA filedata;
 	HANDLE handle;
 	char search_path[MAX_PATH];
-	snprintf(search_path, sizeof(search_path), "%s\\*.*", dir);
-	handle = FindFirstFile(search_path, &filedata);
+	snprintf(search_path, sizeof(search_path), "%s*.*", dir);
+	wchar_t* wspath = str2wstr(search_path);
+	handle = FindFirstFile(wspath, &filedata);
 	if (handle == INVALID_HANDLE_VALUE) {
 		if (GetLastError() == ERROR_NO_MORE_FILES) {
 			printf("No files found with extension %s in directory %s\n", extensions, dir);
@@ -252,6 +293,7 @@ list* get_files_list(char* dir, char* extensions) {
 		wait_for_key_then_exit();
 	}
 	int ret = 1;
+	char fullpath[MAX_PATH] = { 0 };
 	while (1) {
 		if (ret == 0) {
 			if (GetLastError() == ERROR_NO_MORE_FILES) break;
@@ -260,26 +302,30 @@ list* get_files_list(char* dir, char* extensions) {
 			wait_for_key_then_exit();
 		}
 		if (!(filedata.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
-			char* ext1 = strrchr(filedata.cFileName, '.');
-			if (!ext1) continue;
-			for (size_t i = 0; i < tokens_length(exts); i++) {
-				char* ext2 = strrchr(exts[i], '.');
-				if (strcmp(ext1, ext2) == 0) {
-					printf("%s\n", (char*)filedata.cFileName);
-					size_t length = strlen(filedata.cFileName);
-					char* path = (char*)xcalloc(length + 1, sizeof(char));
-					strcpy(path, filedata.cFileName);
-					list_append(paths, path);
-					count++;
-					break;
+			char* filename = wstr2str(filedata.cFileName);
+			char* ext1 = strrchr(filename, '.');
+			if (ext1) {
+				for (size_t i = 0; i < tokens_length(exts); i++) {
+					char* ext2 = strrchr(exts[i], '.');
+					if (strcmp(ext1, ext2) == 0) {
+						snprintf(fullpath, sizeof(fullpath), "%s%s", dir, filename);
+						printf("%s\n", fullpath);
+						size_t length = strlen(fullpath);
+						char* path = (char*)xcalloc(length + 1, sizeof(char));
+						strcpy(path, fullpath);
+						list_append(paths, path);
+						count++;
+						break;
+					}
 				}
 			}
+			xfree(filename);
 		}
 		ret = (int)FindNextFile(handle, &filedata);
 	}
 	printf("# of files found: %zu\n", count);
 	FindClose(handle);
-	return paths;
+	xfree(wspath);
 #else  // Unix-based systems
 	struct dirent* entry;
 	DIR* dp = opendir(directory);
@@ -306,8 +352,8 @@ list* get_files_list(char* dir, char* extensions) {
 	}
 	printf("# of files found: %zu\n", count);
 	closedir(dp);
-	return paths;
 #endif
+	return paths;
 }
 
 size_t tokens_length(char** tokens) {

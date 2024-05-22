@@ -15,11 +15,18 @@ void print_weights(network* net);
 
 void train(network* net) {
 	initialize_weights_kaiming(net);
-	net->samples = load_samples(net->data_folder);
-	size_t n = net->n_samples;
-	for (size_t i = 0; i < n; i++) {
+	size_t count[1] = { 0 };
+
+	net->data_folder = "D:\\TonyDev\\NardeNet\\data\\images\\";  // testing
+
+	net->samples = load_samples(net->data_folder, count);
+	size_t n = count[0];
+	net->n_samples = n;
+	print_samples(net->samples, n, 1);
+
+	/*for (size_t i = 0; i < n; i++) {
 		forward_network_train(net, &net->samples[i]);
-	}
+	}*/
 }
 
 void forward_network_train(network* net, sample* samp) {

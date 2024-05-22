@@ -12,12 +12,13 @@ extern "C" {
 
 	typedef struct bbox bbox;
 	typedef struct sample sample;
-	typedef struct data_paths;
+	typedef struct data_paths data_paths;
 
-	sample* load_samples(char* directory);
-	sample* load_sample(char* antfile, char* imgfile);
+	sample* load_samples(char* directory, size_t* count_dst);
+	void load_sample(char* antfile, char* imgfile, sample*);
 	void free_sample(sample* samp);
 	void free_data_paths(data_paths* dp);
+	void print_samples(sample* samples, size_t count, int print_annotations);
 
 
 	typedef struct bbox {
