@@ -26,6 +26,54 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\activations.c" />
+    <ClCompile Include="src\cfg.c" />
+    <ClCompile Include="src\cfg2.c" />
+    <ClCompile Include="src\data.c" />
+    <ClCompile Include="src\data_classifier.c" />
+    <ClCompile Include="src\data_objdet.c" />
+    <ClCompile Include="src\gemm.c" />
+    <ClCompile Include="src\im2col.c" />
+    <ClCompile Include="src\image.c" />
+    <ClCompile Include="src\layer_classify.c" />
+    <ClCompile Include="src\layer_conv.c" />
+    <ClCompile Include="src\list.c" />
+    <ClCompile Include="src\locmacro.c" />
+    <ClCompile Include="src\nardenet.c" />
+    <ClCompile Include="src\network.c" />
+    <ClCompile Include="src\train.c" />
+    <ClCompile Include="src\utils.c" />
+    <ClCompile Include="src\xallocs.c" />
+    <ClCompile Include="src\xarrays.c" />
+    <ClCompile Include="src\xopencv.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\activations.h" />
+    <ClInclude Include="src\cfg.h" />
+    <ClInclude Include="src\cfg2.h" />
+    <ClInclude Include="src\data.h" />
+    <ClInclude Include="src\data_classifier.h" />
+    <ClInclude Include="src\data_objdet.h" />
+    <ClInclude Include="src\gemm.h" />
+    <ClInclude Include="src\im2col.h" />
+    <ClInclude Include="src\image.h" />
+    <ClInclude Include="src\layer_classify.h" />
+    <ClInclude Include="src\layer_conv.h" />
+    <ClInclude Include="src\lib_api.h" />
+    <ClInclude Include="src\list.h" />
+    <ClInclude Include="src\locmacro.h" />
+    <ClInclude Include="src\nardenet.h" />
+    <ClInclude Include="src\network.h" />
+    <ClInclude Include="src\train.h" />
+    <ClInclude Include="src\utils.h" />
+    <ClInclude Include="src\xallocs.h" />
+    <ClInclude Include="src\xarrays.h" />
+    <ClInclude Include="src\xopencv.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\cpp.hint" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
@@ -178,7 +226,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <TreatWarningAsError>true</TreatWarningAsError>
-      <DisableSpecificWarnings>4388;4820;5045;5054</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4388;4820;5045;5054;4996</DisableSpecificWarnings>
       <OpenMPSupport>true</OpenMPSupport>
     </ClCompile>
     <Link>
@@ -203,7 +251,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <TreatWarningAsError>true</TreatWarningAsError>
-      <DisableSpecificWarnings>4388;4820;5045;5054</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4388;4820;5045;5054;4996</DisableSpecificWarnings>
       <OpenMPSupport>true</OpenMPSupport>
     </ClCompile>
     <Link>
@@ -237,7 +285,7 @@
       </EnableModules>
       <OpenMPSupport>true</OpenMPSupport>
       <TreatWarningAsError>true</TreatWarningAsError>
-      <DisableSpecificWarnings>4388;4820;5045;5054</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4388;4820;5045;5054;4996</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -253,48 +301,6 @@
       <NoEntryPoint>false</NoEntryPoint>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClInclude Include="activations.h" />
-    <ClInclude Include="cfg.h" />
-    <ClInclude Include="gemm.h" />
-    <ClInclude Include="im2col.h" />
-    <ClInclude Include="layer_classify.h" />
-    <ClInclude Include="locmacro.h" />
-    <ClInclude Include="file_utils.h" />
-    <ClInclude Include="image.h" />
-    <ClInclude Include="layer_conv.h" />
-    <ClInclude Include="lib_api.h" />
-    <ClInclude Include="list.h" />
-    <ClInclude Include="nardenet.h" />
-    <ClInclude Include="network.h" />
-    <ClInclude Include="train.h" />
-    <ClInclude Include="utils.h" />
-    <ClInclude Include="xallocs.h" />
-    <ClInclude Include="xarrays.h" />
-    <ClInclude Include="xopencv.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="activations.c" />
-    <ClCompile Include="cfg.c" />
-    <ClCompile Include="file_utils.c" />
-    <ClCompile Include="gemm.c" />
-    <ClCompile Include="im2col.c" />
-    <ClCompile Include="image.c" />
-    <ClCompile Include="layer_classify.c" />
-    <ClCompile Include="layer_conv.c" />
-    <ClCompile Include="list.c" />
-    <ClCompile Include="locmacro.c" />
-    <ClCompile Include="nardenet.c" />
-    <ClCompile Include="network.c" />
-    <ClCompile Include="train.c" />
-    <ClCompile Include="utils.c" />
-    <ClCompile Include="xallocs.c" />
-    <ClCompile Include="xarrays.c" />
-    <ClCompile Include="xopencv.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="cpp.hint" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

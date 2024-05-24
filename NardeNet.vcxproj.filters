@@ -15,115 +15,135 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="network.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="nardenet.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="xallocs.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="file_utils.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="list.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="cfg.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="utils.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="xarrays.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="layer_conv.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="image.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="xopencv.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="lib_api.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="locmacro.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="train.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="layer_classify.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="im2col.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="gemm.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="activations.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="network.c">
+    <ClCompile Include="src\activations.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="nardenet.c">
+    <ClCompile Include="src\cfg.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="xallocs.c">
+    <ClCompile Include="src\data.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="file_utils.c">
+    <ClCompile Include="src\gemm.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="list.c">
+    <ClCompile Include="src\im2col.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="cfg.c">
+    <ClCompile Include="src\image.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="utils.c">
+    <ClCompile Include="src\layer_classify.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="xarrays.c">
+    <ClCompile Include="src\layer_conv.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="layer_conv.c">
+    <ClCompile Include="src\list.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="image.c">
+    <ClCompile Include="src\locmacro.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="xopencv.cpp">
+    <ClCompile Include="src\nardenet.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="locmacro.c">
+    <ClCompile Include="src\network.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="train.c">
+    <ClCompile Include="src\train.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="layer_classify.c">
+    <ClCompile Include="src\utils.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="im2col.c">
+    <ClCompile Include="src\xallocs.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="gemm.c">
+    <ClCompile Include="src\xarrays.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="activations.c">
+    <ClCompile Include="src\xopencv.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\data_objdet.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\data_classifier.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\cfg2.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="cpp.hint" />
+    <ClInclude Include="src\activations.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\cfg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\data.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gemm.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\im2col.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\image.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\layer_classify.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\layer_conv.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\lib_api.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\list.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\locmacro.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\nardenet.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\network.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\train.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\xallocs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\xarrays.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\xopencv.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\data_classifier.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\data_objdet.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\cfg2.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\cpp.hint">
+      <Filter>Source Files</Filter>
+    </None>
   </ItemGroup>
 </Project>
