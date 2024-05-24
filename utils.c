@@ -132,6 +132,10 @@ char* read_line(FILE* file) {
 	return line;
 }
 
+int read_line_to_buff(FILE* file, char* buff, size_t buffsize) {
+	if (!fgets(buff, buffsize, file)) return 0;
+}
+
 /*
 Removes whitespaces and line-end characters.
 Removes comment character '#' and all characters after.
@@ -157,11 +161,11 @@ Modifies str.
 char** split_string(char* str, char* delimiters) {
 	size_t length = strlen(str);
 	if (!length) return NULL;
-	size_t i = 0;
 	if (char_in_string(str[0], delimiters) || char_in_string(str[length - 1], delimiters)) {
 		fprintf(stderr, "Line must not start or end with delimiter.\nDelimiters: %s\n Line: %s\n", delimiters, str);
 		exit(EXIT_FAILURE);
 	}
+	size_t i = 0;
 	size_t count = 1;
 	for (i = 0; i < length; i++) {
 		if (char_in_string(str[i], delimiters)) {
@@ -173,7 +177,7 @@ char** split_string(char* str, char* delimiters) {
 		}
 	}
 	char** strings = (char**)xcalloc(count + 1, sizeof(char*));
-	strings[0] = &str[0];
+	strings[0] = str;
 	size_t j = 1;
 	if (count > 1)
 		for (i = 1; i < length; i++) {
@@ -186,6 +190,41 @@ char** split_string(char* str, char* delimiters) {
 		}
 	strings[count] = NULL;
 	return strings;
+}
+
+void split_string_to_buff(char* str, char* delimiters, char** tokens) {
+	size_t length = strlen(str);
+	if (!length) {
+		tokens[0] = NULL;
+		return;
+	}
+	if (char_in_string(str[0], delimiters) || char_in_string(str[length - 1], delimiters)) {
+		fprintf(stderr, "Line must not start or end with delimiter.\nDelimiters: %s\n Line: %s\n", delimiters, str);
+		exit(EXIT_FAILURE);
+	}
+	size_t i = 0;
+	size_t count = 1;
+	for (i = 0; i < length; i++) {
+		if (char_in_string(str[i], delimiters)) {
+			if (char_in_string(str[i + 1], delimiters)) {
+				fprintf(stderr, "Line must not contain consecutive delimiters.\nDelimiters: %s\n Line: %s\n", delimiters, str);
+				exit(EXIT_FAILURE);
+			}
+			count++;
+		}
+	}
+	tokens[0] = str;
+	size_t j = 1;
+	if (count > 1)
+		for (i = 1; i < length; i++) {
+			if (char_in_string(str[i], delimiters)) {
+				str[i] = '\0';
+				tokens[j] = &str[i + 1];
+				j++;
+				i++;
+			}
+		}
+	tokens[count] = NULL;
 }
 
 int file_exists(char* filename) {
@@ -233,10 +272,10 @@ int is_valid_fopen_mode(char* mode) {
 }
 
 size_t get_line_count(FILE* file) {
-	char buf[1024U];
+	char buf[1024];
 	size_t counter = 0;
 	while (1) {
-		size_t n = fread((void*)buf, 1, 1024U, file);
+		size_t n = fread((void*)buf, 1, 1024, file);
 		if (ferror(file)) print_location_and_exit(NARDENET_LOCATION);
 		if (n == 0) return (size_t)0;
 		size_t i;

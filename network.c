@@ -34,10 +34,10 @@ void build_network(network* net) {
 
 void build_layer(int i, network* net) {
 	layer* l = &(net->layers[i]);
-	assert(l->type != NONE_LAYER);
+	assert(l->type != LAYER_NONE);
 	if (i == 0) build_first_layer(net);
-	else if (l->type == CONV) build_conv_layer(i, net);
-	else if (l->type == CLASSIFY) build_classify_layer(i, net);
+	else if (l->type == LAYER_CONV) build_conv_layer(i, net);
+	else if (l->type == LAYER_CLASSIFY) build_classify_layer(i, net);
 }
 
 void build_first_layer(network* net) {
@@ -124,7 +124,7 @@ void build_classify_layer(int i, network* net) {
 		l->n_classes = net->n_classes;
 		l->n_filters = l->n_classes;
 	}
-	if (l->cost == NONE_COST_TYPE) l->cost = net->cost;
+	if (l->cost == COST_NONE) l->cost = net->cost;
 
 	if (l->in_ids.n == 0) {
 		l->in_ids.a = (int*)xcalloc(1, sizeof(int));
@@ -168,15 +168,15 @@ void build_classify_layer(int i, network* net) {
 }
 
 void set_activate(layer* l) {
-	if (l->type == CONV) {
+	if (l->type == LAYER_CONV) {
 		switch (l->activation) {
-		case RELU:
+		case ACT_RELU:
 			l->activate = activate_conv_relu;
 			break;
-		case MISH:
+		case ACT_MISH:
 			l->activate = activate_conv_mish;
 			break;
-		case LOGISTIC:
+		case ACT_LOGISTIC:
 			l->activate = activate_conv_logistic;
 			break;
 		default:
@@ -185,7 +185,7 @@ void set_activate(layer* l) {
 		}
 		return;
 	}
-	else if (l->type == CLASSIFY) {
+	else if (l->type == LAYER_CLASSIFY) {
 		l->activate = activate_classify;
 		return;
 	}
@@ -218,7 +218,7 @@ void free_layer_members(layer* l) {
 	xfree(l->in_ids.a);
 	xfree(l->out_ids.a);
 	xfree(l->in_layers);
-	if (l->type == OBJ_DET) {
+	if (l->type == LAYER_DETECT) {
 		xfree(l->anchors);
 	}
 }
@@ -256,8 +256,8 @@ void print_layers(network* net) {
 }
 
 void print_layer(layer* l) {
-	if (l->type == CONV) print_layer_conv(l);
-	else if (l->type == CLASSIFY) print_layer_classify(l);
+	if (l->type == LAYER_CONV) print_layer_conv(l);
+	else if (l->type == LAYER_CLASSIFY) print_layer_classify(l);
 	else printf("NONE_LAYER\n");
 }
 
@@ -312,22 +312,22 @@ void print_lrpolicy(LR_POLICY lrp) {
 }
 
 void print_layertype(LAYER_TYPE lt) {
-	if (lt == CONV) printf("conv\n");
-	else if (lt == CLASSIFY) printf("classify\n");
+	if (lt == LAYER_CONV) printf("conv\n");
+	else if (lt == LAYER_CLASSIFY) printf("classify\n");
 	else printf("NONE\n");
 }
 
 void print_activation(ACTIVATION a) {
-	if (a == RELU) printf("relu\n");
-	else if (a == MISH) printf("mish\n");
-	else if (a == LOGISTIC) printf("logistic\n");
+	if (a == ACT_RELU) printf("relu\n");
+	else if (a == ACT_MISH) printf("mish\n");
+	else if (a == ACT_LOGISTIC) printf("logistic\n");
 	else printf("NONE\n");
 }
 
 void print_cost_type(COST_TYPE c) {
-	if (c == MSE) printf("mse\n");
-	else if (c == BCE) printf("bce\n");
-	else if (c == CCE) printf("cce\n");
+	if (c == COST_MSE) printf("mse\n");
+	else if (c == COST_BCE) printf("bce\n");
+	else if (c == COST_CCE) printf("cce\n");
 	else printf("NONE\n");
 }
 

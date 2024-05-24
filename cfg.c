@@ -9,10 +9,12 @@
 
 list* get_cfg_sections(char* filename, size_t* n_layers);
 void append_cfg_section(list* lst, char* header);
+cfg_data* new_cfg_data(void);
 cfg_net* new_cfg_net(void);
 cfg_training* new_cfg_training(void);
 cfg_conv* new_cfg_conv(void);
 cfg_classify* new_cfg_classify(void);
+void set_param_cfg_data(cfg_section* section, char** tokens);
 void set_param_cfg_net(cfg_section* section, char** tokens);
 void set_param_cfg_training(cfg_section* section, char** tokens);
 void set_param_cfg_conv(cfg_section* section, char** tokens);
@@ -39,25 +41,65 @@ void load_cfg_conv_to_layer(cfg_conv* s, layer* l);
 void load_cfg_classify_to_layer(cfg_classify* s, layer* l);
 void free_sections(list* lst);
 void free_section(cfg_section* s);
+void free_cfg_data(cfg_data* s);
 void free_cfg_net(cfg_net* s);
 void free_cfg_training(cfg_training* s);
 void free_cfg_conv(cfg_conv* s);
 void free_cfg_classify(cfg_classify* s);
 
 
-static char* headers[] = { "[net]", "[training]", "[conv]", "[classify]", "\0"};
+static char* headers[] = { "[data]", "[net]", "[training]", "[conv]", "[classify]", "\0"};
 
 
-network* create_network(data_paths* dp) {
-	size_t n_layers = 0;
-	list* sections = get_cfg_sections(dp->cfg_file, &n_layers);
+network* create_network_from_cfg(char* cfgfile) {
+	size_t n_layers;
+	list* sections = get_cfg_sections(cfgfile, &n_layers);
 	network* net = new_network(n_layers);
 	print_cfg(sections);
 	load_cfg_to_network(sections, net);
 	free_sections(sections);
 	build_network(net);
-	net->dp = dp;
 	return net;
+}
+
+list* get_cfg_sections(char* filename, size_t* n_layers) {
+	*n_layers = 0;
+	FILE* file = get_filestream(filename, "r");
+	list* sections = new_list();
+	cfg_section* section;
+	int h = -1;  // index of headers[] corresponding to current header being read
+	char* line;
+	while (line = read_line(file), line != 0) {
+		clean_string(line);
+		char** tokens = split_string(line, "=,");
+		if (tokens == NULL) {
+			xfree(line);
+			continue;
+		}
+		if (tokens[0][0] == '[') {
+			int i = 0;
+			while (headers[i][0] != '\0') {
+				if (strcmp(tokens[0], headers[i]) == 0) {
+					h = i;
+					printf("Appending cfg section: %s\n", headers[h]);
+					append_cfg_section(sections, headers[h]);
+					if (is_layer_header(headers[h])) (*n_layers)++;
+					break;
+				}
+				i++;
+			}
+			if (headers[i][0] == '\0') printf("Unknown header %s.\n", tokens[0]);
+		}
+		else if (h > -1) {
+			section = (cfg_section*)(sections->last->val);
+			section->set_param(section, tokens);
+		}
+		xfree(line);
+		xfree(tokens);
+	}
+	close_filestream(file);
+	//print_cfg(sections);
+	return sections;
 }
 
 void load_cfg_to_network(list* sections, network* net) {
@@ -78,6 +120,28 @@ void load_cfg_to_network(list* sections, network* net) {
 		noed = noed->next;
 	}
 	assert(net->n_layers == i); // number of layers counted equals number of layers loaded
+}
+
+void load_cfg_data_to_network(cfg_data* s, network* net) {
+	net->dataset_dir = s->dataset_dir;
+	net->class_names = load_class_names(s->classes_file);
+	net->weights_file = s->weights_file;
+	net->backup_dir = s->backup_dir;
+}
+
+char** load_class_names(char* classes_file) {
+	FILE* file = get_filestream(classes_file, "r");
+	char* line;
+	size_t n = 0;
+	while (1) {
+		line = read_line(file);
+		if (!line) break;
+		clean_string(line);
+		if (!strlen(line)) {
+			printf("Invalid line in classes file.\nLine index %zu\n", n);
+		}
+		n++;
+	}
 }
 
 void load_cfg_net_to_network(cfg_net* s, network* net) {
@@ -168,29 +232,37 @@ void load_cfg_classify_to_layer(cfg_classify* s, layer* l) {
 }
 
 void append_cfg_section(list* lst, char* header) {
-	if (strcmp(header, headers[0]) == 0) list_append(lst, new_cfg_net());
-	if (strcmp(header, headers[1]) == 0) list_append(lst, new_cfg_training());
-	if (strcmp(header, headers[2]) == 0) list_append(lst, new_cfg_conv());
-	if (strcmp(header, headers[3]) == 0) list_append(lst, new_cfg_classify());
+	if (strcmp(header, headers[0]) == 0) list_append(lst, new_cfg_data());
+	else if (strcmp(header, headers[1]) == 0) list_append(lst, new_cfg_net());
+	else if (strcmp(header, headers[2]) == 0) list_append(lst, new_cfg_training());
+	else if (strcmp(header, headers[3]) == 0) list_append(lst, new_cfg_conv());
+	else if (strcmp(header, headers[4]) == 0) list_append(lst, new_cfg_classify());
+}
+
+cfg_data* new_cfg_data(void) {
+	cfg_data* section = (cfg_data*)xcalloc(1, sizeof(cfg_data));
+	section->header = headers[0];
+	section->set_param = set_param_cfg_data;
+	return section;
 }
 
 cfg_net* new_cfg_net(void) {
 	cfg_net* section = (cfg_net*)xcalloc(1, sizeof(cfg_net));
-	section->header = headers[0];
+	section->header = headers[1];
 	section->set_param = set_param_cfg_net;
 	return section;
 }
 
 cfg_training* new_cfg_training(void) {
 	cfg_training* section = (cfg_training*)xcalloc(1, sizeof(cfg_training));
-	section->header = headers[1];
+	section->header = headers[2];
 	section->set_param = set_param_cfg_training;
 	return section;
 }
 
 cfg_conv* new_cfg_conv(void) {
 	cfg_conv* section = (cfg_conv*)xcalloc(1, sizeof(cfg_conv));
-	section->header = headers[2];
+	section->header = headers[3];
 	section->set_param = set_param_cfg_conv;
 	// Set non-zero defaults
 	section->train = 1;
@@ -200,11 +272,24 @@ cfg_conv* new_cfg_conv(void) {
 
 cfg_classify* new_cfg_classify(void) {
 	cfg_classify* section = (cfg_classify*)xcalloc(1, sizeof(cfg_classify));
-	section->header = headers[3];
+	section->header = headers[4];
 	section->set_param = set_param_cfg_classify;
 	// Set non-zero defaults
 	section->train = 1;
 	return section;
+}
+
+void set_param_cfg_data(cfg_section* section, char** tokens) {
+	cfg_data* sec = (cfg_data*)section;
+	char* param = tokens[0];  //pointer to name of param
+	if (strcmp(param, "dataset_dir") == 0) sec->dataset_dir = str2sizet(tokens[1]);
+	else if (strcmp(param, "classes_file") == 0) sec->classes_file = str2sizet(tokens[1]);
+	else if (strcmp(param, "weights_file") == 0) sec->weights_file = str2sizet(tokens[1]);
+	else if (strcmp(param, "backup_dir") == 0) sec->backup_dir = str2sizet(tokens[1]);
+	else {
+		fprintf(stderr, "Error: No parameter named %s in section %s.\n", param, sec->header);
+		exit(EXIT_FAILURE);
+	}
 }
 
 void set_param_cfg_net(cfg_section* section, char** tokens) {
@@ -264,46 +349,6 @@ void set_param_cfg_classify(cfg_section* section, char** tokens) {
 	else if (strcmp(param, "cost") == 0) sec->cost = str2cost(tokens[1]);
 }
 
-list* get_cfg_sections(char* filename, size_t* n_layers) {
-	*n_layers = 0;
-	FILE* file = get_filestream(filename, "r");
-	char* line;
-	list* sections = new_list();
-	cfg_section* section;
-	int h = -1;  // index of headers[] corresponding to current header being read
-	while (line = read_line(file), line != 0) {
-		clean_string(line);
-		char** tokens = split_string(line, "=,");
-		if (tokens == NULL) {
-			xfree(line);
-			continue;
-		}
-		if (tokens[0][0] == '[') {
-			int i = 0;
-			while (headers[i][0] != '\0') {
-				if (strcmp(tokens[0], headers[i]) == 0) {
-					h = i;
-					printf("Appending cfg section: %s\n", headers[h]);
-					append_cfg_section(sections, headers[h]);
-					if (is_layer_header(headers[h])) (*n_layers)++;
-					break;
-				}
-				i++;
-			}
-			if (headers[i][0] == '\0') printf("Unknown header %s.\n", tokens[0]);
-		}
-		else if (h > -1) {
-			section = (cfg_section*)(sections->last->val);
-			section->set_param(section, tokens);
-		}
-		xfree(line);
-		xfree(tokens);
-	}
-	close_filestream(file);
-	//print_cfg(sections);
-	return sections;
-}
-
 void free_sections(list* l) {
 	node* n = l->first;
 	while (n) {
@@ -314,10 +359,19 @@ void free_sections(list* l) {
 }
 
 void free_section(cfg_section* sec) {
-	if (strcmp(sec->header, headers[0]) == 0) free_cfg_net((cfg_net*)sec);
-	else if (strcmp(sec->header, headers[1]) == 0) free_cfg_training((cfg_training*)sec);
-	else if (strcmp(sec->header, headers[2]) == 0) free_cfg_conv((cfg_conv*)sec);
-	else if (strcmp(sec->header, headers[3]) == 0) free_cfg_classify((cfg_classify*)sec);
+	if (strcmp(sec->header, headers[0]) == 0) free_cfg_data((cfg_data*)sec);
+	if (strcmp(sec->header, headers[1]) == 0) free_cfg_net((cfg_net*)sec);
+	else if (strcmp(sec->header, headers[2]) == 0) free_cfg_training((cfg_training*)sec);
+	else if (strcmp(sec->header, headers[3]) == 0) free_cfg_conv((cfg_conv*)sec);
+	else if (strcmp(sec->header, headers[4]) == 0) free_cfg_classify((cfg_classify*)sec);
+}
+
+void free_cfg_data(cfg_data* s) {
+	/*xfree(s->dataset_dir);  keep around to be stored in network
+	xfree(s->weights_file);
+	xfree(s->backup_dir);*/
+	xfree(s->classes_file);
+	xfree(s);
 }
 
 void free_cfg_net(cfg_net* s) {
@@ -420,12 +474,21 @@ void print_cfg(list* sections) {
 	cfg_section* section;
 	for (int i = 0; i < n; i++) {
 		section = (cfg_section*)list_get_item(sections, i);
-		if (strcmp(section->header, "[net]") == 0) print_cfg_net((cfg_net*)section);
-		if (strcmp(section->header, "[training]") == 0) print_cfg_training((cfg_training*)section);
-		if (strcmp(section->header, "[conv]") == 0) print_cfg_conv((cfg_conv*)section);
-		if (strcmp(section->header, "[classify]") == 0) print_cfg_classify((cfg_classify*)section);
+		if (strcmp(section->header, "[data]") == 0) print_cfg_data((cfg_data*)section);
+		else if (strcmp(section->header, "[net]") == 0) print_cfg_net((cfg_net*)section);
+		else if (strcmp(section->header, "[training]") == 0) print_cfg_training((cfg_training*)section);
+		else if (strcmp(section->header, "[conv]") == 0) print_cfg_conv((cfg_conv*)section);
+		else if (strcmp(section->header, "[classify]") == 0) print_cfg_classify((cfg_classify*)section);
 	}
 	printf("[END CFG]\n\n");
+}
+
+void print_cfg_data(cfg_data* s) {
+	printf("\n[data]\n");
+	printf("dataset_dir = %s\n", s->dataset_dir);
+	printf("classes_file = %s\n", s->classes_file);
+	printf("weights_file = %s\n", s->weights_file);
+	printf("backup_dir = %s\n", s->backup_dir);
 }
 
 void print_cfg_net(cfg_net* s) {

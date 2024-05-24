@@ -11,9 +11,10 @@ extern "C" {
 #endif
 
 
-	network* create_network(data_paths* dp);
+	network* create_network_from_cfg(char* cfgfile);
 
 	typedef struct cfg_section cfg_section;
+	typedef struct cfg_data cfg_data;
 	typedef struct cfg_net cfg_net;
 	typedef struct cfg_training cfg_training;
 	typedef struct cfg_conv cfg_conv;
@@ -30,6 +31,15 @@ extern "C" {
 		int id;
 	} cfg_layer;
 
+	typedef struct cfg_data {
+		char* header;
+		void(*set_param) (void* section, char** tokens);
+		char* dataset_dir;
+		char* classes_file;
+		char* weights_file;
+		char* backup_dir;
+	} cfg_data;
+
 	typedef struct cfg_net {
 		char* header;
 		void(*set_param) (void* section, char** tokens);
@@ -39,13 +49,6 @@ extern "C" {
 		size_t num_classes;
 		COST_TYPE cost;
 	} cfg_net;
-
-	typedef struct cfg_output {
-		char* header;
-		void(*set_param) (void* section, char** tokens);
-		size_t num_classes;
-		COST_TYPE cost;
-	} cfg_output;
 
 	typedef struct cfg_training {
 		char* header;

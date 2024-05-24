@@ -11,12 +11,14 @@
 extern "C" {
 #endif
     
+
     typedef struct network network;
     typedef enum LR_POLICY LR_POLICY;
     typedef struct layer layer;
     typedef enum LAYER_TYPE LAYER_TYPE;
     typedef enum ACTIVATION ACTIVATION;
     typedef enum COST_TYPE COST_TYPE;
+
 
     network* new_network(size_t num_of_layers);
     void build_network(network* net);
@@ -29,12 +31,14 @@ extern "C" {
     void print_activation(ACTIVATION a);
     void print_cost_type(COST_TYPE c);
 
+
     typedef struct network {
         size_t n_layers;
         size_t w;
         size_t h;
         size_t c;
         size_t n_classes;
+        char** class_names;
         COST_TYPE cost;
         size_t batch_size;  // number of images per batch
         size_t subbatch_size;  // number of images per sub-batch, must divide evenly into batch_size
@@ -53,11 +57,17 @@ extern "C" {
         float hue[2];
         data_paths* dp;
         size_t n_samples;
-        sample* samples;
+        od_sample* samples;
+        float* anchors;
         image* input;
         layer* layers;
         float* output;
         int i;  // current layer index
+        char* dataset_dir;
+        char* weights_file;
+        char* backup_dir;
+        dataset data;
+        
     } network;
 
     typedef enum LR_POLICY {
@@ -104,26 +114,26 @@ extern "C" {
     } layer;
 
     typedef enum LAYER_TYPE {
-        NONE_LAYER,
-        CONV,
-        MAXPOOL,
-        SOFTMAX,
-        CLASSIFY,
-        OBJ_DET
+        LAYER_NONE,
+        LAYER_CONV,
+        LAYER_MAXPOOL,
+        LAYER_SOFTMAX,
+        LAYER_CLASSIFY,
+        LAYER_DETECT
     } LAYER_TYPE;
 
     typedef enum ACTIVATION {
-        NONE_ACTIVATION,
-        RELU,
-        MISH,
-        LOGISTIC
+        ACT_NONE,
+        ACT_RELU,
+        ACT_MISH,
+        ACT_LOGISTIC
     } ACTIVATION;
 
     typedef enum COST_TYPE {
-        NONE_COST_TYPE,
-        MSE,  // mean squared error
-        BCE,  // binary cross-entropy, used for 2-class classification (i.e. good/bad, yes/no)
-        CCE  // categorical cross-entropy, used for >2 class classification
+        COST_NONE,
+        COST_MSE,  // mean squared error
+        COST_BCE,  // binary cross-entropy, used for 2-class classification (i.e. good/bad, yes/no)
+        COST_CCE  // categorical cross-entropy, used for >2 class classification
     } COST_TYPE;
 
 #ifdef __cplusplus

@@ -8,7 +8,7 @@
 #include "xopencv.h"
 
 
-void forward_network_train(network* net, sample* samp);
+void forward_network_train(network* net, od_sample* samp);
 void initialize_weights_kaiming(network* net);
 void print_weights(network* net);
 
@@ -16,18 +16,17 @@ void print_weights(network* net);
 void train(network* net) {
 	initialize_weights_kaiming(net);
 	size_t count[1] = { 0 };
-
-	net->samples = load_samples(net->dp->imgs_dir, count);
+	net->od_samples = load_od_samples(net->dp->imgs_dir, count);
 	size_t n = count[0];
 	net->n_samples = n;
-	print_samples(net->samples, n, 1);
+	print_od_samples(net->od_samples, n, 1);
 
 	/*for (size_t i = 0; i < n; i++) {
-		forward_network_train(net, &net->samples[i]);
+		forward_network_train(net, &net->od_samples[i]);
 	}*/
 }
 
-void forward_network_train(network* net, sample* samp) {
+void forward_network_train(network* net, od_sample* samp) {
 	image* img = load_file_to_image(samp->imgpath);
 	if (net->w != img->w || net->h != img->h || net->c != img->c) {
 		printf("Input image does not match network dimensions.\n");

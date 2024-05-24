@@ -23,8 +23,10 @@ size_t zz_str2sizet(char* string, const char* const filename, const char* const 
 int char_in_string(char c, char* str);
 double randn(double mean, double stddev);
 char* read_line(FILE* file);
+int read_line_to_buff(FILE* file, char* buff, size_t buffsize);
 void clean_string(char* s);
 char** split_string(char* str, char* delimiters);
+void split_string_to_buff(char* str, char* delimiters, char** tokens);
 int file_exists(char* filename);
 FILE* get_filestream(char* filename, char* mode);
 void close_filestream(FILE* filestream);

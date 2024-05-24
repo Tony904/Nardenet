@@ -3,6 +3,8 @@
 
 
 #include <stdio.h>
+#include "data_objdet.h"
+#include "data_classifier.h"
 
 
 #ifdef __cplusplus
@@ -10,43 +12,29 @@ extern "C" {
 #endif
 
 
+	typedef enum DATASET_TYPE DATASET_TYPE;
+
 	typedef struct bbox bbox;
-	typedef struct sample sample;
+	typedef struct od_sample od_sample;
+	typedef struct class_set class_set;
+	typedef struct dataset dataset;
 	typedef struct data_paths data_paths;
 
-	sample* load_samples(char* directory, size_t* count_dst);
-	void load_sample(char* antfile, char* imgfile, sample*);
-	data_paths* get_data_paths(char* datafile);
-	void free_sample(sample* samp);
-	void free_data_paths(data_paths* dp);
-	void print_samples(sample* samples, size_t count, int print_annotations);
+	typedef enum DATASET_TYPE {
+		DATASET_CLASSIFY,
+		DATASET_OD
+	} DATASET_TYPE;
 
+	typedef struct dataset {
+		DATASET_TYPE type;
+		size_t n;  // # of samples or # of sets
+		union data {
+			class_set* sets;
+			od_sample* samples;
+		} data;
+	} dataset;
 
-	typedef struct bbox {
-		int lbl;
-		// values are relative
-		float cx;
-		float cy;
-		float w;
-		float h;
-	} bbox;
-
-	typedef struct sample {
-		size_t nboxes;
-		bbox* bboxes;
-		char* imgpath;
-	} sample;
-
-	typedef struct data_paths {
-		char* data_dir;
-		char* imgs_dir;
-		char* ants_dir;
-		char* classes_file;
-		char* backup_dir;
-		char* weights_file;
-		char* cfg_file;
-	} data_paths;
-
+	
 #ifdef __cplusplus
 }
 #endif
