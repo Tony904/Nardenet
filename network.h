@@ -62,7 +62,6 @@ extern "C" {
         image* input;
         layer* layers;
         float* output;
-        int i;  // current layer index
         char* dataset_dir;
         char* weights_file;
         char* backup_dir;

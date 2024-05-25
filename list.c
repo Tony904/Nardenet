@@ -9,10 +9,6 @@ node* new_node(void* item) {
 	return n;
 }
 
-list* new_list(void) {
-	return (list*)xcalloc(1, sizeof(list));
-}
-
 void list_append(list* lst, void* item) {
 	node* n = new_node(item);
 	if (lst->length == 0) {

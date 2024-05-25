@@ -15,7 +15,7 @@ extern "C" {
 	typedef enum DATASET_TYPE DATASET_TYPE;
 
 	typedef struct bbox bbox;
-	typedef struct od_sample od_sample;
+	typedef struct det_sample det_sample;
 	typedef struct class_set class_set;
 	typedef struct dataset dataset;
 	typedef struct data_paths data_paths;
@@ -28,10 +28,10 @@ extern "C" {
 	typedef struct dataset {
 		DATASET_TYPE type;
 		size_t n;  // # of samples or # of sets
-		union data {
+		union {
 			class_set* sets;
-			od_sample* samples;
-		} data;
+			det_sample* samples;
+		};
 	} dataset;
 
 	
