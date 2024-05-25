@@ -3,7 +3,8 @@
 
 
 #include "network.h"
-#include "data.h"
+#include "list.h"
+#include "utils.h"
 
 
 #ifdef __cplusplus
@@ -13,46 +14,22 @@ extern "C" {
 
 	network* create_network_from_cfg(char* cfgfile);
 
+	typedef struct cfg cfg;
 	typedef struct cfg_section cfg_section;
-	typedef struct cfg_data cfg_data;
-	typedef struct cfg_net cfg_net;
-	typedef struct cfg_training cfg_training;
-	typedef struct cfg_conv cfg_conv;
-	typedef struct cfg_classify cfg_classify;
 
-	typedef struct cfg_section {
-		char* header;
-		void(*set_param) (void* section, char** tokens);
-	} cfg_section;
-
-	typedef struct cfg_layer {
-		char* header;
-		void(*set_param) (void* section, char** tokens);
-		int id;
-	} cfg_layer;
-
-	typedef struct cfg_data {
-		char* header;
-		void(*set_param) (void* section, char** tokens);
+	typedef struct cfg {
+		// [data]
 		char* dataset_dir;
 		char* classes_file;
 		char* weights_file;
 		char* backup_dir;
-	} cfg_data;
-
-	typedef struct cfg_net {
-		char* header;
-		void(*set_param) (void* section, char** tokens);
+		// [net]
 		size_t width;
 		size_t height;
 		size_t channels;
-		size_t num_classes;
+		size_t n_classes;
 		COST_TYPE cost;
-	} cfg_net;
-
-	typedef struct cfg_training {
-		char* header;
-		void(*set_param) (void* section, char** tokens);
+		// [training]
 		size_t batch_size;
 		size_t subbatch_size;
 		size_t max_iterations;
@@ -66,32 +43,26 @@ extern "C" {
 		floatarr saturation;
 		floatarr exposure;
 		floatarr hue;
-	} cfg_training;
+		// layers
+		list* layers;
+	} cfg;
 
-	typedef struct cfg_conv {
-		char* header;
-		void(*set_param) (void* section, char** tokens);
+	typedef struct cfg_layer {
+		LAYER_TYPE type;
 		int id;
-		int batch_normalize;
+		int train;
 		intarr in_ids;
 		intarr out_ids;
+		int batch_normalize;
 		size_t n_filters;
 		size_t kernel_size;
 		size_t stride;
 		size_t pad;
 		ACTIVATION activation;
-		int train;
-	} cfg_conv;
-
-	typedef struct cfg_classify {
-		char* header;
-		void(*set_param) (void* section, char** tokens);
-		int id;
-		intarr in_ids;
-		int train;
-		size_t num_classes;
+		// [classify] or [detect]
+		size_t n_classes;
 		COST_TYPE cost;
-	} cfg_classify;
+	} cfg_layer;
 
 
 #ifdef __cplusplus

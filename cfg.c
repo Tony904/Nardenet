@@ -1,412 +1,336 @@
 #include "cfg.h"
-#include "list.h"
-#include "xallocs.h"
-#include "utils.h"
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+#include "xallocs.h"
 
 
-list* get_cfg_sections(char* filename, size_t* n_layers);
-void append_cfg_section(list* lst, char* header);
-cfg_data* new_cfg_data(void);
-cfg_net* new_cfg_net(void);
-cfg_training* new_cfg_training(void);
-cfg_conv* new_cfg_conv(void);
-cfg_classify* new_cfg_classify(void);
-void set_param_cfg_data(cfg_section* section, char** tokens);
-void set_param_cfg_net(cfg_section* section, char** tokens);
-void set_param_cfg_training(cfg_section* section, char** tokens);
-void set_param_cfg_conv(cfg_section* section, char** tokens);
-void set_param_cfg_classify(cfg_section* section, char** tokens);
+#define hDATA "[data]"
+#define hNET "[net]"
+#define hTRAINING "[training]"
+#define hCONV "[conv]"
+#define hCLASSIFY "[classify]"
+#define hDETECT "[detect]"
+
+#define LINESIZE 512
+#define TOKENSSIZE 64
+
+
+void load_cfg(char* filename, cfg* c);
+void copy_to_cfg(cfg* c, char** tokens, char* header);
+void copy_to_cfg_layer(cfg_layer* l, char** tokens);
+void copy_cfg_to_network(cfg* cfig, network* net);
+void copy_data_augment_range(float* dst, floatarr src);
+char** load_class_names(char* filename);
 LR_POLICY str2lr_policy(char* str);
 ACTIVATION str2activation(char* str);
 COST_TYPE str2cost(char* str);
 floatarr tokens2floatarr(char** tokens, size_t offset);
 intarr tokens2intarr(char** tokens, size_t offset);
-void print_tokens(char** tokens);
-void print_cfg_net(cfg_net* s);
-void print_cfg_training(cfg_training* s);
-void print_cfg_conv(cfg_conv* s);
-void print_cfg_classify(cfg_classify* s);
-void print_cfg(list* sections);
-void print_tokens(char** tokens);
+int is_header(char* str, char** header, int* is_layer);
 LAYER_TYPE header2layertype(char* header);
-int is_layer_header(char* header);
-void load_cfg_to_network(list* sections, network* net);
-void load_cfg_net_to_network(cfg_net* s, network* n);
-void load_cfg_training_to_network(cfg_training* s, network* n);
-int load_cfg_section_to_layer(cfg_section* s, network* n);
-void load_cfg_conv_to_layer(cfg_conv* s, layer* l);
-void load_cfg_classify_to_layer(cfg_classify* s, layer* l);
-void free_sections(list* lst);
-void free_section(cfg_section* s);
-void free_cfg_data(cfg_data* s);
-void free_cfg_net(cfg_net* s);
-void free_cfg_training(cfg_training* s);
-void free_cfg_conv(cfg_conv* s);
-void free_cfg_classify(cfg_classify* s);
-
-
-static char* headers[] = { "[data]", "[net]", "[training]", "[conv]", "[classify]", "\0"};
+void print_cfg(cfg* c);
+void print_cfg_layer(cfg_layer* l);
 
 
 network* create_network_from_cfg(char* cfgfile) {
-	size_t n_layers;
-	list* sections = get_cfg_sections(cfgfile, &n_layers);
-	network* net = new_network(n_layers);
-	print_cfg(sections);
-	load_cfg_to_network(sections, net);
-	free_sections(sections);
+	cfg c = { 0 };
+	load_cfg(cfgfile, &c);
+	network* net = new_network(c.layers->length);
+	print_cfg(&c);
+	copy_cfg_to_network(&c, net);
+	xfree(c.classes_file);
+	xfree(c.saturation.a);
+	xfree(c.exposure.a);
+	xfree(c.hue.a);
 	build_network(net);
 	return net;
 }
 
-list* get_cfg_sections(char* filename, size_t* n_layers) {
-	*n_layers = 0;
+void load_cfg(char* filename, cfg* c) {
 	FILE* file = get_filestream(filename, "r");
-	list* sections = new_list();
-	cfg_section* section;
-	int h = -1;  // index of headers[] corresponding to current header being read
-	char* line;
-	while (line = read_line(file), line != 0) {
+	char line[LINESIZE] = { 0 };
+	char* tokens[TOKENSSIZE] = { 0 };
+	char* header[50] = { 0 };
+	cfg_layer* l = 0;
+	list* layers = (list*)xcalloc(1, sizeof(list));
+	int is_layer = 0;
+	while (read_line_to_buff(file, line, LINESIZE)) {
 		clean_string(line);
-		char** tokens = split_string(line, "=,");
-		if (tokens == NULL) {
-			xfree(line);
-			continue;
+		split_string_to_buff(line, "=,", tokens);
+		if (tokens[0] == NULL) continue;
+		if (is_header(line, &header, &is_layer)) {
+			if (!is_layer) continue;
+			l = (cfg_layer*)xcalloc(1, sizeof(cfg_layer));
+			list_append(c->layers, l);
+			l->type = header2layertype(header);
 		}
-		if (tokens[0][0] == '[') {
-			int i = 0;
-			while (headers[i][0] != '\0') {
-				if (strcmp(tokens[0], headers[i]) == 0) {
-					h = i;
-					printf("Appending cfg section: %s\n", headers[h]);
-					append_cfg_section(sections, headers[h]);
-					if (is_layer_header(headers[h])) (*n_layers)++;
-					break;
-				}
-				i++;
-			}
-			if (headers[i][0] == '\0') printf("Unknown header %s.\n", tokens[0]);
+		else if (!is_layer) {
+			copy_to_cfg(c, tokens, &header);
 		}
-		else if (h > -1) {
-			section = (cfg_section*)(sections->last->val);
-			section->set_param(section, tokens);
+		else {
+			copy_to_cfg_layer(l, tokens);
 		}
-		xfree(line);
-		xfree(tokens);
 	}
+	c->layers = layers;
 	close_filestream(file);
 	//print_cfg(sections);
-	return sections;
 }
 
-void load_cfg_to_network(list* sections, network* net) {
-	node* noed = sections->first;
-	cfg_section* sec;
-	size_t i = 0;
-	while (noed != NULL) {
-		sec = (cfg_section*)noed->val;
-		if (strcmp(sec->header, "[net]") == 0) {
-			load_cfg_net_to_network((cfg_net*)sec, net);
-		}
-		else if (strcmp(sec->header, "[training]") == 0) {
-			load_cfg_training_to_network((cfg_training*)sec, net);
-		}
-		else if (load_cfg_section_to_layer(sec, net)) {
-			i++;
-		}
-		noed = noed->next;
+void copy_to_cfg(cfg* c, char** tokens, char* header) {
+	int t = tokens_length(tokens);
+	if (t < 2) {
+		printf("Error. Tokens must have a minimum length of 2, has %d.\n", t);
+		wait_for_key_then_exit();
 	}
-	assert(net->n_layers == i); // number of layers counted equals number of layers loaded
-}
-
-void load_cfg_data_to_network(cfg_data* s, network* net) {
-	net->dataset_dir = s->dataset_dir;
-	net->class_names = load_class_names(s->classes_file);
-	net->weights_file = s->weights_file;
-	net->backup_dir = s->backup_dir;
-}
-
-char** load_class_names(char* classes_file) {
-	FILE* file = get_filestream(classes_file, "r");
-	char* line;
-	size_t n = 0;
-	while (1) {
-		line = read_line(file);
-		if (!line) break;
-		clean_string(line);
-		if (!strlen(line)) {
-			printf("Invalid line in classes file.\nLine index %zu\n", n);
+	char* k = tokens[0];
+	if (strcmp(header, hDATA) == 0) {
+		if (strcmp(k, "dataset_dir") == 0) {
+			c->dataset_dir = (char*)xcalloc(strlen(tokens[1] + 1), sizeof(char));
+			strcpy(c->dataset_dir, tokens[1]);
 		}
-		n++;
-	}
-}
-
-void load_cfg_net_to_network(cfg_net* s, network* net) {
-	net->w = s->width;
-	net->h = s->height;
-	net->c = s->channels;
-	net->n_classes = s->num_classes;
-	net->cost = s->cost;
-}
-
-void load_cfg_training_to_network(cfg_training* s, network* n) {
-	n->batch_size = s->batch_size;
-	n->subbatch_size = s->subbatch_size;
-	n->max_iterations = s->max_iterations;
-	n->learning_rate = s->learning_rate;
-	n->lr_policy = s->lr_policy;
-	n->step_percents = s->step_percents;
-	n->step_scaling = s->step_scaling;
-	n->ease_in = s->ease_in;
-	n->momentum = s->momentum;
-	n->decay = s->decay;
-	n->saturation[0] = 1.0;
-	n->saturation[1] = 1.0;
-	if (s->saturation.n > 0) {
-		n->saturation[0] = s->saturation.a[0];
-		if (s->saturation.n == 2) {
-			n->saturation[1] = s->saturation.a[1];
+		else if (strcmp(k, "classes_file") == 0) {
+			c->classes_file = (char*)xcalloc(strlen(tokens[1] + 1), sizeof(char));
+			strcpy(c->classes_file, tokens[1]);
+		}
+		else if (strcmp(k, "weights_file") == 0) {
+			c->weights_file = (char*)xcalloc(strlen(tokens[1] + 1), sizeof(char));
+			strcpy(c->weights_file, tokens[1]);
+		}
+		else if (strcmp(k, "backup_dir") == 0) {
+			c->backup_dir = (char*)xcalloc(strlen(tokens[1] + 1), sizeof(char));
+			strcpy(c->backup_dir, tokens[1]);
 		}
 	}
-	n->exposure[0] = 1.0;
-	n->exposure[1] = 1.0;
-	if (s->exposure.n > 0) {
-		n->exposure[0] = s->saturation.a[0];
-		if (s->saturation.n == 2) {
-			n->saturation[1] = s->saturation.a[1];
+	else if (strcmp(header, hNET) == 0) {
+		if (strcmp(k, "width") == 0) {
+			c->width = str2sizet(tokens[1]);
+		}
+		else if (strcmp(k, "height") == 0) {
+			c->height = str2sizet(tokens[1]);
+		}
+		else if (strcmp(k, "channels") == 0) {
+			c->channels = str2sizet(tokens[1]);
+		}
+		else if (strcmp(k, "num_classes") == 0) {
+			c->n_classes = str2sizet(tokens[1]);
+		}
+		else if (strcmp(k, "cost") == 0) {
+			c->cost = str2cost(tokens[1]);
 		}
 	}
-	n->hue[0] = 1.0;
-	n->hue[1] = 1.0;
-	if (s->hue.n > 0) {
-		n->hue[0] = s->hue.a[0];
-		if (s->hue.n == 2) {
-			n->hue[1] = s->hue.a[1];
+	else if (strcmp(header, hTRAINING) == 0) {
+		if (strcmp(k, "batch_size") == 0) {
+			c->batch_size = str2sizet(tokens[1]);
+		}
+		else if (strcmp(k, "subbatch_size") == 0) {
+			c->subbatch_size = str2sizet(tokens[1]);
+		}
+		else if (strcmp(k, "max_iterations") == 0) {
+			c->max_iterations = str2sizet(tokens[1]);
+		}
+		else if (strcmp(k, "learning_rate") == 0) {
+			c->learning_rate = str2float(tokens[1]);
+		}
+		else if (strcmp(k, "lr_policy") == 0) {
+			c->lr_policy = str2lr_policy(tokens[1]);
+		}
+		else if (strcmp(k, "step_percents") == 0) {
+			c->step_percents = tokens2floatarr(tokens, 1);
+		}
+		else if (strcmp(k, "step_scaling") == 0) {
+			c->step_scaling = tokens2floatarr(tokens, 1);
+		}
+		else if (strcmp(k, "ease_in") == 0) {
+			c->ease_in = str2sizet(tokens[1]);
+		}
+		else if (strcmp(k, "momentum") == 0) {
+			c->momentum = str2sizet(tokens[1]);
+		}
+		else if (strcmp(k, "decay") == 0) {
+			c->decay = str2float(tokens[1]);
+		}
+		else if (strcmp(k, "saturation") == 0) {
+			c->saturation = tokens2floatarr(tokens, 1);
+		}
+		else if (strcmp(k, "exposure") == 0) {
+			c->exposure = tokens2floatarr(tokens, 1);
+		}
+		else if (strcmp(k, "hue") == 0) {
+			c->hue = tokens2floatarr(tokens, 1);
 		}
 	}
 }
 
-int load_cfg_section_to_layer(cfg_section* sec, network* net) {
-	LAYER_TYPE ltype = header2layertype(sec->header);
-	if (ltype == NONE_LAYER) return 0;
-	int id = ((cfg_layer*)sec)->id;
-	layer* l = &(net->layers[id]);
-	if (l->type != (LAYER_TYPE)0) {
-		printf("Layer ID %d already written to. Check for layers with same ID in cfg file.\n", l->id);
-		exit(EXIT_FAILURE);
+void copy_to_cfg_layer(cfg_layer* l, char** tokens) {
+	int t = tokens_length(tokens);
+	if (t < 2) {
+		printf("Error. Tokens must have a minimum length of 2, has %d.\n", t);
+		wait_for_key_then_exit();
 	}
-	if (ltype == CONV) {
-		load_cfg_conv_to_layer((cfg_conv*)sec, l);
+	char* k = tokens[0];
+	if (strcmp(k, "id") == 0) {
+		l->id = str2int(tokens[1]);
+	}
+	else if (strcmp(k, "train") == 0) {
+		l->train = str2int(tokens[1]);
+	}
+	else if (strcmp(k, "in_ids") == 0) {
+		l->in_ids = tokens2intarr(tokens, 1);
+	}
+	else if (strcmp(k, "out_ids") == 0) {
+		l->out_ids = tokens2intarr(tokens, 1);
+	}
+	else if (strcmp(k, "batch_normalize") == 0) {
+		l->batch_normalize = str2int(tokens[1]);
+	}
+	else if (strcmp(k, "filters") == 0) {
+		l->n_filters = str2sizet(tokens[1]);
+	}
+	else if (strcmp(k, "kernel_size") == 0) {
+		l->kernel_size = str2sizet(tokens[1]);
+	}
+	else if (strcmp(k, "stride") == 0) {
+		l->stride = str2sizet(tokens[1]);
+	}
+	else if (strcmp(k, "pad") == 0) {
+		l->pad = str2sizet(tokens[1]);
+	}
+	else if (strcmp(k, "activation") == 0) {
+		l->activation = str2activation(tokens[1]);
+	}
+	else if (strcmp(k, "classes") == 0) {
+		l->n_classes = str2sizet(tokens[1]);
+	}
+	else if (strcmp(k, "cost") == 0) {
+		l->cost = str2cost(tokens[1]);
+	}
+}
+
+void copy_cfg_to_network(cfg* cfig, network* net) {
+	// [data]
+	net->dataset_dir = cfig->dataset_dir;
+	net->class_names = load_class_names(cfig->classes_file);
+	net->weights_file = cfig->weights_file;
+	net->backup_dir = cfig->backup_dir;
+	// [net]
+	net->w = cfig->width;
+	net->h = cfig->height;
+	net->c = cfig->channels;
+	net->n_classes = cfig->n_classes;
+	net->cost = cfig->cost;
+	// [training]
+	net->batch_size = cfig->batch_size;
+	net->subbatch_size = cfig->subbatch_size;
+	net->max_iterations = cfig->max_iterations;
+	net->learning_rate = cfig->learning_rate;
+	net->lr_policy = cfig->lr_policy;
+	net->step_percents = cfig->step_percents;
+	net->step_scaling = cfig->step_scaling;
+	net->ease_in = cfig->ease_in;
+	net->momentum = cfig->momentum;
+	net->decay = cfig->decay;
+	copy_data_augment_range(net->saturation, cfig->saturation);
+	copy_data_augment_range(net->exposure, cfig->exposure);
+	copy_data_augment_range(net->hue, cfig->hue);
+}
+
+void copy_data_augment_range(float* dst, floatarr src) {
+	float x = 1.0;
+	float y = 1.0;
+	if (src.n == 1) {
+		if (src.a[0] > 1) {
+			y = src.a[0];
+		}
+		else x = src.a[0];
+	}
+	else if (src.n > 1) {
+		if (src.a[1] < src.a[0]) {
+			x = src.a[1];
+			y = src.a[0];
+		}
+	}
+	dst[0] = x;
+	dst[1] = y;
+}
+
+char** load_class_names(char* filename) {
+	FILE* file = get_filestream(filename, "r");
+	char buff[LINESIZE] = { 0 };
+	size_t n = get_line_count(file);
+	char** names = (char**)xcalloc(n, sizeof(char*));
+	for (size_t i = 0; i < n; i++) {
+		read_line_to_buff(file, buff, LINESIZE);
+		size_t length = strlen(buff);
+		names[i] = (char*)xcalloc(length + 1, sizeof(char));
+		strcpy(names[i], buff);
+	}
+	return names;
+}
+
+int is_header(char* str, char** header, int* is_layer) {
+	if (str[0] != '[') return 0;
+	if (strcmp(str, hDATA) == 0) {
+		*header = &hDATA;
+		*is_layer = 0;
 		return 1;
 	}
-	if (ltype == CLASSIFY) {
-		load_cfg_classify_to_layer((cfg_classify*)sec, l);
+	else if (strcmp(str, hNET) == 0) {
+		*header = &hNET;
+		*is_layer = 0;
+		return 1;
+	}
+	else if (strcmp(str, hTRAINING) == 0) {
+		*header = &hTRAINING;
+		*is_layer = 0;
+		return 1;
+	}
+	else if (strcmp(str, hCONV) == 0) {
+		*header = &hCONV;
+		*is_layer = 1;
+		return 1;
+	}
+	else if (strcmp(str, hCLASSIFY) == 0) {
+		*header = &hCLASSIFY;
+		*is_layer = 1;
+		return 1;
+	}
+	else if (strcmp(str, hDETECT) == 0) {
+		*header = &hDETECT;
+		*is_layer = 1;
 		return 1;
 	}
 	return 0;
 }
 
-void load_cfg_conv_to_layer(cfg_conv* s, layer* l) {
-	l->type = CONV;
-	l->id = s->id;
-	l->batch_norm = s->batch_normalize;
-	l->n_filters = s->n_filters;
-	l->ksize = s->kernel_size;
-	l->stride = s->stride;
-	l->pad = s->pad;
-	l->activation = s->activation;
-	l->train = s->train;
-	l->in_ids = s->in_ids;
-	l->out_ids = s->out_ids;
+int tokens_length(char** tokens) {
+	int i = 0;
+	while (tokens[i] != NULL) i++;
+	return i;
 }
 
-void load_cfg_classify_to_layer(cfg_classify* s, layer* l) {
-	l->type = CLASSIFY;
-	l->id = s->id;
-	l->train = s->train;
-	l->n_filters = s->num_classes;
-	l->cost = s->cost;
+COST_TYPE str2cost(char* str) {
+	if (strcmp(str, "mse") == 0) return COST_MSE;
+	if (strcmp(str, "bce") == 0) return COST_BCE;
+	if (strcmp(str, "cce") == 0) return COST_CCE;
+	fprintf(stderr, "Error: No valid cost function named %s.\n", str);
+	exit(EXIT_FAILURE);
 }
 
-void append_cfg_section(list* lst, char* header) {
-	if (strcmp(header, headers[0]) == 0) list_append(lst, new_cfg_data());
-	else if (strcmp(header, headers[1]) == 0) list_append(lst, new_cfg_net());
-	else if (strcmp(header, headers[2]) == 0) list_append(lst, new_cfg_training());
-	else if (strcmp(header, headers[3]) == 0) list_append(lst, new_cfg_conv());
-	else if (strcmp(header, headers[4]) == 0) list_append(lst, new_cfg_classify());
-}
-
-cfg_data* new_cfg_data(void) {
-	cfg_data* section = (cfg_data*)xcalloc(1, sizeof(cfg_data));
-	section->header = headers[0];
-	section->set_param = set_param_cfg_data;
-	return section;
-}
-
-cfg_net* new_cfg_net(void) {
-	cfg_net* section = (cfg_net*)xcalloc(1, sizeof(cfg_net));
-	section->header = headers[1];
-	section->set_param = set_param_cfg_net;
-	return section;
-}
-
-cfg_training* new_cfg_training(void) {
-	cfg_training* section = (cfg_training*)xcalloc(1, sizeof(cfg_training));
-	section->header = headers[2];
-	section->set_param = set_param_cfg_training;
-	return section;
-}
-
-cfg_conv* new_cfg_conv(void) {
-	cfg_conv* section = (cfg_conv*)xcalloc(1, sizeof(cfg_conv));
-	section->header = headers[3];
-	section->set_param = set_param_cfg_conv;
-	// Set non-zero defaults
-	section->train = 1;
-	section->stride = 1;
-	return section;
-}
-
-cfg_classify* new_cfg_classify(void) {
-	cfg_classify* section = (cfg_classify*)xcalloc(1, sizeof(cfg_classify));
-	section->header = headers[4];
-	section->set_param = set_param_cfg_classify;
-	// Set non-zero defaults
-	section->train = 1;
-	return section;
-}
-
-void set_param_cfg_data(cfg_section* section, char** tokens) {
-	cfg_data* sec = (cfg_data*)section;
-	char* param = tokens[0];  //pointer to name of param
-	if (strcmp(param, "dataset_dir") == 0) sec->dataset_dir = str2sizet(tokens[1]);
-	else if (strcmp(param, "classes_file") == 0) sec->classes_file = str2sizet(tokens[1]);
-	else if (strcmp(param, "weights_file") == 0) sec->weights_file = str2sizet(tokens[1]);
-	else if (strcmp(param, "backup_dir") == 0) sec->backup_dir = str2sizet(tokens[1]);
-	else {
-		fprintf(stderr, "Error: No parameter named %s in section %s.\n", param, sec->header);
-		exit(EXIT_FAILURE);
+LR_POLICY str2lr_policy(char* str) {
+	if (strcmp(str, "steps") == 0) {
+		return LR_STEPS;
 	}
+	fprintf(stderr, "Error: No valid policy named %s.\n", str);
+	exit(EXIT_FAILURE);
 }
 
-void set_param_cfg_net(cfg_section* section, char** tokens) {
-	cfg_net* sec = (cfg_net*)section;
-	char* param = tokens[0];  //pointer to name of param
-	if (strcmp(param, "width") == 0) sec->width = str2sizet(tokens[1]);
-	else if (strcmp(param, "height") == 0) sec->height = str2sizet(tokens[1]);
-	else if (strcmp(param, "channels") == 0) sec->channels = str2sizet(tokens[1]);
-	else if (strcmp(param, "num_classes") == 0) sec->num_classes = str2sizet(tokens[1]);
-	else if (strcmp(param, "cost") == 0) sec->cost = str2cost(tokens[1]);
-	else {
-		fprintf(stderr, "Error: No parameter named %s in section %s.\n", param, sec->header);
-		exit(EXIT_FAILURE);
-	}
-}
-
-void set_param_cfg_training(cfg_section* section, char** tokens) {
-	cfg_training* sec = (cfg_training*)section;
-	char* param = tokens[0];
-	if (strcmp(param, "batch_size") == 0) sec->batch_size = str2sizet(tokens[1]);
-	else if (strcmp(param, "subbatch_size") == 0) sec->subbatch_size = str2sizet(tokens[1]);
-	else if (strcmp(param, "max_iterations") == 0) sec->max_iterations = str2sizet(tokens[1]);
-	else if (strcmp(param, "learning_rate") == 0) sec->learning_rate = str2float(tokens[1]);
-	else if (strcmp(param, "lr_policy") == 0) sec->lr_policy = str2lr_policy(tokens[1]);
-	else if (strcmp(param, "step_percents") == 0) sec->step_percents = tokens2floatarr(tokens, 1);
-	else if (strcmp(param, "step_scaling") == 0) sec->step_scaling = tokens2floatarr(tokens, 1);
-	else if (strcmp(param, "ease_in") == 0) sec->ease_in = str2sizet(tokens[1]);
-	else if (strcmp(param, "momentum") == 0) sec->momentum = str2float(tokens[1]);
-	else if (strcmp(param, "decay") == 0) sec->decay = str2float(tokens[1]);
-	else if (strcmp(param, "saturation") == 0) sec->saturation = tokens2floatarr(tokens, 1);
-	else if (strcmp(param, "exposure") == 0) sec->exposure = tokens2floatarr(tokens, 1);
-	else if (strcmp(param, "hue") == 0) sec->hue = tokens2floatarr(tokens, 1);
-}
-
-void set_param_cfg_conv(cfg_section* section, char** tokens) {
-	cfg_conv* sec = (cfg_conv*)section;
-	char* param = tokens[0];
-	if (strcmp(param, "id") == 0) sec->id = str2int(tokens[1]);
-	else if (strcmp(param, "batch_normalize") == 0) sec->batch_normalize = str2int(tokens[1]);
-	else if (strcmp(param, "train") == 0) sec->train = str2int(tokens[1]);
-	else if (strcmp(param, "filters") == 0) sec->n_filters = str2sizet(tokens[1]);
-	else if (strcmp(param, "kernel_size") == 0) sec->kernel_size = str2sizet(tokens[1]);
-	else if (strcmp(param, "stride") == 0) sec->stride = str2sizet(tokens[1]);
-	else if (strcmp(param, "pad") == 0) sec->pad = str2sizet(tokens[1]);
-	else if (strcmp(param, "activation") == 0) sec->activation = str2activation(tokens[1]);
-	else if (strcmp(param, "in_ids") == 0) sec->in_ids = tokens2intarr(tokens, 1);
-	else if (strcmp(param, "out_ids") == 0) sec->out_ids = tokens2intarr(tokens, 1);
-}
-
-void set_param_cfg_classify(cfg_section* section, char** tokens) {
-	cfg_classify* sec = (cfg_classify*)section;
-	char* param = tokens[0];
-	if (strcmp(param, "id") == 0) sec->id = str2int(tokens[1]);
-	else if (strcmp(param, "in_ids") == 0) sec->in_ids = tokens2intarr(tokens, 1);
-	else if (strcmp(param, "train") == 0) sec->train = str2int(tokens[1]);
-	else if (strcmp(param, "num_classes") == 0) sec->num_classes = str2sizet(param);
-	else if (strcmp(param, "cost") == 0) sec->cost = str2cost(tokens[1]);
-}
-
-void free_sections(list* l) {
-	node* n = l->first;
-	while (n) {
-		free_section((cfg_section*)n->val);
-		n = n->next;
-	}
-	free_list(l);
-}
-
-void free_section(cfg_section* sec) {
-	if (strcmp(sec->header, headers[0]) == 0) free_cfg_data((cfg_data*)sec);
-	if (strcmp(sec->header, headers[1]) == 0) free_cfg_net((cfg_net*)sec);
-	else if (strcmp(sec->header, headers[2]) == 0) free_cfg_training((cfg_training*)sec);
-	else if (strcmp(sec->header, headers[3]) == 0) free_cfg_conv((cfg_conv*)sec);
-	else if (strcmp(sec->header, headers[4]) == 0) free_cfg_classify((cfg_classify*)sec);
-}
-
-void free_cfg_data(cfg_data* s) {
-	/*xfree(s->dataset_dir);  keep around to be stored in network
-	xfree(s->weights_file);
-	xfree(s->backup_dir);*/
-	xfree(s->classes_file);
-	xfree(s);
-}
-
-void free_cfg_net(cfg_net* s) {
-	xfree(s);
-}
-
-void free_cfg_training(cfg_training* s) {
-	/*xfree(s->step_percents.a);  keep around to be stored in layer
-	xfree(s->step_scaling.a);*/
-	xfree(s->saturation.a);
-	xfree(s->exposure.a);
-	xfree(s->hue.a);
-	xfree(s);
-}
-
-void free_cfg_conv(cfg_conv* s) {
-	/*xfree(s->in_ids.a);  keep around to be stored in layer
-	xfree(s->out_ids.a);*/
-	xfree(s);
-}
-
-void free_cfg_classify(cfg_classify* s) {
-	xfree(s);
-}
-
-int is_layer_header(char* header) {
-	if (strcmp(header, "[conv]") == 0) return 1;
-	if (strcmp(header, "[classify]") == 0) return 1;
-	else return 0;
-}
-
-LAYER_TYPE header2layertype(char* header) {
-	if (strcmp(header, "[conv]") == 0) return CONV;
-	if (strcmp(header, "[classify]") == 0) return CLASSIFY;
-	return NONE_LAYER;
+ACTIVATION str2activation(char* str) {
+	if (strcmp(str, "relu") == 0) return ACT_RELU;
+	if (strcmp(str, "mish") == 0) return ACT_MISH;
+	if (strcmp(str, "logistic") == 0) return ACT_LOGISTIC;
+	fprintf(stderr, "Error: No valid activation named %s.\n", str);
+	exit(EXIT_FAILURE);
 }
 
 floatarr tokens2floatarr(char** tokens, size_t offset) {
@@ -435,117 +359,82 @@ intarr tokens2intarr(char** tokens, size_t offset) {
 	return iarr;
 }
 
-LR_POLICY str2lr_policy(char* str) {
-	if (strcmp(str, "steps") == 0) {
-		return LR_STEPS;
-	}
-	fprintf(stderr, "Error: No valid policy named %s.\n", str);
-	exit(EXIT_FAILURE);
+LAYER_TYPE header2layertype(char* header) {
+	if (strcmp(header, hCONV) == 0) return LAYER_CONV;
+	if (strcmp(header, hCLASSIFY) == 0) return LAYER_CLASSIFY;
+	if (strcmp(header, hDETECT) == 0) return LAYER_DETECT;
+	return LAYER_NONE;
 }
 
-ACTIVATION str2activation(char* str) {
-	if (strcmp(str, "relu") == 0) return RELU;
-	if (strcmp(str, "mish") == 0) return MISH;
-	if (strcmp(str, "logistic") == 0) return LOGISTIC;
-	fprintf(stderr, "Error: No valid activation named %s.\n", str);
-	exit(EXIT_FAILURE);
-}
+void print_cfg(cfg* c) {
+	printf("\n[CFG]\n\n");
 
-COST_TYPE str2cost(char* str) {
-	if (strcmp(str, "mse") == 0) return MSE;
-	if (strcmp(str, "bce") == 0) return BCE;
-	if (strcmp(str, "cce") == 0) return CCE;
-	fprintf(stderr, "Error: No valid cost function named %s.\n", str);
-	exit(EXIT_FAILURE);
-}
+	printf("[DATA]\n");
+	printf("dataset_dir = %s\n", c->dataset_dir);
+	printf("classes_file = %s\n", c->classes_file);
+	printf("weights_file = %s\n", c->weights_file);
+	printf("backup_dir = %s\n", c->backup_dir);
 
-void print_tokens(char** tokens) {
-	size_t i = 0;
-	while (tokens[i] != NULL) {
-		printf("token %zu = %s\n", i, tokens[i]);
-		i++;
-	}
-}
+	printf("\n[NET]\n");
+	printf("width = %zu\n", c->width);
+	printf("height = %zu\n", c->height);
+	printf("channels = %zu\n", c->channels);
+	printf("n_classes = %zu\n", c->n_classes);
+	printf("cost = ");
+	print_cost_type(c->cost);
 
-void print_cfg(list* sections) {
-	printf("\n[CFG]\n");
-	size_t n = sections->length;
-	printf("# of sections = %zu\n", n);
-	cfg_section* section;
-	for (int i = 0; i < n; i++) {
-		section = (cfg_section*)list_get_item(sections, i);
-		if (strcmp(section->header, "[data]") == 0) print_cfg_data((cfg_data*)section);
-		else if (strcmp(section->header, "[net]") == 0) print_cfg_net((cfg_net*)section);
-		else if (strcmp(section->header, "[training]") == 0) print_cfg_training((cfg_training*)section);
-		else if (strcmp(section->header, "[conv]") == 0) print_cfg_conv((cfg_conv*)section);
-		else if (strcmp(section->header, "[classify]") == 0) print_cfg_classify((cfg_classify*)section);
+	printf("\n[TRAINING]\n");
+	printf("batch_size = %zu\n", c->batch_size);
+	printf("subbatch_size = %zu\n", c->subbatch_size);
+	printf("max_iterations = %zu\n", c->max_iterations);
+	printf("learning_rate = %f\n", c->learning_rate);
+	printf("lr_policy = ");
+	print_lrpolicy(c->lr_policy);
+	printf("step_percents = ");
+	print_floatarr(&c->step_percents);
+	printf("step_scaling = ");
+	print_floatarr(&c->step_scaling);
+	printf("ease_in = %zu\n", c->ease_in);
+	printf("momentum = %f\n", c->momentum);
+	printf("decay = %f\n", c->decay);
+	printf("saturation = ");
+	print_floatarr(&c->saturation);
+	printf("exposure = ");
+	print_floatarr(&c->exposure);
+	printf("hue = ");
+	print_floatarr(&c->hue);
+
+	printf("\n\n[LAYERS]\n");
+	printf("# of layers = %zu\n\n", c->layers->length);
+	node* n = c->layers->first;
+	node* next;
+	while (n) {
+		next = n->next;
+		print_cfg_layer((cfg_layer*)n);
+		printf("\n");
+		n = next;
 	}
 	printf("[END CFG]\n\n");
 }
 
-void print_cfg_data(cfg_data* s) {
-	printf("\n[data]\n");
-	printf("dataset_dir = %s\n", s->dataset_dir);
-	printf("classes_file = %s\n", s->classes_file);
-	printf("weights_file = %s\n", s->weights_file);
-	printf("backup_dir = %s\n", s->backup_dir);
-}
-
-void print_cfg_net(cfg_net* s) {
-	printf("\n[net]\n");
-	printf("width = %zu\nheight = %zu\nchannels = %zu\n", s->width, s->height, s->channels);
-	printf("num_classes = %zu\n", s->num_classes);
-	printf("cost = ");
-	print_cost_type(s->cost);
-}
-
-void print_cfg_training(cfg_training* s) {
-	printf("\n[training]\n");
-	printf("batch_size = %zu\n", s->batch_size);
-	printf("subbatch_size = %zu\n", s->subbatch_size);
-	printf("max_iterations = %zu\n", s->max_iterations);
-	printf("learning_rate = %f\n", s->learning_rate);
-	if (s->lr_policy == LR_STEPS) {
-		printf("lr_policy = steps\n");
-		printf("step_percents = ");
-		print_floatarr(&(s->step_percents));
-		printf("step_scaling = ");
-		print_floatarr(&(s->step_scaling));
-	}
-	printf("ease_in = %zu\n", s->ease_in);
-	printf("momentum = %f\n", s->momentum);
-	printf("decay = %f\n", s->decay);
-	printf("saturation = ");
-	print_floatarr(&(s->saturation));
-	printf("exposure = ");
-	print_floatarr(&(s->exposure));
-	printf("hue = ");
-	print_floatarr(&(s->hue));
-}
-
-void print_cfg_conv(cfg_conv* s) {
-	printf("\n[conv]\n");
-	printf("id = %d\n", s->id);
-	printf("train = %d\n", s->train);
-	printf("batch_normalize = %d\n", s->batch_normalize);
-	printf("filters = %zu\n", s->n_filters);
-	printf("kernel_size = %zu\n", s->kernel_size);
-	printf("stride = %zu\n", s->stride);
-	printf("pad = %zu\n", s->pad);
-	printf("activation = ");
-	print_activation(s->activation);
+void print_cfg_layer(cfg_layer* l) {
+	if (l->type == LAYER_CONV) printf(hCONV);
+	else if (l->type == LAYER_CLASSIFY) printf(hCLASSIFY);
+	else if (l->type == LAYER_DETECT) printf(hDETECT);
+	printf("id = %d\n", l->id);
+	printf("train = %d\n", l->train);
 	printf("in_ids = ");
-	print_intarr(&(s->in_ids));
+	print_intarr(&l->in_ids);
 	printf("out_ids = ");
-	print_intarr(&(s->out_ids));
-}
-
-void print_cfg_classify(cfg_classify* s) {
-	printf("\n[classify]\n");
-	printf("id = %d\n", s->id);
-	printf("train = %d\n", s->train);
+	print_intarr(&l->out_ids);
+	printf("batch_normalize = %d\n", l->batch_normalize);
+	printf("n_filters = %zu\n", l->n_filters);
+	printf("kernel_size = %zu\n", l->kernel_size);
+	printf("stride = %zu\n", l->stride);
+	printf("pad = %zu\n", l->pad);
+	printf("activation = ");
+	print_activation(l->activation);
+	printf("n_classes = %zu\n", l->n_classes);
 	printf("cost = ");
-	print_cost_type(s->cost);
-	printf("in_ids = ");
-	print_intarr(&(s->in_ids));
+	print_cost_type(l->cost);
 }
