@@ -43,6 +43,7 @@ network* create_network_from_cfg(char* cfgfile) {
 	xfree(c.saturation.a);
 	xfree(c.exposure.a);
 	xfree(c.hue.a);
+	free_list(c.layers);
 	build_network(net);
 	return net;
 }
@@ -74,7 +75,6 @@ void load_cfg(char* filename, cfg* c) {
 	}
 	c->layers = layers;
 	close_filestream(file);
-	//print_cfg(sections);
 }
 
 void copy_to_cfg(cfg* c, char** tokens, char* header) {

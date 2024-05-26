@@ -2,6 +2,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <omp.h>
+#include "utils.h"
 #include "xallocs.h"
 #include "layer_conv.h"
 #include "layer_classify.h"
@@ -38,6 +39,11 @@ void build_layer(int i, network* net) {
 	if (i == 0) build_first_layer(net);
 	else if (l->type == LAYER_CONV) build_conv_layer(i, net);
 	else if (l->type == LAYER_CLASSIFY) build_classify_layer(i, net);
+	else if (l->type == LAYER_DETECT) build_detect_layer(i, net);
+	else {
+		printf("Unknown layer type: %d\n", (int)l->type);
+		wait_for_key_then_exit();
+	}
 }
 
 void build_first_layer(network* net) {
@@ -165,6 +171,12 @@ void build_classify_layer(int i, network* net) {
 	l->forward = forward_classify;
 	l->backprop = backprop_classify;
 	set_activate(l);
+}
+
+void build_detect_layer(int i, network* net) {
+	i;
+	net;
+	// UNDER CONSTRUCTION
 }
 
 void set_activate(layer* l) {

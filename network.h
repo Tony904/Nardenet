@@ -13,12 +13,12 @@ extern "C" {
     
 
     typedef struct network network;
-    typedef enum LR_POLICY LR_POLICY;
     typedef struct layer layer;
+    typedef enum LR_POLICY LR_POLICY;
     typedef enum LAYER_TYPE LAYER_TYPE;
     typedef enum ACTIVATION ACTIVATION;
     typedef enum COST_TYPE COST_TYPE;
-
+    typedef enum NET_TYPE NET_TYPE;
 
     network* new_network(size_t num_of_layers);
     void build_network(network* net);
@@ -55,9 +55,6 @@ extern "C" {
         float saturation[2];
         float exposure[2];
         float hue[2];
-        data_paths* dp;
-        size_t n_samples;
-        od_sample* samples;
         float* anchors;
         image* input;
         layer* layers;
@@ -66,12 +63,8 @@ extern "C" {
         char* weights_file;
         char* backup_dir;
         dataset data;
-        
+        NET_TYPE type;
     } network;
-
-    typedef enum LR_POLICY {
-        LR_STEPS
-    } LR_POLICY;
 
     typedef struct layer {
         int id;
@@ -112,6 +105,11 @@ extern "C" {
         size_t* anchors;
     } layer;
 
+    typedef enum NET_TYPE {
+        NET_CLASSIFY,
+        NET_DETECT
+    };
+
     typedef enum LAYER_TYPE {
         LAYER_NONE,
         LAYER_CONV,
@@ -120,6 +118,10 @@ extern "C" {
         LAYER_CLASSIFY,
         LAYER_DETECT
     } LAYER_TYPE;
+
+    typedef enum LR_POLICY {
+        LR_STEPS
+    } LR_POLICY;
 
     typedef enum ACTIVATION {
         ACT_NONE,

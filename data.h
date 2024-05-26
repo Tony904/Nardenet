@@ -3,8 +3,8 @@
 
 
 #include <stdio.h>
-#include "data_objdet.h"
-#include "data_classifier.h"
+#include "data_detect.h"
+#include "data_classify.h"
 
 
 #ifdef __cplusplus
@@ -18,7 +18,6 @@ extern "C" {
 	typedef struct det_sample det_sample;
 	typedef struct class_set class_set;
 	typedef struct dataset dataset;
-	typedef struct data_paths data_paths;
 
 	typedef enum DATASET_TYPE {
 		DATASET_CLASSIFY,

@@ -8,25 +8,34 @@
 #include "xopencv.h"
 
 
-void forward_network_train(network* net, od_sample* samp);
+void forward_network_train(network* net, det_sample* samp);
 void initialize_weights_kaiming(network* net);
 void print_weights(network* net);
 
 
 void train(network* net) {
 	initialize_weights_kaiming(net);
-	size_t count[1] = { 0 };
-	net->od_samples = load_od_samples(net->dp->imgs_dir, count);
-	size_t n = count[0];
-	net->n_samples = n;
-	print_od_samples(net->od_samples, n, 1);
+	if (net->type == NET_DETECT) train_detector(net);
+	else if (net->type == NET_CLASSIFY) train_classifer(net);
 
 	/*for (size_t i = 0; i < n; i++) {
-		forward_network_train(net, &net->od_samples[i]);
+		forward_network_train(net, &net->det_samples[i]);
 	}*/
 }
 
-void forward_network_train(network* net, od_sample* samp) {
+void train_classifer(network* net) {
+	net->data.sets = load_class_sets(net->dataset_dir, &net->data.n);
+
+}
+
+void train_detector(network* net) {
+	net->data.samples = load_det_samples(net->dataset_dir, &net->data.n);
+	for (size_t i = 0; i < n; i++) {
+		forward_network_train(net, &net->data.samples[i]);
+	}
+}
+
+void forward_network_train(network* net, det_sample* samp) {
 	image* img = load_file_to_image(samp->imgpath);
 	if (net->w != img->w || net->h != img->h || net->c != img->c) {
 		printf("Input image does not match network dimensions.\n");

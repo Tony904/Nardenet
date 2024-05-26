@@ -11,9 +11,8 @@
 int main(void) {
 	
 
-	char* datafile = "D:/TonyDev/NardeNet/paths.data";
-	data_paths* dp = get_data_paths(datafile);
-	network* net = create_network(dp);
+	char* cfgfile = "D:/TonyDev/NardeNet/cfg/nardenet.cfg";
+	network* net = create_network_from_cfg(cfgfile);
 	//print_network(net);
 	
 	train(net);
