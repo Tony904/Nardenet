@@ -18,9 +18,6 @@
     <ClCompile Include="src\activations.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\cfg.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\data.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -66,21 +63,18 @@
     <ClCompile Include="src\xopencv.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\data_objdet.c">
+    <ClCompile Include="src\data_detect.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\data_classifier.c">
+    <ClCompile Include="src\data_classify.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\cfg2.c">
+    <ClCompile Include="src\cfg.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\activations.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\cfg.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\data.h">
@@ -131,13 +125,13 @@
     <ClInclude Include="src\xopencv.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\data_classifier.h">
+    <ClInclude Include="src\data_classify.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\data_objdet.h">
+    <ClInclude Include="src\data_detect.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\cfg2.h">
+    <ClInclude Include="src\cfg.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

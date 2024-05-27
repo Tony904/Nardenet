@@ -29,10 +29,9 @@
   <ItemGroup>
     <ClCompile Include="src\activations.c" />
     <ClCompile Include="src\cfg.c" />
-    <ClCompile Include="src\cfg2.c" />
     <ClCompile Include="src\data.c" />
-    <ClCompile Include="src\data_classifier.c" />
-    <ClCompile Include="src\data_objdet.c" />
+    <ClCompile Include="src\data_classify.c" />
+    <ClCompile Include="src\data_detect.c" />
     <ClCompile Include="src\gemm.c" />
     <ClCompile Include="src\im2col.c" />
     <ClCompile Include="src\image.c" />
@@ -51,10 +50,9 @@
   <ItemGroup>
     <ClInclude Include="src\activations.h" />
     <ClInclude Include="src\cfg.h" />
-    <ClInclude Include="src\cfg2.h" />
     <ClInclude Include="src\data.h" />
-    <ClInclude Include="src\data_classifier.h" />
-    <ClInclude Include="src\data_objdet.h" />
+    <ClInclude Include="src\data_classify.h" />
+    <ClInclude Include="src\data_detect.h" />
     <ClInclude Include="src\gemm.h" />
     <ClInclude Include="src\im2col.h" />
     <ClInclude Include="src\image.h" />
@@ -85,40 +83,40 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='dll|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='dll|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
