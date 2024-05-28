@@ -9,6 +9,8 @@
 #include "xopencv.h"
 
 
+void train_classifer(network* net);
+void train_detector(network* net);
 void forward_network_train(network* net, det_sample* samp);
 void initialize_weights_kaiming(network* net);
 void print_weights(network* net);
@@ -29,18 +31,44 @@ void train(network* net) {
 }
 
 void train_classifer(network* net) {
-	char* train_dir[MAX_DIR_PATH] = { 0 };
+	char train_dir[MAX_DIR_PATH] = { 0 };
 	strcpy(train_dir, net->dataset_dir);
 	snprintf(train_dir, sizeof(train_dir), "%s%s", train_dir, "train\\");
-	net->data.sets = load_class_sets(train_dir, net->class_names, &net->data.n);
+	load_classifier_dataset(&net->data.clsr, train_dir, net->class_names, net->n_classes);
+	for (size_t iter = 0; iter < net->max_iterations; iter++) {
+		net->input = get_next_image_classifier_dataset(&net->data.clsr);
+		if (net->w != net->input->w || net->h != net->input->h || net->c != net->input->c) {
+			printf("Input image does not match network dimensions.\n");
+			printf("img w,h,c = %zu,%zu,%zu\n", net->input->w, net->input->h, net->input->c);
+			printf("net w,h,c = %zu,%zu,%zu\n", net->w, net->h, net->c);
+			print_location(NARDENET_LOCATION);
+			printf("\n\nPress ENTER to exit the program.");
+			(void)getchar();
+			exit(EXIT_FAILURE);
+		}
+		for (size_t i = 0; i < net->n_layers; i++) {
+			printf("Forwarding layer index %zu...\n", i);
+			net->layers[i].forward(&net->layers[i], net);
+			printf("Forward done.\n");
+		}
+		printf("All layers forwarded.\n");
+		for (size_t i = net->n_layers; i; i--) {
+			printf("Backproping layer index %zu...\n", i - 1);
+			net->layers[i].backprop(&net->layers[i], net);
+			printf("Backprop done.\n");
+		}
+		printf("All layers backproped.\n");
+	}
+	
 
-	net->input = load_img_from_classifier_dataset(lbl, i);
 }
 
 void train_detector(network* net) {
-	net->data.samples = load_det_samples(net->dataset_dir, &net->data.n);
+	detector_dataset* data = &net->data.detr;
+	data->samples = load_det_samples(net->dataset_dir, &data->n);
+	size_t n = data->n;
 	for (size_t i = 0; i < n; i++) {
-		forward_network_train(net, &net->data.samples[i]);
+		forward_network_train(net, &data->samples[i]);
 	}
 }
 

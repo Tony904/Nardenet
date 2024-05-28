@@ -100,21 +100,35 @@ double randn(double mean, double stddev) {
 		n2_cached = 0;
 		return n2 * stddev + mean;
 	}
-	else {
-		double x = 0.0;
-		double y = 0.0;
-		double r = 0.0;
-		while (r == 0.0 || r > 1.0) {
-			x = 2.0 * rand() / RAND_MAX - 1;
-			y = 2.0 * rand() / RAND_MAX - 1;
-			r = x * x + y * y;
-		}
-		double d = sqrt(-2.0 * log(r) / r);
-		n2 = y * d;
-		n2_cached = 1;
-		return x * d * stddev + mean;
+	double x = 0.0;
+	double y = 0.0;
+	double r = 0.0;
+	while (r == 0.0 || r > 1.0) {
+		x = 2.0 * rand() / RAND_MAX - 1;
+		y = 2.0 * rand() / RAND_MAX - 1;
+		r = x * x + y * y;
 	}
+	double d = sqrt(-2.0 * log(r) / r);
+	n2 = y * d;
+	n2_cached = 1;
+	return x * d * stddev + mean;
+}
 
+// Inclusive range_start and range_end
+void get_random_numbers_no_repeats(size_t* arr, size_t size, size_t range_start, size_t range_end) {
+	size_t range = range_end - range_start + 1;
+	if (size != range) {
+		printf("Error: Size of array (%zu) is not equal to range. (%zu)\n", size, range);
+		wait_for_key_then_exit();
+	}
+	for (size_t i = 0; i < range; i++) arr[i] = range_start + i;
+	// Fisher-Yates shuffle
+	for (size_t i = range - 1; i > 0; i--) {
+		size_t j = rand() % (i + 1);
+		size_t temp = arr[i];
+		arr[i] = arr[j];
+		arr[j] = temp;
+	}
 }
 
 /*
@@ -132,8 +146,9 @@ char* read_line(FILE* file) {
 	return line;
 }
 
-int read_line_to_buff(FILE* file, char* buff, size_t buffsize) {
+int read_line_to_buff(FILE* file, char* buff, int buffsize) {
 	if (!fgets(buff, buffsize, file)) return 0;
+	return 1;
 }
 
 /*
@@ -308,7 +323,7 @@ char* wstr2str(const wchar_t* wstr) {
 
 // extensions are a list of extensions separated by a comma. i.e. ".jpg,.jpeg,.bmp"
 list* get_files_list(char* dir, char* extensions) {
-	list* paths = new_list();
+	list* paths = (list*)xcalloc(1, sizeof(list));
 	size_t count = 0;
 	char buff[100];
 	strcpy(buff, extensions);

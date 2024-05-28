@@ -12,7 +12,6 @@ extern "C" {
 		float* data_col);
 	void test_im2col(void);
 
-
 #ifdef __cplusplus
 }
 #endif

@@ -7,7 +7,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
     
     typedef struct image image;
     
@@ -21,7 +20,6 @@ extern "C" {
         size_t c;
         float* data;
     } image;
-    
 
 #ifdef __cplusplus
 }

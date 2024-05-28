@@ -1,13 +1,13 @@
 #ifndef XARRAYS_H
 #define XARRAYS_H
 
+
 #include <stdlib.h>
 
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 
 	typedef struct floatarr floatarr;
 	typedef struct intarr intarr;
@@ -26,7 +26,6 @@ extern "C" {
 		size_t n;  // length of array
 		int* a;
 	} intarr;
-
 
 #ifdef __cplusplus
 }

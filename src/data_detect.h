@@ -1,5 +1,5 @@
-#ifndef DATA_OBJDET_H
-#define DATA_OBJDET_H
+#ifndef DATA_DETECT_H
+#define DATA_DETECT_H
 
 
 #include <stdio.h>
@@ -9,13 +9,12 @@
 extern "C" {
 #endif
 
+	typedef struct bbox bbox;
+	typedef struct det_sample det_sample;
 
 	det_sample* load_det_samples(char* directory, size_t* count_dst);
 	void free_det_sample(det_sample* samp);
 	void print_det_samples(det_sample* samples, size_t count, int print_annotations);
-
-	typedef struct bbox bbox;
-	typedef struct det_sample det_sample;
 
 	typedef struct bbox {
 		int lbl;
@@ -31,7 +30,6 @@ extern "C" {
 		bbox* bboxes;
 		char* imgpath;
 	} det_sample;
-
 
 #ifdef __cplusplus
 }

@@ -13,7 +13,6 @@ extern "C" {
 	void backprop_classify(layer* l, network* net);
 	void activate_classify(layer* l);
 
-
 #ifdef __cplusplus
 }
 #endif

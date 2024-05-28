@@ -38,7 +38,7 @@ extern "C" {
         show_cvmat(&mat);
     }
 
-    extern "C" image* load_file_to_image(char* filename) {
+    extern "C" image* load_image(char* filename) {
         //std::string path = "D:\\TonyDev\\NardeNet\\images\\one_3.jpg";
         std::string path = filename;
         std::ifstream file(path);

@@ -11,11 +11,10 @@
 extern "C" {
 #endif
 
-
-	network* create_network_from_cfg(char* cfgfile);
-
 	typedef struct cfg cfg;
 	typedef struct cfg_section cfg_section;
+
+	network* create_network_from_cfg(char* cfgfile);
 
 	typedef struct cfg {
 		// [data]
@@ -63,7 +62,6 @@ extern "C" {
 		size_t n_classes;
 		COST_TYPE cost;
 	} cfg_layer;
-
 
 #ifdef __cplusplus
 }

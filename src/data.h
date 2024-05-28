@@ -5,34 +5,33 @@
 #include <stdio.h>
 #include "data_detect.h"
 #include "data_classify.h"
+#include "image.h"
 
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+	typedef struct classifier_dataset classifier_dataset;
+	typedef struct detector_dataset detector_dataset;
 
-	typedef enum DATASET_TYPE DATASET_TYPE;
+	void load_classifier_dataset(classifier_dataset* dataset, char* classes_dir, char** class_names, size_t n_classes);
+	void load_detector_dataset(detector_dataset* dataset);
+	image* get_next_image_classifier_dataset(classifier_dataset* dataset);
 
-	typedef struct bbox bbox;
-	typedef struct det_sample det_sample;
-	typedef struct class_set class_set;
-	typedef struct dataset dataset;
+	typedef struct classifier_dataset {
+		class_set* sets;
+		size_t n;  // # of sets/classes
+		size_t* rands;  // array of non-repeating random numbers of size n
+		size_t ri;  // rands index
+	} classifier_dataset;
 
-	typedef enum DATASET_TYPE {
-		DATASET_CLASSIFY,
-		DATASET_OD
-	} DATASET_TYPE;
-
-	typedef struct dataset {
-		DATASET_TYPE type;
-		size_t n;  // # of samples or # of sets
-		union {
-			class_set* sets;
-			det_sample* samples;
-		};
-	} dataset;
-
+	typedef struct detector_dataset {
+		det_sample* samples;
+		size_t n;  // # of samples
+		size_t* rands;  // array of non-repeating random numbers of size n
+		size_t ri;  // rands index
+	} detector_dataset;
 	
 #ifdef __cplusplus
 }

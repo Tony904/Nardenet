@@ -27,7 +27,7 @@ ACTIVATION str2activation(char* str);
 COST_TYPE str2cost(char* str);
 floatarr tokens2floatarr(char** tokens, size_t offset);
 intarr tokens2intarr(char** tokens, size_t offset);
-int is_header(char* str, char** header, int* is_layer);
+int is_header(char* str, char* header, int* is_layer);
 LAYER_TYPE header2layertype(char* header);
 void print_cfg(cfg* c);
 void print_cfg_layer(cfg_layer* l);
@@ -36,6 +36,10 @@ void print_cfg_layer(cfg_layer* l);
 network* create_network_from_cfg(char* cfgfile) {
 	cfg c = { 0 };
 	load_cfg(cfgfile, &c);
+	if (c.layers == NULL) {
+		printf("No layers in cfg.\n");
+		wait_for_key_then_exit();
+	}
 	network* net = new_network(c.layers->length);
 	print_cfg(&c);
 	copy_cfg_to_network(&c, net);
@@ -52,7 +56,7 @@ void load_cfg(char* filename, cfg* c) {
 	FILE* file = get_filestream(filename, "r");
 	char line[LINESIZE] = { 0 };
 	char* tokens[TOKENSSIZE] = { 0 };
-	char* header[50] = { 0 };
+	char header[50] = { 0 };
 	cfg_layer* l = 0;
 	list* layers = (list*)xcalloc(1, sizeof(list));
 	int is_layer = 0;
@@ -60,14 +64,14 @@ void load_cfg(char* filename, cfg* c) {
 		clean_string(line);
 		split_string_to_buff(line, "=,", tokens);
 		if (tokens[0] == NULL) continue;
-		if (is_header(line, &header, &is_layer)) {
+		if (is_header(line, header, &is_layer)) {
 			if (!is_layer) continue;
 			l = (cfg_layer*)xcalloc(1, sizeof(cfg_layer));
 			list_append(c->layers, l);
 			l->type = header2layertype(header);
 		}
 		else if (!is_layer) {
-			copy_to_cfg(c, tokens, &header);
+			copy_to_cfg(c, tokens, header);
 		}
 		else {
 			copy_to_cfg_layer(l, tokens);
@@ -78,9 +82,9 @@ void load_cfg(char* filename, cfg* c) {
 }
 
 void copy_to_cfg(cfg* c, char** tokens, char* header) {
-	int t = tokens_length(tokens);
+	size_t t = tokens_length(tokens);
 	if (t < 2) {
-		printf("Error. Tokens must have a minimum length of 2, has %d.\n", t);
+		printf("Error. Tokens must have a minimum length of 2, has %zu.\n", t);
 		wait_for_key_then_exit();
 	}
 	char* k = tokens[0];
@@ -145,7 +149,7 @@ void copy_to_cfg(cfg* c, char** tokens, char* header) {
 			c->ease_in = str2sizet(tokens[1]);
 		}
 		else if (strcmp(k, "momentum") == 0) {
-			c->momentum = str2sizet(tokens[1]);
+			c->momentum = str2float(tokens[1]);
 		}
 		else if (strcmp(k, "decay") == 0) {
 			c->decay = str2float(tokens[1]);
@@ -163,9 +167,9 @@ void copy_to_cfg(cfg* c, char** tokens, char* header) {
 }
 
 void copy_to_cfg_layer(cfg_layer* l, char** tokens) {
-	int t = tokens_length(tokens);
+	size_t t = tokens_length(tokens);
 	if (t < 2) {
-		printf("Error. Tokens must have a minimum length of 2, has %d.\n", t);
+		printf("Error. Tokens must have a minimum length of 2, has %zu.\n", t);
 		wait_for_key_then_exit();
 	}
 	char* k = tokens[0];
@@ -268,45 +272,39 @@ char** load_class_names(char* filename) {
 	return names;
 }
 
-int is_header(char* str, char** header, int* is_layer) {
+int is_header(char* str, char* header, int* is_layer) {
 	if (str[0] != '[') return 0;
 	if (strcmp(str, hDATA) == 0) {
-		*header = &hDATA;
+		header = hDATA;
 		*is_layer = 0;
 		return 1;
 	}
 	else if (strcmp(str, hNET) == 0) {
-		*header = &hNET;
+		header = hNET;
 		*is_layer = 0;
 		return 1;
 	}
 	else if (strcmp(str, hTRAINING) == 0) {
-		*header = &hTRAINING;
+		header = hTRAINING;
 		*is_layer = 0;
 		return 1;
 	}
 	else if (strcmp(str, hCONV) == 0) {
-		*header = &hCONV;
+		header = hCONV;
 		*is_layer = 1;
 		return 1;
 	}
 	else if (strcmp(str, hCLASSIFY) == 0) {
-		*header = &hCLASSIFY;
+		header = hCLASSIFY;
 		*is_layer = 1;
 		return 1;
 	}
 	else if (strcmp(str, hDETECT) == 0) {
-		*header = &hDETECT;
+		header = hDETECT;
 		*is_layer = 1;
 		return 1;
 	}
 	return 0;
-}
-
-int tokens_length(char** tokens) {
-	int i = 0;
-	while (tokens[i] != NULL) i++;
-	return i;
 }
 
 COST_TYPE str2cost(char* str) {

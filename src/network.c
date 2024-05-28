@@ -12,6 +12,7 @@ void build_first_layer(network* net);
 void build_layer(int i, network* net);
 void build_conv_layer(int i, network* net);
 void build_classify_layer(int i, network* net);
+void build_detect_layer(int i, network* net);
 void set_activate(layer* l);
 void free_network(network* net);
 void free_layers(network* net);

@@ -9,9 +9,7 @@
 extern "C" {
 #endif
 
-
 	void train(network* net);
-
 
 #ifdef __cplusplus
 }

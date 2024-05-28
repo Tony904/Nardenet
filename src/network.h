@@ -10,7 +10,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-    
 
     typedef struct network network;
     typedef struct layer layer;
@@ -30,7 +29,6 @@ extern "C" {
     void print_layertype(LAYER_TYPE lt);
     void print_activation(ACTIVATION a);
     void print_cost_type(COST_TYPE c);
-
 
     typedef struct network {
         size_t n_layers;
@@ -62,8 +60,11 @@ extern "C" {
         char* dataset_dir;
         char* weights_file;
         char* backup_dir;
-        dataset data;
         NET_TYPE type;
+        union data {
+            classifier_dataset clsr;
+            detector_dataset detr;
+        } data;
     } network;
 
     typedef struct layer {
@@ -108,7 +109,7 @@ extern "C" {
     typedef enum NET_TYPE {
         NET_CLASSIFY,
         NET_DETECT
-    };
+    } NET_TYPE;
 
     typedef enum LAYER_TYPE {
         LAYER_NONE,
