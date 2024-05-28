@@ -18,9 +18,6 @@
     <ClCompile Include="src\activations.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\data.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\gemm.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -70,6 +67,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\cfg.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\data.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
