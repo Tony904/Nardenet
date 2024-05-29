@@ -72,6 +72,12 @@
     <ClCompile Include="src\data.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\costs.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\derivatives.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\activations.h">
@@ -132,6 +138,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\cfg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\costs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\derivatives.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

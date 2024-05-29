@@ -29,9 +29,11 @@
   <ItemGroup>
     <ClCompile Include="src\activations.c" />
     <ClCompile Include="src\cfg.c" />
+    <ClCompile Include="src\costs.c" />
     <ClCompile Include="src\data.c" />
     <ClCompile Include="src\data_classify.c" />
     <ClCompile Include="src\data_detect.c" />
+    <ClCompile Include="src\derivatives.c" />
     <ClCompile Include="src\gemm.c" />
     <ClCompile Include="src\im2col.c" />
     <ClCompile Include="src\image.c" />
@@ -50,9 +52,11 @@
   <ItemGroup>
     <ClInclude Include="src\activations.h" />
     <ClInclude Include="src\cfg.h" />
+    <ClInclude Include="src\costs.h" />
     <ClInclude Include="src\data.h" />
     <ClInclude Include="src\data_classify.h" />
     <ClInclude Include="src\data_detect.h" />
+    <ClInclude Include="src\derivatives.h" />
     <ClInclude Include="src\gemm.h" />
     <ClInclude Include="src\im2col.h" />
     <ClInclude Include="src\image.h" />
