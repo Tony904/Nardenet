@@ -47,46 +47,6 @@ void forward_conv(layer* l, network* net) {
 	xfree(B0);
 }
 
-void activate_conv_relu(layer* l) {
-	float* act_input = l->act_input;
-	float* output = l->output;
-	int i;
-#pragma omp parallel for
-	for (i = 0; i < l->out_n; i++) {
-		float x = output[i];
-		act_input[i] = x;
-		output[i] = relu_x(x);
-	}
-}
-
-void activate_conv_mish(layer* l) {
-	float* act_input = l->act_input;
-	float* output = l->output;
-	int i;
-#pragma omp parallel for
-	for (i = 0; i < l->out_n; i++) {
-		float x = output[i];
-		act_input[i] = x;
-		output[i] = mish_x(x, 20);
-	}
-}
-
-void activate_conv_logistic(layer* l) {
-	float* act_input = l->act_input;
-	float* output = l->output;
-	int i;
-#pragma omp parallel for
-	for (i = 0; i < l->out_n; i++) {
-		float x = output[i];
-		act_input[i] = x;
-		output[i] = logistic_x(x);
-	}
-}
-
-void activate_conv_none(layer* l) {
-	l;
-}
-
 void backprop_first(layer* l, network* net) {
 	l; net;
 }

@@ -6,6 +6,7 @@
 #include "image.h"
 #include "data.h"
 
+#define NUM_ANCHOR_PARAMS 5  // probability contains any object, center_x, center_y, width, height
 
 #ifdef __cplusplus
 extern "C" {
@@ -37,7 +38,6 @@ extern "C" {
         size_t c;
         size_t n_classes;
         char** class_names;
-        COST_TYPE cost;
         size_t batch_size;  // number of images per batch
         size_t subbatch_size;  // number of images per sub-batch, must divide evenly into batch_size
         size_t max_iterations;  // maximum number of training iterations before automatically ending training
@@ -54,6 +54,7 @@ extern "C" {
         float exposure[2];
         float hue[2];
         float* anchors;
+        size_t n_anchors;
         image* input;
         layer* layers;
         float* output;
@@ -61,6 +62,7 @@ extern "C" {
         char* weights_file;
         char* backup_dir;
         NET_TYPE type;
+        float* truth;
         union data {
             classifier_dataset clsr;
             detector_dataset detr;
@@ -92,17 +94,17 @@ extern "C" {
         floatarr weights;  // n_weights = ksize * ksize * c * n_filters
         float* biases;
         float* act_input;
-        float* delta;  // predicted - truth (?)
+        float* grads;
         float* means;
         float* variances;
-        float* losses;
+        float* errors;
         intarr in_ids;
         intarr out_ids;
         layer** in_layers;
         int train;
         int batch_norm;
         size_t n_classes;
-        COST_TYPE cost;
+        COST_TYPE cost_type;
         size_t* anchors;
     } layer;
 
@@ -115,7 +117,6 @@ extern "C" {
         LAYER_NONE,
         LAYER_CONV,
         LAYER_MAXPOOL,
-        LAYER_SOFTMAX,
         LAYER_CLASSIFY,
         LAYER_DETECT
     } LAYER_TYPE;
@@ -127,8 +128,10 @@ extern "C" {
     typedef enum ACTIVATION {
         ACT_NONE,
         ACT_RELU,
+        ACT_LEAKY,
         ACT_MISH,
-        ACT_LOGISTIC
+        ACT_SIGMOID,
+        ACT_SOFTMAX
     } ACTIVATION;
 
     typedef enum COST_TYPE {

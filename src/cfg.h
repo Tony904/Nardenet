@@ -27,7 +27,6 @@ extern "C" {
 		size_t height;
 		size_t channels;
 		size_t n_classes;
-		COST_TYPE cost;
 		// [training]
 		size_t batch_size;
 		size_t subbatch_size;
@@ -60,7 +59,7 @@ extern "C" {
 		ACTIVATION activation;
 		// [classify] or [detect]
 		size_t n_classes;
-		COST_TYPE cost;
+		COST_TYPE cost_type;
 	} cfg_layer;
 
 #ifdef __cplusplus

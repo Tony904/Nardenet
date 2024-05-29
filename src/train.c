@@ -7,6 +7,7 @@
 #include "image.h"
 #include "data.h"
 #include "xopencv.h"
+#include "costs.h"
 
 
 void train_classifer(network* net);
@@ -36,7 +37,7 @@ void train_classifer(network* net) {
 	snprintf(train_dir, sizeof(train_dir), "%s%s", train_dir, "train\\");
 	load_classifier_dataset(&net->data.clsr, train_dir, net->class_names, net->n_classes);
 	for (size_t iter = 0; iter < net->max_iterations; iter++) {
-		net->input = get_next_image_classifier_dataset(&net->data.clsr);
+		net->input = get_next_image_classifier_dataset(&net->data.clsr, net->truth);
 		if (net->w != net->input->w || net->h != net->input->h || net->c != net->input->c) {
 			printf("Input image does not match network dimensions.\n");
 			printf("img w,h,c = %zu,%zu,%zu\n", net->input->w, net->input->h, net->input->c);

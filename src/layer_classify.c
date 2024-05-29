@@ -1,14 +1,15 @@
 #include "layer_classify.h"
 #include <omp.h>
 #include <assert.h>
+#include <stdio.h>
 #include "xallocs.h"
 #include "im2col.h"
 #include "gemm.h"
 #include "network.h"
 #include "activations.h"
-
-
-void softmax_classify(layer* l);
+#include "costs.h"
+#include "utils.h"
+#include "derivatives.h"
 
 
 #pragma warning(suppress:4100)
@@ -33,29 +34,20 @@ void forward_classify(layer* l, network* net) {
 	add_biases(C, l->biases, M, N);
 	l->activate(l);
 	xfree(B0);
-	softmax_classify(l);
-}
-
-void activate_classify(layer* l) {
-	float* act_input = l->act_input;
-	float* output = l->output;
-	int i;
-#pragma omp parallel for
-	for (i = 0; i < l->out_n; i++) {
-		float x = output[i];
-		act_input[i] = x;
-		output[i] = logistic_x(x);
-	}
 }
 
 void backprop_classify(layer* l, network* net) {
-	l; net;
-}
-
-void softmax_classify(layer* l) {
-	float esum = 0;
-	for (int i = 0; i < l->out_n; i++) {
-		printf("%f\n", expf(l->output[i]));
+	float* truth = net->truth;
+	float* output = l->output;
+	float* errors = l->errors;
+	float* grads = l->grads;
+	if (l->cost_type == COST_MSE) {
+		get_cost_mse(grads, errors, output, truth, l->out_n);
+		get_grads_mse(grads, errors, l->out_n);
 	}
-	esum;
+	else {
+		printf("under construction\n");
+		wait_for_key_then_exit();
+	}
+
 }

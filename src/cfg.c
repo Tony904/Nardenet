@@ -40,6 +40,7 @@ network* create_network_from_cfg(char* cfgfile) {
 		printf("No layers in cfg.\n");
 		wait_for_key_then_exit();
 	}
+#pragma warning (suppress:6011)  // Visual Studio is too stupid to recognize c.layers can't be null here
 	network* net = new_network(c.layers->length);
 	print_cfg(&c);
 	copy_cfg_to_network(&c, net);
@@ -118,9 +119,6 @@ void copy_to_cfg(cfg* c, char** tokens, char* header) {
 		}
 		else if (strcmp(k, "num_classes") == 0) {
 			c->n_classes = str2sizet(tokens[1]);
-		}
-		else if (strcmp(k, "cost") == 0) {
-			c->cost = str2cost(tokens[1]);
 		}
 	}
 	else if (strcmp(header, hTRAINING) == 0) {
@@ -207,7 +205,7 @@ void copy_to_cfg_layer(cfg_layer* l, char** tokens) {
 		l->n_classes = str2sizet(tokens[1]);
 	}
 	else if (strcmp(k, "cost") == 0) {
-		l->cost = str2cost(tokens[1]);
+		l->cost_type = str2cost(tokens[1]);
 	}
 }
 
@@ -222,7 +220,6 @@ void copy_cfg_to_network(cfg* cfig, network* net) {
 	net->h = cfig->height;
 	net->c = cfig->channels;
 	net->n_classes = cfig->n_classes;
-	net->cost = cfig->cost;
 	// [training]
 	net->batch_size = cfig->batch_size;
 	net->subbatch_size = cfig->subbatch_size;
@@ -326,7 +323,8 @@ LR_POLICY str2lr_policy(char* str) {
 ACTIVATION str2activation(char* str) {
 	if (strcmp(str, "relu") == 0) return ACT_RELU;
 	if (strcmp(str, "mish") == 0) return ACT_MISH;
-	if (strcmp(str, "logistic") == 0) return ACT_LOGISTIC;
+	if (strcmp(str, "sigmoid") == 0) return ACT_SIGMOID;
+	if (strcmp(str, "softmax") == 0) return ACT_SOFTMAX;
 	fprintf(stderr, "Error: No valid activation named %s.\n", str);
 	exit(EXIT_FAILURE);
 }
@@ -378,8 +376,6 @@ void print_cfg(cfg* c) {
 	printf("height = %zu\n", c->height);
 	printf("channels = %zu\n", c->channels);
 	printf("n_classes = %zu\n", c->n_classes);
-	printf("cost = ");
-	print_cost_type(c->cost);
 
 	printf("\n[TRAINING]\n");
 	printf("batch_size = %zu\n", c->batch_size);
@@ -434,5 +430,5 @@ void print_cfg_layer(cfg_layer* l) {
 	print_activation(l->activation);
 	printf("n_classes = %zu\n", l->n_classes);
 	printf("cost = ");
-	print_cost_type(l->cost);
+	print_cost_type(l->cost_type);
 }

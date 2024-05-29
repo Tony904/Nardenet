@@ -6,6 +6,7 @@
 #include "xallocs.h"
 #include "layer_conv.h"
 #include "layer_classify.h"
+#include "activations.h"
 
 
 void build_first_layer(network* net);
@@ -20,7 +21,6 @@ void free_layer_members(layer* l);
 void print_layer_conv(layer* l);
 void print_layer_classify(layer* l);
 
-
 network* new_network(size_t num_of_layers) {
 	network* net = (network*)xcalloc(1, sizeof(network));
 	net->n_layers = num_of_layers;
@@ -29,6 +29,12 @@ network* new_network(size_t num_of_layers) {
 }
 
 void build_network(network* net) {
+	if (net->type == NET_CLASSIFY) {
+		net->truth = (float*)xcalloc(net->n_classes, sizeof(float));
+	}
+	else if (net->type == NET_DETECT) {
+		net->truth = (float*)xcalloc((net->n_classes + NUM_ANCHOR_PARAMS) * net->n_anchors, sizeof(float));
+	}
 	for (int i = 0; i < net->n_layers; i++) {
 		build_layer(i, net);
 	}
@@ -131,7 +137,6 @@ void build_classify_layer(int i, network* net) {
 		l->n_classes = net->n_classes;
 		l->n_filters = l->n_classes;
 	}
-	if (l->cost == COST_NONE) l->cost = net->cost;
 
 	if (l->in_ids.n == 0) {
 		l->in_ids.a = (int*)xcalloc(1, sizeof(int));
@@ -181,26 +186,24 @@ void build_detect_layer(int i, network* net) {
 }
 
 void set_activate(layer* l) {
-	if (l->type == LAYER_CONV) {
-		switch (l->activation) {
-		case ACT_RELU:
-			l->activate = activate_conv_relu;
-			break;
-		case ACT_MISH:
-			l->activate = activate_conv_mish;
-			break;
-		case ACT_LOGISTIC:
-			l->activate = activate_conv_logistic;
-			break;
-		default:
-			l->activate = activate_conv_none;
-			break;
-		}
-		return;
-	}
-	else if (l->type == LAYER_CLASSIFY) {
-		l->activate = activate_classify;
-		return;
+	switch (l->activation) {
+	case ACT_RELU:
+		l->activate = activate_relu;
+		break;
+	case ACT_MISH:
+		l->activate = activate_mish;
+		break;
+	case ACT_SIGMOID:
+		l->activate = activate_sigmoid;
+		break;
+	case ACT_LEAKY:
+		l->activate = activate_leaky_relu;
+		break;
+	case ACT_SOFTMAX:
+		l->activate = activate_softmax;
+		break;
+	default:
+		l->activate = activate_none;
 	}
 }
 
@@ -305,7 +308,7 @@ void print_layer_classify(layer* l) {
 	printf("layer_type: ");
 	print_layertype(l->type);
 	printf("cost: ");
-	print_cost_type(l->cost);
+	print_cost_type(l->cost_type);
 	printf("# of classes: %zu\n", l->n_classes);
 	printf("batch_size: %zu\n", l->batch_size);
 	printf("w, h, c: %zu, %zu, %zu\n", l->w, l->h, l->c);
@@ -332,8 +335,10 @@ void print_layertype(LAYER_TYPE lt) {
 
 void print_activation(ACTIVATION a) {
 	if (a == ACT_RELU) printf("relu\n");
+	else if (a == ACT_LEAKY) printf("leaky relu\n");
 	else if (a == ACT_MISH) printf("mish\n");
-	else if (a == ACT_LOGISTIC) printf("logistic\n");
+	else if (a == ACT_SIGMOID) printf("sigmoid\n");
+	else if (a == ACT_SOFTMAX) printf("softmax\n");
 	else printf("NONE\n");
 }
 
