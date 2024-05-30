@@ -12,8 +12,7 @@
 #include "derivatives.h"
 
 
-#pragma warning(suppress:4100)
-void forward_classify(layer* l, network* net) {
+void forward_classify(layer* l) {
 	int M = (int)(l->n_filters);
 	int N = (int)(l->out_w * l->out_h);
 	int K = (int)(l->ksize * l->ksize * l->c);
@@ -31,23 +30,14 @@ void forward_classify(layer* l, network* net) {
 		B = im2col_cpu(im, c, h, w, (int)l->ksize, (int)l->pad, (int)l->stride, B);
 	}
 	gemm(M, N, K, A, B0, C);
+	xfree(B0);
 	add_biases(C, l->biases, M, N);
 	l->activate(l);
-	xfree(B0);
+	l->get_cost(l);
 }
 
 void backprop_classify(layer* l, network* net) {
-	float* truth = net->truth;
-	float* output = l->output;
-	float* errors = l->errors;
-	float* grads = l->grads;
-	if (l->cost_type == COST_MSE) {
-		get_cost_mse(grads, errors, output, truth, l->out_n);
-		get_grads_mse(grads, errors, l->out_n);
+	if (l->activation == ACT_SOFTMAX) {
+		// calculate gradients of logits wrt weights
 	}
-	else {
-		printf("under construction\n");
-		wait_for_key_then_exit();
-	}
-
 }
