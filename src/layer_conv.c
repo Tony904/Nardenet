@@ -9,22 +9,7 @@
 #include "xarrays.h"
 
 
-void forward_first(layer* l, network* net) {
-	int M = (int)(l->n_filters);
-	int N = (int)(l->out_w * l->out_h);
-	int K = (int)(l->ksize * l->ksize * l->c);
-	float* A = l->weights.a;
-	float* B = (float*)xcalloc(l->out_n * l->ksize * l->ksize, sizeof(float));
-	float* C = l->output;
-	im2col_cpu(net->input->data, (int)l->c, (int)l->h, (int)l->w, (int)l->ksize, (int)l->pad, (int)l->stride, B);
-	gemm(M, N, K, A, B, C);
-	add_biases(C, l->biases, M, N);
-	l->activate(l);
-	xfree(B);
-}
-
-#pragma warning(suppress:4100)
-void forward_conv(layer* l, network* net) {
+void forward_conv(layer* l) {
 	int M = (int)(l->n_filters);
 	int N = (int)(l->out_w * l->out_h);
 	int K = (int)(l->ksize * l->ksize * l->c);
@@ -45,10 +30,6 @@ void forward_conv(layer* l, network* net) {
 	add_biases(C, l->biases, M, N);
 	l->activate(l);
 	xfree(B0);
-}
-
-void backprop_first(layer* l, network* net) {
-	l; net;
 }
 
 void backprop_conv(layer* l, network* net) {

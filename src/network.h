@@ -3,7 +3,6 @@
 
 #include <stdlib.h>
 #include "xarrays.h"
-#include "image.h"
 #include "data.h"
 
 #define NUM_ANCHOR_PARAMS 5  // probability contains any object, center_x, center_y, width, height
@@ -55,14 +54,13 @@ extern "C" {
         float hue[2];
         float* anchors;
         size_t n_anchors;
-        image* input;
+        layer input;
         layer* layers;
         float* output;
         char* dataset_dir;
         char* weights_file;
         char* backup_dir;
         NET_TYPE type;
-        float* truth;
         union data {
             classifier_dataset clsr;
             detector_dataset detr;
@@ -74,7 +72,7 @@ extern "C" {
         LAYER_TYPE type;
         ACTIVATION activation;
         void(*activate)  (layer*);
-        void(*forward)   (layer*, network*);
+        void(*forward)   (layer*);
         void(*backprop)  (layer*, network*);
         void(*update)    (layer*, int, float, float, float); //layer, batch, learning rate, momentum, decay
         size_t batch_size;
@@ -98,14 +96,16 @@ extern "C" {
         float* means;
         float* variances;
         float* errors;
+        COST_TYPE cost_type;
+        void(*get_cost)  (layer*);
         intarr in_ids;
         intarr out_ids;
         layer** in_layers;
         int train;
         int batch_norm;
         size_t n_classes;
-        COST_TYPE cost_type;
         size_t* anchors;
+        float* truth;
     } layer;
 
     typedef enum NET_TYPE {
@@ -114,6 +114,7 @@ extern "C" {
     } NET_TYPE;
 
     typedef enum LAYER_TYPE {
+        LAYER_INPUT = -1,
         LAYER_NONE,
         LAYER_CONV,
         LAYER_MAXPOOL,

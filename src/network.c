@@ -7,6 +7,7 @@
 #include "layer_conv.h"
 #include "layer_classify.h"
 #include "activations.h"
+#include "costs.h"
 
 
 void build_first_layer(network* net);
@@ -15,11 +16,14 @@ void build_conv_layer(int i, network* net);
 void build_classify_layer(int i, network* net);
 void build_detect_layer(int i, network* net);
 void set_activate(layer* l);
+void set_cost(layer* l);
 void free_network(network* net);
 void free_layers(network* net);
 void free_layer_members(layer* l);
 void print_layer_conv(layer* l);
 void print_layer_classify(layer* l);
+void print_weights(network* net);
+
 
 network* new_network(size_t num_of_layers) {
 	network* net = (network*)xcalloc(1, sizeof(network));
@@ -29,12 +33,7 @@ network* new_network(size_t num_of_layers) {
 }
 
 void build_network(network* net) {
-	if (net->type == NET_CLASSIFY) {
-		net->truth = (float*)xcalloc(net->n_classes, sizeof(float));
-	}
-	else if (net->type == NET_DETECT) {
-		net->truth = (float*)xcalloc((net->n_classes + NUM_ANCHOR_PARAMS) * net->n_anchors, sizeof(float));
-	}
+	build_input_layer(net);
 	for (int i = 0; i < net->n_layers; i++) {
 		build_layer(i, net);
 	}
@@ -43,8 +42,7 @@ void build_network(network* net) {
 void build_layer(int i, network* net) {
 	layer* l = &(net->layers[i]);
 	assert(l->type != LAYER_NONE);
-	if (i == 0) build_first_layer(net);
-	else if (l->type == LAYER_CONV) build_conv_layer(i, net);
+	if (l->type == LAYER_CONV) build_conv_layer(i, net);
 	else if (l->type == LAYER_CLASSIFY) build_classify_layer(i, net);
 	else if (l->type == LAYER_DETECT) build_detect_layer(i, net);
 	else {
@@ -53,25 +51,20 @@ void build_layer(int i, network* net) {
 	}
 }
 
-void build_first_layer(network* net) {
-	layer* l = &(net->layers[0]);
+void build_input_layer(network* net) {
+	layer* l = &net->input;
+	l->type = LAYER_INPUT;
+	l->train = 0;
+	l->id = -1;
 	l->w = net->w;
 	l->h = net->h;
 	l->c = net->c;
 	l->n = l->w * l->h * l->c;
-	l->out_w = ((l->w + (l->pad * 2) - l->ksize) / l->stride) + 1;
-	l->out_h = ((l->h + (l->pad * 2) - l->ksize) / l->stride) + 1;
-	l->out_c = l->n_filters;
-	l->out_n = l->out_w * l->out_h * l->out_c;
+	l->out_w = l->w;
+	l->out_h = l->h;
+	l->out_c = l->c;
+	l->out_n = l->n;
 	l->output = (float*)xcalloc(l->out_n, sizeof(float));
-	l->weights.n = l->n_filters * l->ksize * l->ksize * l->c;
-	l->weights.a = (float*)xcalloc(l->weights.n, sizeof(float));
-	l->biases = (float*)xcalloc(l->n_filters, sizeof(float));
-	l->act_input = (float*)xcalloc(l->out_n, sizeof(float));
-
-	l->forward = forward_first;
-	l->backprop = backprop_first;
-	set_activate(l);
 }
 
 // i = layer index in net->layers
@@ -91,13 +84,24 @@ void build_conv_layer(int i, network* net) {
 		l->out_ids.a[0] = i + 1;
 		l->out_ids.n = 1;
 	}
-	l->w = ls[l->in_ids.a[0]].w;
-	l->h = ls[l->in_ids.a[0]].h;
+	if (i > 0) {
+		l->w = ls[l->in_ids.a[0]].w;
+		l->h = ls[l->in_ids.a[0]].h;
+	}
+	else { // if first layer
+		l->w = net->input.w;
+		l->h = net->input.w;
+	}
 
 	// Build array of input layer addresses.
 	l->in_layers = (layer**)xcalloc(l->in_ids.n, sizeof(layer*));
-	for (size_t j = 0; j < l->in_ids.n; j++) {
-		l->in_layers[j] = &ls[l->in_ids.a[j]];
+	if (i > 0) {
+		for (size_t j = 0; j < l->in_ids.n; j++) {
+			l->in_layers[j] = &ls[l->in_ids.a[j]];
+		}
+	}
+	else { // if first layer
+		l->in_layers[0] = &net->input;
 	}
 
 	// Calculate input dimensions.
@@ -173,16 +177,71 @@ void build_classify_layer(int i, network* net) {
 	l->weights.a = (float*)xcalloc(l->weights.n, sizeof(float));
 	l->biases = (float*)xcalloc(l->n_filters, sizeof(float));
 	l->act_input = (float*)xcalloc(l->out_n, sizeof(float));
-	
+
+	l->truth = (float*)xcalloc(net->n_classes, sizeof(float));
+
 	l->forward = forward_classify;
 	l->backprop = backprop_classify;
 	set_activate(l);
+	set_cost(l);
 }
 
 void build_detect_layer(int i, network* net) {
-	i;
-	net;
-	// UNDER CONSTRUCTION
+	// UNDER CONSTRUCTION - COPY/PASTED BUILD_CONV_LAYER FOR NOW
+	layer* l = &(net->layers[i]);
+	layer* ls = net->layers;
+	assert(l->id == i);
+
+	// Set default in_ids and out_ids if none specified.
+	if (l->in_ids.n == 0) {
+		l->in_ids.a = (int*)xcalloc(1, sizeof(int));
+		l->in_ids.a[0] = i - 1;
+		l->in_ids.n = 1;
+	}
+	if (l->out_ids.n == 0) {
+		l->out_ids.a = (int*)xcalloc(1, sizeof(int));
+		l->out_ids.a[0] = i + 1;
+		l->out_ids.n = 1;
+	}
+	l->w = ls[l->in_ids.a[0]].w;
+	l->h = ls[l->in_ids.a[0]].h;
+
+	// Build array of input layer addresses.
+	l->in_layers = (layer**)xcalloc(l->in_ids.n, sizeof(layer*));
+	for (size_t j = 0; j < l->in_ids.n; j++) {
+		l->in_layers[j] = &ls[l->in_ids.a[j]];
+	}
+
+	// Calculate input dimensions.
+	l->c = 0;
+	for (size_t j = 0; j < l->in_ids.n; j++) {
+		layer* in_layer = l->in_layers[j];
+		assert(l->w == in_layer->out_w);
+		assert(l->h == in_layer->out_h);
+		l->c += in_layer->out_c;
+	}
+	l->n = l->w * l->h * l->c;
+
+	// Calculate output dimensions.
+	l->out_w = ((l->w + (l->pad * 2) - l->ksize) / l->stride) + 1;
+	l->out_h = ((l->h + (l->pad * 2) - l->ksize) / l->stride) + 1;
+	l->out_c = l->n_filters;
+	l->out_n = l->out_w * l->out_h * l->out_c;
+
+	l->output = (float*)xcalloc(l->out_n, sizeof(float));
+	l->weights.n = l->n_filters * l->ksize * l->ksize * l->c;
+	l->weights.a = (float*)xcalloc(l->weights.n, sizeof(float));
+	l->biases = (float*)xcalloc(l->n_filters, sizeof(float));
+	l->act_input = (float*)xcalloc(l->out_n, sizeof(float));
+
+	l->truth = (float*)xcalloc((net->n_classes + NUM_ANCHOR_PARAMS) * net->n_anchors, sizeof(float));
+
+	l->forward = forward_conv;
+	l->backprop = backprop_conv;
+	set_activate(l);
+	if (l->cost_type > 0) {
+		set_cost(l);
+	}
 }
 
 void set_activate(layer* l) {
@@ -207,10 +266,35 @@ void set_activate(layer* l) {
 	}
 }
 
+void set_cost(layer* l) {
+	switch (l->cost_type) {
+	case COST_BCE:
+		l->get_cost = cost_bce;
+		break;
+	case COST_CCE:
+		if (l->activation == ACT_SIGMOID) {
+			l->get_cost = cost_sigmoid_cce;
+		}
+		else if (l->activation == ACT_SOFTMAX) {
+			l->get_cost = cost_softmax_cce;
+		}
+		else {
+			printf("Error: Invalid cost and activation combination.\n Layer id = %d\n", l->id);
+			wait_for_key_then_exit();
+		}
+		break;
+	case COST_MSE:
+		l->get_cost = cost_mse;
+		break;
+	default:
+		printf("No cost function set. Layer id = %d\n", l->id);
+	}
+}
+
 void free_network(network* n) {
 	xfree(n->step_percents.a);
 	xfree(n->step_scaling.a);
-	xfree(n->input);
+	xfree(n->input.output);
 	free_layers(n);
 	xfree(n->output);
 	xfree(n);
@@ -223,14 +307,15 @@ void free_layers(network* net) {
 	xfree(net->layers);
 }
 
+// TODO: Update
 void free_layer_members(layer* l) {
 	xfree(l->output);
 	xfree(l->weights.a);
 	xfree(l->biases);
-	xfree(l->delta);
+	xfree(l->grads);
 	xfree(l->means);
 	xfree(l->variances);
-	xfree(l->losses);
+	xfree(l->errors);
 	xfree(l->in_ids.a);
 	xfree(l->out_ids.a);
 	xfree(l->in_layers);
@@ -349,4 +434,19 @@ void print_cost_type(COST_TYPE c) {
 	else printf("NONE\n");
 }
 
-
+void print_weights(network* net) {
+	layer* layers = net->layers;
+	size_t N = net->n_layers;
+	size_t n;
+	layer* l;
+	printf("\nWEIGHTS");
+	for (size_t i = 0; i < N; i++) {
+		printf("\n\nLAYER %zu\n", i);
+		l = &layers[i];
+		n = l->weights.n;
+		for (size_t j = 0; j < n; j++) {
+			printf("%f, ", l->weights.a[j]);
+			if ((j + 1) % 10 == 0) printf("\n");
+		}
+	}
+}

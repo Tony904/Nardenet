@@ -14,7 +14,6 @@ void train_classifer(network* net);
 void train_detector(network* net);
 void forward_network_train(network* net, det_sample* samp);
 void initialize_weights_kaiming(network* net);
-void print_weights(network* net);
 
 
 #define MAX_DIR_PATH 255
@@ -36,29 +35,31 @@ void train_classifer(network* net) {
 	strcpy(train_dir, net->dataset_dir);
 	snprintf(train_dir, sizeof(train_dir), "%s%s", train_dir, "train\\");
 	load_classifier_dataset(&net->data.clsr, train_dir, net->class_names, net->n_classes);
+	layer* prediction_layer = &net->layers[net->n_layers - 1];
 	for (size_t iter = 0; iter < net->max_iterations; iter++) {
-		net->input = get_next_image_classifier_dataset(&net->data.clsr, net->truth);
-		if (net->w != net->input->w || net->h != net->input->h || net->c != net->input->c) {
+		image* img = get_next_image_classifier_dataset(&net->data.clsr, prediction_layer->truth);
+		// TODO: Resize img to network dimensions if needed
+		if (net->w != img->w || net->h != img->h || net->c != img->c) {
 			printf("Input image does not match network dimensions.\n");
-			printf("img w,h,c = %zu,%zu,%zu\n", net->input->w, net->input->h, net->input->c);
+			printf("img w,h,c = %zu,%zu,%zu\n", img->w, img->h, img->c);
 			printf("net w,h,c = %zu,%zu,%zu\n", net->w, net->h, net->c);
-			print_location(NARDENET_LOCATION);
-			printf("\n\nPress ENTER to exit the program.");
-			(void)getchar();
-			exit(EXIT_FAILURE);
+			wait_for_key_then_exit();
 		}
+		net->input.output = img->data;
 		for (size_t i = 0; i < net->n_layers; i++) {
 			printf("Forwarding layer index %zu...\n", i);
-			net->layers[i].forward(&net->layers[i], net);
+			net->layers[i].forward(&net->layers[i]);
 			printf("Forward done.\n");
 		}
 		printf("All layers forwarded.\n");
-		for (size_t i = net->n_layers; i; i--) {
-			printf("Backproping layer index %zu...\n", i - 1);
+		for (size_t ii = net->n_layers; ii; ii--) {
+			size_t i = ii - 1;
+			printf("Backproping layer index %zu...\n", i);
 			net->layers[i].backprop(&net->layers[i], net);
 			printf("Backprop done.\n");
 		}
 		printf("All layers backproped.\n");
+		free_image(img);
 	}
 	
 
@@ -112,21 +113,4 @@ void initialize_weights_kaiming(network* net) {
 		}
 	}
 	printf(" done\n");
-}
-
-void print_weights(network* net) {
-	layer* layers = net->layers;
-	size_t N = net->n_layers;
-	size_t n;
-	layer* l;
-	printf("\nWEIGHTS");
-	for (size_t i = 0; i < N; i++) {
-		printf("\n\nLAYER %zu\n", i);
-		l = &layers[i];
-		n = l->weights.n;
-		for (size_t j = 0; j < n; j++) {
-			printf("%f, ", l->weights.a[j]);
-			if ((j + 1 ) % 10 == 0) printf("\n");
-		}
-	}
 }
