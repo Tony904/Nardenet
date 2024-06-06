@@ -1,4 +1,5 @@
 #include "costs.h"
+#include <math.h>
 
 
 void cost_mse(layer* l) {
@@ -30,7 +31,7 @@ void cost_softmax_cce(layer* l) {
 		float t = truth[i];
 		float p = output[i];
 		errors[i] = (t) ? -log(p) : 0;
-		grads[i] = t - p;
+		grads[i] = t - p;  // This is the dC/da * da/dz for softmax with cross entropy
 	}
 }
 

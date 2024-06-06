@@ -10,7 +10,6 @@
 #include "costs.h"
 
 
-void build_first_layer(network* net);
 void build_layer(int i, network* net);
 void build_conv_layer(int i, network* net);
 void build_classify_layer(int i, network* net);
@@ -125,6 +124,7 @@ void build_conv_layer(int i, network* net) {
 	l->weights.a = (float*)xcalloc(l->weights.n, sizeof(float));
 	l->biases = (float*)xcalloc(l->n_filters, sizeof(float));
 	l->act_input = (float*)xcalloc(l->out_n, sizeof(float));
+	l->grads = (float*)xcalloc(l->out_n, sizeof(float));
 
 	l->forward = forward_conv;
 	l->backprop = backprop_conv;
@@ -177,7 +177,7 @@ void build_classify_layer(int i, network* net) {
 	l->weights.a = (float*)xcalloc(l->weights.n, sizeof(float));
 	l->biases = (float*)xcalloc(l->n_filters, sizeof(float));
 	l->act_input = (float*)xcalloc(l->out_n, sizeof(float));
-
+	l->grads = (float*)xcalloc(l->out_n, sizeof(float)); // IDK IF THIS IS RIGHT LENGTH
 	l->truth = (float*)xcalloc(net->n_classes, sizeof(float));
 
 	l->forward = forward_classify;
