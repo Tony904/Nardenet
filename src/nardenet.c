@@ -6,16 +6,17 @@
 #include "xopencv.h"
 #include "im2col.h"
 #include "data.h"
+#include "gemm.h"
 
 
 int main(void) {
 	
 
-	char* cfgfile = "D:/TonyDev/NardeNet/cfg/nardenet.cfg";
-	network* net = create_network_from_cfg(cfgfile);
+	/*char* cfgfile = "D:/TonyDev/NardeNet/cfg/nardenet.cfg";
+	network* net = create_network_from_cfg(cfgfile);*/
 	//print_network(net);
 	
-	train(net);
+	//train(net);
 
 	/*layer* l = &net->layers[net->n_layers - 1];
 	image dst = { 0 };
@@ -29,10 +30,11 @@ int main(void) {
 	//free_network(net);
 	//print_alloc_list();
 
-	//test_im2col();
+	//gemm_atb_test();
+	test_col2im();
 
 
-#ifdef _DEBUG
+#ifndef _DEBUG
 	printf("\n\nPress ENTER to exit the program.");
 	(void)getchar();
 #endif

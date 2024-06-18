@@ -40,23 +40,25 @@ void backprop_classify(layer* l, network* net) {
 	// calculate gradients of logits wrt weights and logits wrt biases
 	// dz/dw is just the activation of the previous layer
 	// dz/db is always 1
-	float* weights = l->weights.a;
+	float* weight_updates = l->weight_updates;
 	float* grads = l->grads;
 	float lr = net->learning_rate;
 	float* biases = l->biases;
 	for (size_t i = 0; i < l->out_n; i++) {
-		biases[i] += grads[i] * lr;
+		biases[i] += grads[i] * lr;  // biases += dC/dz * learning rate
 	}
 	size_t w = 0;
-	for (int i = 0; i < l->in_ids.n; i++) {
-		layer* inlay = l->in_layers[i];
-		float* output = inlay->output;
-		for (size_t j = 0; j < inlay->out_n; j++) {
-			grads[w] *= output[j];
-			weights[w] += grads[w] * lr;
+	int i;
+#pragma omp parallel for
+	for (i = 0; i < l->in_ids.n; i++) {
+		layer* inl = l->in_layers[i];
+		float* inl_grads = inl->grads;
+		float* output = inl->output;
+		for (size_t j = 0; j < inl->out_n; j++) {
+			float grad = grads[w] * output[j];  // dC/dw = dC/dz * dz/dw
+			inl_grads[j] = grad;
+			weight_updates[w] = grad;
 			++w;
 		}
 	}
-	
-	
 }

@@ -54,9 +54,10 @@ extern "C" {
         float hue[2];
         float* anchors;
         size_t n_anchors;
-        layer input;
+        layer* input;
         layer* layers;
         float* output;
+        float* grads;
         char* dataset_dir;
         char* weights_file;
         char* backup_dir;
@@ -75,6 +76,7 @@ extern "C" {
         void(*forward)   (layer*);
         void(*backprop)  (layer*, network*);
         void(*update)    (layer*, int, float, float, float); //layer, batch, learning rate, momentum, decay
+        void(*get_cost)  (layer*);
         size_t batch_size;
         size_t n_filters;
         size_t ksize;
@@ -92,12 +94,13 @@ extern "C" {
         floatarr weights;  // n_weights = ksize * ksize * c * n_filters
         float* biases;
         float* act_input;
-        float* grads;
         float* means;
         float* variances;
         float* errors;
+        float* grads;
+        float* weight_updates;
+        float cost;
         COST_TYPE cost_type;
-        void(*get_cost)  (layer*);
         intarr in_ids;
         intarr out_ids;
         layer** in_layers;

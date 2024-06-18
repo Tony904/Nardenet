@@ -7,50 +7,11 @@
 void test_im2col(void);
 void pprint_mat(float* data, int width, int height, int channels);
 
-
+// https://github.com/BVLC/caffe/blob/master/src/caffe/util/im2col.cpp
 inline static int is_a_ge_zero_and_a_lt_b(int a, int b) {
 	return (unsigned)(a) < (unsigned)(b);
 }
 
-// https://github.com/BVLC/caffe/blob/master/src/caffe/util/im2col.cpp
-void im2col_cpu_general(const float* data_im, const int channels,
-	const int height, const int width, const int kernel_h, const int kernel_w,
-	const int pad_h, const int pad_w,
-	const int stride_h, const int stride_w,
-	float* data_col)
-{
-	const int output_h = (height + 2 * pad_h - kernel_h) / stride_h + 1;
-	const int output_w = (width + 2 * pad_w - kernel_w) / stride_w + 1;
-	const int channel_size = height * width;
-	int channel, kernel_row, kernel_col, output_rows, output_col;
-	for (channel = channels; channel--; data_im += channel_size) {
-		for (kernel_row = 0; kernel_row < kernel_h; kernel_row++) {
-			for (kernel_col = 0; kernel_col < kernel_w; kernel_col++) {
-				int input_row = -pad_h + kernel_row;
-				for (output_rows = output_h; output_rows; output_rows--) {
-					if (!is_a_ge_zero_and_a_lt_b(input_row, height)) {
-						for (output_col = output_w; output_col; output_col--) {
-							*(data_col++) = 0;
-						}
-					}
-					else {
-						int input_col = -pad_w + kernel_col;
-						for (output_col = output_w; output_col; output_col--) {
-							if (is_a_ge_zero_and_a_lt_b(input_col, width)) {
-								*(data_col++) = data_im[input_row * width + input_col];
-							}
-							else {
-								*(data_col++) = 0;
-							}
-							input_col += stride_w;
-						}
-					}
-					input_row += stride_h;
-				}
-			}
-		}
-	}
-}
 // channels, height, width are dimensions of input image data_im
 float* im2col_cpu(const float* data_im, const int channels,
 	const int height, const int width, const int ksize,
@@ -128,6 +89,68 @@ void test_im2col(void) {
 	pprint_mat(C, out_w, out_h, n_filters);
 }
 
+void col2im_tonys_version_that_will_actually_work(float* data_col, int channels,
+	int height, int width,
+	int ksize, int pad, int stride,
+	float* data_im) {
+	// UNDER CONSTRUCTION
+}
+
+void col2im_cpu(float* data_col, int channels, 
+	int height, int width, 
+	int ksize, int pad, int stride,
+	float* data_im)
+{
+	int output_h = (height + 2 * pad - ksize) / stride + 1;
+	int output_w = (width + 2 * pad - ksize) / stride + 1;
+	int channel_size = height * width;
+	int channel, kernel_row, kernel_col, output_rows, output_col;
+	for (channel = channels; channel--; data_im += channel_size) {
+		for (kernel_row = 0; kernel_row < ksize; kernel_row++) {
+			for (kernel_col = 0; kernel_col < ksize; kernel_col++) {
+				int input_row = -pad + kernel_row;
+				for (output_rows = output_h; output_rows; output_rows--) {
+					if (!is_a_ge_zero_and_a_lt_b(input_row, height)) {
+						data_col += output_w;
+					}
+					else {
+						int input_col = -pad + kernel_col;
+						for (output_col = output_w; output_col; output_col--) {
+							if (is_a_ge_zero_and_a_lt_b(input_col, width)) {
+								data_im[input_row * width + input_col] += *data_col;
+							}
+							data_col++;
+							input_col += stride;
+						}
+					}
+					input_row += stride;
+				}
+			}
+		}
+	}
+}
+
+void test_col2im(void) {
+	int width = 4;
+	int height = 4;
+	int channels = 1;
+	int im_size = width * height * channels;
+	float* data_im = (float*)xcalloc(im_size, sizeof(float));
+	int pad = 1;
+	int stride = 1;
+	int ksize = 2;
+	//int output_size = (width + 2 * pad - ksize) / stride + 1; // square image
+	int n_filters = 3;
+	int n = ksize * ksize * channels * n_filters;
+	float* data_col = (float*)xcalloc((size_t)n, sizeof(float));
+	for (int i = 0; i < n; i++) {
+		data_col[i] = 1.0F;
+	}
+	pprint_mat(data_col, n_filters, ksize * ksize * channels, 1);
+	col2im_cpu(data_col, channels, height, width, ksize, pad, stride, data_im);
+	pprint_mat(data_im, width, height, channels);
+}
+
 void pprint_mat(float* data, int width, int height, int channels) {
 	printf("\nMATRIX");
 	for (int channel = 0; channel < channels; channel++) {
@@ -143,4 +166,84 @@ void pprint_mat(float* data, int width, int height, int channels) {
 		printf("(ch%d)", channel);
 	}
 	printf("\nend\n\n");
+}
+
+// https://github.com/BVLC/caffe/blob/master/src/caffe/util/im2col.cpp
+void im2col_cpu_general(const float* data_im, const int channels,
+	const int height, const int width, const int kernel_h, const int kernel_w,
+	const int pad_h, const int pad_w,
+	const int stride_h, const int stride_w,
+	float* data_col)
+{
+	const int output_h = (height + 2 * pad_h - kernel_h) / stride_h + 1;
+	const int output_w = (width + 2 * pad_w - kernel_w) / stride_w + 1;
+	const int channel_size = height * width;
+	int channel, kernel_row, kernel_col, output_rows, output_col;
+	for (channel = channels; channel--; data_im += channel_size) {
+		for (kernel_row = 0; kernel_row < kernel_h; kernel_row++) {
+			for (kernel_col = 0; kernel_col < kernel_w; kernel_col++) {
+				int input_row = -pad_h + kernel_row;
+				for (output_rows = output_h; output_rows; output_rows--) {
+					if (!is_a_ge_zero_and_a_lt_b(input_row, height)) {
+						for (output_col = output_w; output_col; output_col--) {
+							*(data_col++) = 0;
+						}
+					}
+					else {
+						int input_col = -pad_w + kernel_col;
+						for (output_col = output_w; output_col; output_col--) {
+							if (is_a_ge_zero_and_a_lt_b(input_col, width)) {
+								*(data_col++) = data_im[input_row * width + input_col];
+							}
+							else {
+								*(data_col++) = 0;
+							}
+							input_col += stride_w;
+						}
+					}
+					input_row += stride_h;
+				}
+			}
+		}
+	}
+}
+
+// https://github.com/BVLC/caffe/blob/master/src/caffe/util/im2col.cpp
+void col2im_cpu_general(const float* data_col, const int channels,
+	const int height, const int width, const int kernel_h, const int kernel_w,
+	const int pad_h, const int pad_w,
+	const int stride_h, const int stride_w,
+	const int dilation_h, const int dilation_w,
+	float* data_im)
+{
+	//caffe_set(height * width * channels, 0.0F, data_im);
+	const int output_h = (height + 2 * pad_h -
+		(dilation_h * (kernel_h - 1) + 1)) / stride_h + 1;
+	const int output_w = (width + 2 * pad_w -
+		(dilation_w * (kernel_w - 1) + 1)) / stride_w + 1;
+	const int channel_size = height * width;
+	int channel, kernel_row, kernel_col, output_rows, output_col;
+	for (channel = channels; channel--; data_im += channel_size) {
+		for (kernel_row = 0; kernel_row < kernel_h; kernel_row++) {
+			for (kernel_col = 0; kernel_col < kernel_w; kernel_col++) {
+				int input_row = -pad_h + kernel_row * dilation_h;
+				for (output_rows = output_h; output_rows; output_rows--) {
+					if (!is_a_ge_zero_and_a_lt_b(input_row, height)) {
+						data_col += output_w;
+					}
+					else {
+						int input_col = -pad_w + kernel_col * dilation_w;
+						for (output_col = output_w; output_col; output_col--) {
+							if (is_a_ge_zero_and_a_lt_b(input_col, width)) {
+								data_im[input_row * width + input_col] += *data_col;
+							}
+							data_col++;
+							input_col += stride_w;
+						}
+					}
+					input_row += stride_h;
+				}
+			}
+		}
+	}
 }

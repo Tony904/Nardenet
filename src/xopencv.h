@@ -10,7 +10,7 @@ extern "C" {
 #endif
 
 #ifdef OPENCV
-	image* load_image(char* filename);
+	image* load_file_to_image(char* filename);
 	void show_image(image* img);
 #endif
 

@@ -45,7 +45,7 @@ void train_classifer(network* net) {
 			printf("net w,h,c = %zu,%zu,%zu\n", net->w, net->h, net->c);
 			wait_for_key_then_exit();
 		}
-		net->input.output = img->data;
+		net->input->output = img->data;
 		for (size_t i = 0; i < net->n_layers; i++) {
 			printf("Forwarding layer index %zu...\n", i);
 			net->layers[i].forward(&net->layers[i]);
@@ -88,7 +88,7 @@ void forward_network_train(network* net, det_sample* samp) {
 	for (size_t i = 0; i < net->n_layers; i++) {
 		printf("Forwarding layer index %zu...\n", i);
 		assert(net->layers[i].forward);
-		net->layers[i].forward(&net->layers[i], net);
+		net->layers[i].forward(&net->layers[i]);
 		printf("Forward done.\n");
 	}
 	printf("All layers forwarded.\n");

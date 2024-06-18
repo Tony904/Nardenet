@@ -2,17 +2,17 @@
 #include "activations.h"
 
 
-void get_grads_sigmoid(float* grads, float* output, size_t size) {
+void get_grads_sigmoid(float* grads, float* act_output, size_t size) {
 	int n = (int)size;
 	int i;
 #pragma omp parallel for
 	for (i = 0; i < n; i++) {
-		grads[i] *= output[i] * (1.f - output[i]);
+		grads[i] *= act_output[i] * (1.f - act_output[i]);
 	}
 }
 
 // implementation from Pytorch: https://github.com/thomasbrandon/mish-cuda/blob/master/csrc/mish.h#L26-L31
-void get_grads_mish(float* grads, float* act_input, float* output, size_t size) {
+void get_grads_mish(float* grads, float* act_input, size_t size) {
 	int n = (int)size;
 	int i;
 #pragma omp parallel for

@@ -10,7 +10,7 @@ extern "C" {
 #endif
 
 	void get_grads_sigmoid(float* grads, float* output, size_t size);
-	void get_grads_mish(float* grads, float* act_input, float* output, size_t size);
+	void get_grads_mish(float* grads, float* act_input, size_t size);
 
 #ifdef __cplusplus
 }
