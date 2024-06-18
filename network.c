@@ -11,6 +11,7 @@
 #include "derivatives.h"
 
 
+void build_input_layer(network* net);
 void build_layer(int i, network* net);
 void build_conv_layer(int i, network* net);
 void build_classify_layer(int i, network* net);
@@ -52,7 +53,7 @@ void build_layer(int i, network* net) {
 }
 
 void build_input_layer(network* net) {
-	layer* l = &net->input;
+	layer* l = net->input;
 	l->type = LAYER_INPUT;
 	l->train = 0;
 	l->id = -1;
@@ -89,8 +90,8 @@ void build_conv_layer(int i, network* net) {
 		l->h = ls[l->in_ids.a[0]].h;
 	}
 	else { // if first layer
-		l->w = net->input.w;
-		l->h = net->input.w;
+		l->w = net->input->w;
+		l->h = net->input->w;
 	}
 
 	// Build array of input layer addresses.
@@ -101,7 +102,7 @@ void build_conv_layer(int i, network* net) {
 		}
 	}
 	else { // if first layer
-		l->in_layers[0] = &net->input;
+		l->in_layers[0] = net->input;
 	}
 
 	// Calculate input dimensions.
@@ -126,11 +127,11 @@ void build_conv_layer(int i, network* net) {
 	l->biases = (float*)xcalloc(l->n_filters, sizeof(float));
 	l->act_input = (float*)xcalloc(l->out_n, sizeof(float));
 	l->grads = (float*)xcalloc(l->out_n, sizeof(float));
+	l->weight_updates = (float*)xcalloc(l->weights.n, sizeof(float));
 
 	l->forward = forward_conv;
 	l->backprop = backprop_conv;
 	set_activate(l);
-	set_dadz(l);
 }
 
 // i = layer index in net->layers
@@ -181,6 +182,7 @@ void build_classify_layer(int i, network* net) {
 	l->act_input = (float*)xcalloc(l->out_n, sizeof(float));
 	l->grads = (float*)xcalloc(l->out_n, sizeof(float)); // IDK IF THIS IS RIGHT LENGTH
 	l->truth = (float*)xcalloc(net->n_classes, sizeof(float));
+	l->weight_updates = (float*)xcalloc(l->weights.n, sizeof(float));
 
 	l->forward = forward_classify;
 	l->backprop = backprop_classify;
@@ -253,11 +255,9 @@ void set_activate(layer* l) {
 		break;
 	case ACT_MISH:
 		l->activate = activate_mish;
-		l->dadz = dmish_dx;
 		break;
 	case ACT_SIGMOID:
 		l->activate = activate_sigmoid;
-		l->dadz = dsigmoid_dx;
 		break;
 	case ACT_LEAKY:
 		l->activate = activate_leaky_relu;
@@ -298,7 +298,8 @@ void set_cost(layer* l) {
 void free_network(network* n) {
 	xfree(n->step_percents.a);
 	xfree(n->step_scaling.a);
-	xfree(n->input.output);
+	xfree(n->input->output);
+	xfree(n->input);
 	free_layers(n);
 	xfree(n->output);
 	xfree(n);
