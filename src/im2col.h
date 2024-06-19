@@ -11,10 +11,11 @@ extern "C" {
 		const int pad, const int stride,
 		float* data_col);
 	void test_im2col(void);
-	void col2im_cpu(float* data_col, int channels,
-		int height, int width,
+	void wgrads2im_cpu(float* wgrads,
+		int channels, int height, int width,
 		int ksize, int pad, int stride,
-		float* data_im);
+		float* im);
+	void sum_columns(int rows, int cols, float const* data, float* sums);
 	void test_col2im(void);
 
 #ifdef __cplusplus

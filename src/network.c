@@ -35,9 +35,16 @@ network* new_network(size_t num_of_layers) {
 
 void build_network(network* net) {
 	build_input_layer(net);
+	size_t largest_workspace = 0;
+	layer* ls = net->layers;
 	for (int i = 0; i < net->n_layers; i++) {
 		build_layer(i, net);
+		layer* l = &ls[i];
+		size_t wssize = l->out_w * l->out_h * l->ksize * l->ksize * l->c;
+		largest_workspace = max(largest_workspace, wssize);
 	}
+	net->workspace.a = (float*)xcalloc(largest_workspace, sizeof(float));
+	net->workspace.n = largest_workspace;
 }
 
 void build_layer(int i, network* net) {

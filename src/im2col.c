@@ -21,20 +21,20 @@ float* im2col_cpu(const float* data_im, const int channels,
 	const int output_h = (height + 2 * pad - ksize) / stride + 1;
 	const int output_w = (width + 2 * pad - ksize) / stride + 1;
 	const int channel_size = height * width;
-	int channel, kernel_row, kernel_col, output_rows, output_col;
+	int channel, kernel_row, kernel_col, output_rows, output_cols;
 	for (channel = channels; channel--; data_im += channel_size) {
 		for (kernel_row = 0; kernel_row < ksize; kernel_row++) {
 			for (kernel_col = 0; kernel_col < ksize; kernel_col++) {
 				int input_row = -pad + kernel_row;
 				for (output_rows = output_h; output_rows; output_rows--) {
 					if (!is_a_ge_zero_and_a_lt_b(input_row, height)) {
-						for (output_col = output_w; output_col; output_col--) {
+						for (output_cols = output_w; output_cols; output_cols--) {
 							*(data_col++) = 0;
 						}
 					}
 					else {
 						int input_col = -pad + kernel_col;
-						for (output_col = output_w; output_col; output_col--) {
+						for (output_cols = output_w; output_cols; output_cols--) {
 							if (is_a_ge_zero_and_a_lt_b(input_col, width)) {
 								*(data_col++) = data_im[input_row * width + input_col];
 							}
@@ -89,43 +89,45 @@ void test_im2col(void) {
 	pprint_mat(C, out_w, out_h, n_filters);
 }
 
-void col2im_tonys_version_that_will_actually_work(float* data_col, int channels,
-	int height, int width,
+/*height and width are of im.*/
+void wgrads2im_cpu(float* wgrads, 
+	int channels, int height, int width, 
 	int ksize, int pad, int stride,
-	float* data_im) {
-	// UNDER CONSTRUCTION
-}
-
-void col2im_cpu(float* data_col, int channels, 
-	int height, int width, 
-	int ksize, int pad, int stride,
-	float* data_im)
+	float* im)
 {
-	int output_h = (height + 2 * pad - ksize) / stride + 1;
-	int output_w = (width + 2 * pad - ksize) / stride + 1;
-	int channel_size = height * width;
-	int channel, kernel_row, kernel_col, output_rows, output_col;
-	for (channel = channels; channel--; data_im += channel_size) {
-		for (kernel_row = 0; kernel_row < ksize; kernel_row++) {
-			for (kernel_col = 0; kernel_col < ksize; kernel_col++) {
-				int input_row = -pad + kernel_row;
-				for (output_rows = output_h; output_rows; output_rows--) {
-					if (!is_a_ge_zero_and_a_lt_b(input_row, height)) {
-						data_col += output_w;
-					}
-					else {
-						int input_col = -pad + kernel_col;
-						for (output_col = output_w; output_col; output_col--) {
-							if (is_a_ge_zero_and_a_lt_b(input_col, width)) {
-								data_im[input_row * width + input_col] += *data_col;
+	int out_h = (height + 2 * pad - ksize) / stride + 1;
+	int out_w = (width + 2 * pad - ksize) / stride + 1;
+	int chsize = width * height;
+	int ksize2 = ksize * ksize;
+	int ch, krow, kcol, w, h, f;
+#pragma omp parallel for
+	for (ch = 0; ch < channels; ch++) {
+		for (krow = 0; krow < ksize; krow++) {
+			for (kcol = 0; kcol < ksize; kcol++) {
+				int k = krow * ksize + kcol;
+				for (h = 0; h < out_h; h++) {
+					int j = krow - pad;
+					if (is_a_ge_zero_and_a_lt_b(j, height)) {
+						for (w = 0; w < out_w; w++) {
+							int i = kcol - pad;
+							if (is_a_ge_zero_and_a_lt_b(i, width)) {
+								im[ch * chsize + h * stride * width + w * stride] += wgrads[ch * ksize2 + k];
 							}
-							data_col++;
-							input_col += stride;
 						}
 					}
-					input_row += stride;
 				}
 			}
+		}
+	}
+}
+
+void sum_columns(int rows, int cols, float const * data, float* sums) {
+	int r, c;
+#pragma omp parallel for
+	for (r = 0; r < rows; r++) {
+		int j = r * cols;
+		for (c = 0; c < cols; c++) {
+			sums[c] += data[j + c];
 		}
 	}
 }

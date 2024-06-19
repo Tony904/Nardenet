@@ -58,6 +58,7 @@ extern "C" {
         layer* layers;
         float* output;
         float* grads;
+        floatarr workspace;
         char* dataset_dir;
         char* weights_file;
         char* backup_dir;
