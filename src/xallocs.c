@@ -107,7 +107,6 @@ static void print_location_and_exit(const char * const filename, const char * co
 void alloc_list_free_node(void* const p) {
     alloc_node* node = alloc_list_pop(p);
     free(node);
-    node = NULL;
 }
 
 alloc_node* alloc_list_get_node(void* const p) {

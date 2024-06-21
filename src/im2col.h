@@ -16,7 +16,7 @@ extern "C" {
 		int ksize, int pad, int stride,
 		float* im);
 	void sum_columns(int rows, int cols, float const* data, float* sums);
-	void test_col2im(void);
+	void test_wgrads2im(void);
 
 #ifdef __cplusplus
 }

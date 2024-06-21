@@ -95,26 +95,28 @@ void wgrads2im_cpu(float* wgrads,
 	int ksize, int pad, int stride,
 	float* im)
 {
-	int out_h = (height + 2 * pad - ksize) / stride + 1;
-	int out_w = (width + 2 * pad - ksize) / stride + 1;
+	int strides_vertical = (height + 2 * pad - ksize) / stride + 1;
+	int strides_horizontal = (width + 2 * pad - ksize) / stride + 1;
 	int chsize = width * height;
 	int ksize2 = ksize * ksize;
-	int ch, krow, kcol, w, h, f;
+	int ch, krow, kcol, w, h;
 #pragma omp parallel for
 	for (ch = 0; ch < channels; ch++) {
 		for (krow = 0; krow < ksize; krow++) {
 			for (kcol = 0; kcol < ksize; kcol++) {
 				int k = krow * ksize + kcol;
-				for (h = 0; h < out_h; h++) {
-					int j = krow - pad;
+				int j = krow - pad;
+				for (h = strides_vertical; h; h--) {
 					if (is_a_ge_zero_and_a_lt_b(j, height)) {
-						for (w = 0; w < out_w; w++) {
-							int i = kcol - pad;
+						int i = kcol - pad;
+						for (w = strides_horizontal; w; w--) {
 							if (is_a_ge_zero_and_a_lt_b(i, width)) {
-								im[ch * chsize + h * stride * width + w * stride] += wgrads[ch * ksize2 + k];
+								im[ch * chsize + j * width + i] += wgrads[ch * ksize2 + k];
 							}
+							i += stride;
 						}
 					}
+					j += stride;
 				}
 			}
 		}
@@ -132,24 +134,23 @@ void sum_columns(int rows, int cols, float const * data, float* sums) {
 	}
 }
 
-void test_col2im(void) {
-	int width = 4;
-	int height = 4;
+void test_wgrads2im(void) {
+	int width = 5;
+	int height = 5;
 	int channels = 1;
 	int im_size = width * height * channels;
 	float* data_im = (float*)xcalloc(im_size, sizeof(float));
 	int pad = 1;
-	int stride = 1;
-	int ksize = 2;
+	int stride = 2;
+	int ksize = 3;
 	//int output_size = (width + 2 * pad - ksize) / stride + 1; // square image
-	int n_filters = 3;
-	int n = ksize * ksize * channels * n_filters;
-	float* data_col = (float*)xcalloc((size_t)n, sizeof(float));
+	int n = ksize * ksize * channels;
+	float* wgrads = (float*)xcalloc((size_t)n, sizeof(float));
 	for (int i = 0; i < n; i++) {
-		data_col[i] = 1.0F;
+		wgrads[i] = 1.0F;
 	}
-	pprint_mat(data_col, n_filters, ksize * ksize * channels, 1);
-	col2im_cpu(data_col, channels, height, width, ksize, pad, stride, data_im);
+	pprint_mat(wgrads, ksize * ksize * channels, 1, 1);
+	wgrads2im_cpu(wgrads, channels, height, width, ksize, pad, stride, data_im);
 	pprint_mat(data_im, width, height, channels);
 }
 

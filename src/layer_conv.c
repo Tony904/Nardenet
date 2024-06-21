@@ -10,8 +10,6 @@
 #include "derivatives.h"
 #include "xarrays.h"
 
-#pragma warning(disable:4100)
-#pragma warning(disable:4189)
 
 void forward_conv(layer* l, network* net) {
 	int M = (int)(l->n_filters);
@@ -71,7 +69,7 @@ void backprop_conv(layer* l, network* net) {
 	B = B0;
 	gemm_atb(M, N, K, A, B, C);
 	// C is now dC/dw for all weights. [filter_index * filter_length + filter_weight_index]
-	// Now need to create backpropogated "image" for shallower layer(s). col2im?
+	// Now need to create backpropogated "image" for shallower layer(s).
 	for (int i = 0; i < N; i++) { B[i] = 0.0F; }
 	sum_columns(M, N, C, B);
 	for (int i = 0; i < l->in_ids.n; i++) {

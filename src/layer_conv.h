@@ -9,7 +9,7 @@
 extern "C" {
 #endif
 
-	void forward_conv(layer* l);
+	void forward_conv(layer* l, network* net);
 	void backprop_conv(layer* l, network* net);
 
 #ifdef __cplusplus

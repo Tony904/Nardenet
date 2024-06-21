@@ -28,6 +28,7 @@ void print_weights(network* net);
 
 network* new_network(size_t num_of_layers) {
 	network* net = (network*)xcalloc(1, sizeof(network));
+	net->input = (layer*)xcalloc(1, sizeof(layer));
 	net->n_layers = num_of_layers;
 	net->layers = (layer*)xcalloc(num_of_layers, sizeof(layer));
 	return net;

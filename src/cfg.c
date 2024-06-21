@@ -68,7 +68,7 @@ void load_cfg(char* filename, cfg* c) {
 		if (is_header(line, header, &is_layer)) {
 			if (!is_layer) continue;
 			l = (cfg_layer*)xcalloc(1, sizeof(cfg_layer));
-			list_append(c->layers, l);
+			list_append(layers, l);
 			l->type = header2layertype(header);
 		}
 		else if (!is_layer) {
@@ -91,19 +91,19 @@ void copy_to_cfg(cfg* c, char** tokens, char* header) {
 	char* k = tokens[0];
 	if (strcmp(header, hDATA) == 0) {
 		if (strcmp(k, "dataset_dir") == 0) {
-			c->dataset_dir = (char*)xcalloc(strlen(tokens[1] + 1), sizeof(char));
+			c->dataset_dir = (char*)xcalloc(strlen(tokens[1]) + 1, sizeof(char));
 			strcpy(c->dataset_dir, tokens[1]);
 		}
 		else if (strcmp(k, "classes_file") == 0) {
-			c->classes_file = (char*)xcalloc(strlen(tokens[1] + 1), sizeof(char));
+			c->classes_file = (char*)xcalloc(strlen(tokens[1]) + 1, sizeof(char));
 			strcpy(c->classes_file, tokens[1]);
 		}
 		else if (strcmp(k, "weights_file") == 0) {
-			c->weights_file = (char*)xcalloc(strlen(tokens[1] + 1), sizeof(char));
+			c->weights_file = (char*)xcalloc(strlen(tokens[1]) + 1, sizeof(char));
 			strcpy(c->weights_file, tokens[1]);
 		}
 		else if (strcmp(k, "backup_dir") == 0) {
-			c->backup_dir = (char*)xcalloc(strlen(tokens[1] + 1), sizeof(char));
+			c->backup_dir = (char*)xcalloc(strlen(tokens[1]) + 1, sizeof(char));
 			strcpy(c->backup_dir, tokens[1]);
 		}
 	}
@@ -234,6 +234,8 @@ void copy_cfg_to_network(cfg* cfig, network* net) {
 	copy_data_augment_range(net->saturation, cfig->saturation);
 	copy_data_augment_range(net->exposure, cfig->exposure);
 	copy_data_augment_range(net->hue, cfig->hue);
+	// layers
+	// TODO
 }
 
 void copy_data_augment_range(float* dst, floatarr src) {
@@ -259,6 +261,10 @@ char** load_class_names(char* filename) {
 	FILE* file = get_filestream(filename, "r");
 	char buff[LINESIZE] = { 0 };
 	size_t n = get_line_count(file);
+	if (n == 0) {
+		printf("Classes file is empty. %s\n", filename);
+		wait_for_key_then_exit();
+	}
 	char** names = (char**)xcalloc(n, sizeof(char*));
 	for (size_t i = 0; i < n; i++) {
 		read_line_to_buff(file, buff, LINESIZE);
@@ -272,32 +278,32 @@ char** load_class_names(char* filename) {
 int is_header(char* str, char* header, int* is_layer) {
 	if (str[0] != '[') return 0;
 	if (strcmp(str, hDATA) == 0) {
-		header = hDATA;
+		strcpy(header, hDATA);
 		*is_layer = 0;
 		return 1;
 	}
 	else if (strcmp(str, hNET) == 0) {
-		header = hNET;
+		strcpy(header, hNET);
 		*is_layer = 0;
 		return 1;
 	}
 	else if (strcmp(str, hTRAINING) == 0) {
-		header = hTRAINING;
+		strcpy(header, hTRAINING);
 		*is_layer = 0;
 		return 1;
 	}
 	else if (strcmp(str, hCONV) == 0) {
-		header = hCONV;
+		strcpy(header, hCONV);
 		*is_layer = 1;
 		return 1;
 	}
 	else if (strcmp(str, hCLASSIFY) == 0) {
-		header = hCLASSIFY;
+		strcpy(header, hCLASSIFY);
 		*is_layer = 1;
 		return 1;
 	}
 	else if (strcmp(str, hDETECT) == 0) {
-		header = hDETECT;
+		strcpy(header, hDETECT);
 		*is_layer = 1;
 		return 1;
 	}
@@ -404,7 +410,7 @@ void print_cfg(cfg* c) {
 	node* next;
 	while (n) {
 		next = n->next;
-		print_cfg_layer((cfg_layer*)n);
+		print_cfg_layer((cfg_layer*)n->val);
 		printf("\n");
 		n = next;
 	}
@@ -415,7 +421,7 @@ void print_cfg_layer(cfg_layer* l) {
 	if (l->type == LAYER_CONV) printf(hCONV);
 	else if (l->type == LAYER_CLASSIFY) printf(hCLASSIFY);
 	else if (l->type == LAYER_DETECT) printf(hDETECT);
-	printf("id = %d\n", l->id);
+	printf("\nid = %d\n", l->id);
 	printf("train = %d\n", l->train);
 	printf("in_ids = ");
 	print_intarr(&l->in_ids);

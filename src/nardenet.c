@@ -12,9 +12,9 @@
 int main(void) {
 	
 
-	/*char* cfgfile = "D:/TonyDev/NardeNet/cfg/nardenet.cfg";
-	network* net = create_network_from_cfg(cfgfile);*/
-	//print_network(net);
+	char* cfgfile = "D:/TonyDev/NardeNet/cfg/nardenet.cfg";
+	network* net = create_network_from_cfg(cfgfile);
+	print_network(net);
 	
 	//train(net);
 
@@ -29,9 +29,6 @@ int main(void) {
 
 	//free_network(net);
 	//print_alloc_list();
-
-	//gemm_atb_test();
-	test_col2im();
 
 
 #ifndef _DEBUG

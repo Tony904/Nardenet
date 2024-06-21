@@ -74,7 +74,7 @@ extern "C" {
         LAYER_TYPE type;
         ACTIVATION activation;
         void(*activate)  (layer*);
-        void(*forward)   (layer*);
+        void(*forward)   (layer*, network*);
         void(*backprop)  (layer*, network*);
         void(*update)    (layer*, int, float, float, float); //layer, batch, learning rate, momentum, decay
         void(*get_cost)  (layer*);

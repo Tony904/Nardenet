@@ -12,12 +12,13 @@
 #include "derivatives.h"
 
 
-void forward_classify(layer* l) {
+void forward_classify(layer* l, network* net) {
 	int M = (int)(l->n_filters);
 	int N = (int)(l->out_w * l->out_h);
 	int K = (int)(l->ksize * l->ksize * l->c);
 	float* A = l->weights.a;
-	float* B = (float*)xcalloc((size_t)(N * K), sizeof(float));
+	//float* B = (float*)xcalloc((size_t)(N * K), sizeof(float));
+	float* B = net->workspace.a;
 	float* B0 = B;
 	float* C = l->output;
 	int w = (int)l->w;
@@ -30,7 +31,6 @@ void forward_classify(layer* l) {
 		B = im2col_cpu(im, c, h, w, (int)l->ksize, (int)l->pad, (int)l->stride, B);
 	}
 	gemm(M, N, K, A, B0, C);
-	xfree(B0);
 	add_biases(C, l->biases, M, N);
 	l->activate(l);
 	l->get_cost(l);
