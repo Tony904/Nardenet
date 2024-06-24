@@ -68,6 +68,7 @@ void load_cfg(char* filename, cfg* c) {
 		if (is_header(line, header, &is_layer)) {
 			if (!is_layer) continue;
 			l = (cfg_layer*)xcalloc(1, sizeof(cfg_layer));
+			l->train = 1;  // default
 			list_append(layers, l);
 			l->type = header2layertype(header);
 		}
@@ -234,8 +235,29 @@ void copy_cfg_to_network(cfg* cfig, network* net) {
 	copy_data_augment_range(net->saturation, cfig->saturation);
 	copy_data_augment_range(net->exposure, cfig->exposure);
 	copy_data_augment_range(net->hue, cfig->hue);
-	// layers
-	// TODO
+	// [layers]
+	node* noed = cfig->layers->first;
+	int n = (int)cfig->layers->length;
+	for (int i = 0; i < n; i++) {
+		assert(noed);
+		layer* l = &net->layers[i];
+		cfg_layer* cl = (cfg_layer*)noed->val;
+		assert(cl->id == i);
+		l->id = cl->id;
+		l->type = cl->type;
+		l->activation = cl->activation;
+		l->n_filters = cl->n_filters;
+		l->batch_norm = cl->batch_normalize;
+		l->ksize = cl->kernel_size;
+		l->in_ids = cl->in_ids;
+		l->out_ids = cl->out_ids;
+		l->pad = cl->pad;
+		l->stride = cl->stride;
+		l->train = cl->train;
+		l->cost_type = cl->cost_type;
+		l->n_classes = cl->n_classes;
+		noed = noed->next;
+	}
 }
 
 void copy_data_augment_range(float* dst, floatarr src) {

@@ -93,14 +93,6 @@ void build_conv_layer(int i, network* net) {
 		l->out_ids.a[0] = i + 1;
 		l->out_ids.n = 1;
 	}
-	if (i > 0) {
-		l->w = ls[l->in_ids.a[0]].w;
-		l->h = ls[l->in_ids.a[0]].h;
-	}
-	else { // if first layer
-		l->w = net->input->w;
-		l->h = net->input->w;
-	}
 
 	// Build array of input layer addresses.
 	l->in_layers = (layer**)xcalloc(l->in_ids.n, sizeof(layer*));
@@ -112,14 +104,16 @@ void build_conv_layer(int i, network* net) {
 	else { // if first layer
 		l->in_layers[0] = net->input;
 	}
-
+	
 	// Calculate input dimensions.
-	l->c = 0;
-	for (size_t j = 0; j < l->in_ids.n; j++) {
-		layer* in_layer = l->in_layers[j];
-		assert(l->w == in_layer->out_w);
-		assert(l->h == in_layer->out_h);
-		l->c += in_layer->out_c;
+	l->w = l->in_layers[0]->out_w;
+	l->h = l->in_layers[0]->out_h;
+	l->c = l->in_layers[0]->out_c;
+	for (size_t j = 1; j < l->in_ids.n; j++) {
+		layer* inlay = l->in_layers[j];
+		assert(l->w == inlay->out_w);
+		assert(l->h == inlay->out_h);
+		l->c += inlay->out_c;
 	}
 	l->n = l->w * l->h * l->c;
 
@@ -158,20 +152,22 @@ void build_classify_layer(int i, network* net) {
 		l->in_ids.a[0] = i - 1;
 		l->in_ids.n = 1;
 	}
-	l->w = ls[l->in_ids.a[0]].out_w;
-	l->h = ls[l->in_ids.a[0]].out_h;
-	l->c = ls[l->in_ids.a[0]].out_c;
-	for (size_t j = 1; j < l->in_ids.n; j++) {
-		l->c += ls[j].out_c;
-		assert(l->w == ls[l->in_ids.a[j]].out_w);
-		assert(l->h == ls[l->in_ids.a[j]].out_h);
-	}
-	l->n = l->w * l->h * l->c;
 
 	l->in_layers = (layer**)xcalloc(l->in_ids.n, sizeof(layer*));
 	for (size_t j = 0; j < l->in_ids.n; j++) {
 		l->in_layers[j] = &ls[l->in_ids.a[j]];
 	}
+
+	l->w = l->in_layers[0]->out_w;
+	l->h = l->in_layers[0]->out_h;
+	l->c = l->in_layers[0]->out_c;
+	for (size_t j = 1; j < l->in_ids.n; j++) {
+		layer* inlay = l->in_layers[i];
+		assert(l->w == inlay->out_w);
+		assert(l->h == inlay->out_h);
+		l->c += inlay->out_c;
+	}
+	l->n = l->w * l->h * l->c;
 
 	l->pad = 0;
 	l->stride = 1;
