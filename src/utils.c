@@ -361,7 +361,6 @@ list* get_files_list(char* dir, char* extensions) {
 				for (size_t i = 0; i < tokens_length(exts); i++) {
 					if (strcmp(ext, exts[i]) == 0) {
 						snprintf(fullpath, sizeof(fullpath), "%s%s", dir, filename);
-						printf("%s\n", fullpath);
 						size_t length = strlen(fullpath);
 						char* path = (char*)xcalloc(length + 1, sizeof(char));
 						strcpy(path, fullpath);
