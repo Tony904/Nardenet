@@ -32,7 +32,7 @@ void train_classifer(network* net) {
 	snprintf(train_dir, sizeof(train_dir), "%s%s", train_dir, "train\\");
 	load_classifier_dataset(&net->data.clsr, train_dir, net->class_names, net->n_classes);
 	layer* prediction_layer = &net->layers[net->n_layers - 1];
-	net->max_iterations = 2;  // testing
+	net->max_iterations = 3;  // testing
 	layer* layers = net->layers;
 	size_t n_layers = net->n_layers;
 	float* input = net->input->output;
@@ -48,24 +48,25 @@ void train_classifer(network* net) {
 		input = img->data;
 		printf("\nFORWARD PASS\n");
 		for (size_t i = 0; i < n_layers; i++) {
-			printf("Forwarding layer index %zu...\n", i);
+			//printf("Forwarding layer index %zu...\n", i);
 			layers[i].forward(&layers[i], net);
-			printf("Forward done.\n");
+			//printf("Forward done.\n");
 		}
 		printf("All layers forwarded.\n");
 		printf("\nBACKWARD PASS\n");
 		for (size_t ii = n_layers; ii; ii--) {
 			size_t i = ii - 1;
-			printf("Backproping layer index %zu...\n", i);
+			//printf("Backproping layer index %zu...\n", i);
 			layers[i].backprop(&layers[i], net);
-			printf("Backprop done.\n");
+			//printf("Backprop done.\n");
 		}
+		printf("*** COST = %f\n", prediction_layer->cost);
 		printf("All layers backproped.\n");
 		printf("\nUPDATE PASS\n");
 		for (size_t i = 0; i < n_layers; i++) {
-			printf("Updating layer index %zu...\n", i);
+			//printf("Updating layer index %zu...\n", i);
 			layers[i].update(&layers[i], net);
-			printf("Update done.\n");
+			//printf("Update done.\n");
 		}
 		printf("All layers updated.\n");
 		free_image(img);

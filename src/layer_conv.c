@@ -89,13 +89,13 @@ void backprop_conv(layer* l, network* net) {
 	// Now need to create backpropogated "image" for shallower layer(s).
 	for (int i = 0; i < N; i++) { B[i] = 0.0F; }
 	sum_columns(M, N, C, B);
-	printf("sum_columns done.\n");
+	//printf("sum_columns done.\n");
 	for (int i = 0; i < l->in_ids.n; i++) {
 		layer* inl = l->in_layers[i];
 		int c = (int)inl->out_c;
 		float* im = inl->output;
 		for (int j = 0; j < inl->out_n; j++) { im[j] = 0.0F; }
-		printf("wgrads2im, in_layer: %d\n", i);
+		//printf("wgrads2im, in_layer: %d\n", i);
 		wgrads2im_cpu(B, c, h, w, (int)l->ksize, (int)l->pad, (int)l->stride, im);
 	}
 }

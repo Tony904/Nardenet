@@ -11,7 +11,7 @@
 
 int main(void) {
 	
-
+	TODO: Cost is always zero. Fix.
 	char* cfgfile = "D:/TonyDev/NardeNet/cfg/nardenet.cfg";
 	network* net = create_network_from_cfg(cfgfile);
 	net->n_classes;

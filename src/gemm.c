@@ -14,7 +14,7 @@ void gemm(int M, int N, int K, float* A, float* B, float* C) {
 	// A = filter matrix (M * K)
 	// B = expanded input matrix (K * N)
 	// C = output dot products (M * N)
-	printf("gemm... ");
+	//printf("gemm... ");
 	int m;
 	#pragma omp parallel for
 	for (m = 0; m < M; m++) {
@@ -25,7 +25,7 @@ void gemm(int M, int N, int K, float* A, float* B, float* C) {
 			}
 		}
 	}
-	printf("done.\n");
+	//printf("done.\n");
 }
 
 void gemm_atb(int M, int N, int K, float* A, float* B, float* C) {
@@ -35,7 +35,7 @@ void gemm_atb(int M, int N, int K, float* A, float* B, float* C) {
 	// A = M * K
 	// B = N * K -> transpose -> K * N
 	// C = M * N
-	printf("gemm_atb...");
+	//printf("gemm_atb...");
 	int m;
 	for (m = 0; m < M; m++) {
 		for (int k = 0; k < K; k++) {
@@ -45,7 +45,7 @@ void gemm_atb(int M, int N, int K, float* A, float* B, float* C) {
 			}
 		}
 	}
-	printf("done.\n");
+	//printf("done.\n");
 }
 
 void add_biases(float* output, float* biases, int M, int N) {
