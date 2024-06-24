@@ -100,7 +100,6 @@ void wgrads2im_cpu(float* wgrads,
 	int chsize = width * height;
 	int ksize2 = ksize * ksize;
 	int ch, krow, kcol, w, h;
-#pragma omp parallel for
 	for (ch = 0; ch < channels; ch++) {
 		for (krow = 0; krow < ksize; krow++) {
 			for (kcol = 0; kcol < ksize; kcol++) {

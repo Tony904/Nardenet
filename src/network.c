@@ -129,10 +129,12 @@ void build_conv_layer(int i, network* net) {
 	l->biases = (float*)xcalloc(l->n_filters, sizeof(float));
 	l->act_input = (float*)xcalloc(l->out_n, sizeof(float));
 	l->grads = (float*)xcalloc(l->out_n, sizeof(float));
-	l->weight_updates = (float*)xcalloc(l->weights.n, sizeof(float));
+	l->weight_grads = (float*)xcalloc(l->weights.n, sizeof(float));
+	l->bias_grads = (float*)xcalloc(l->n_filters, sizeof(float));
 
 	l->forward = forward_conv;
 	l->backprop = backprop_conv;
+	l->update = update_conv;
 	set_activate(l);
 }
 
@@ -142,10 +144,8 @@ void build_classify_layer(int i, network* net) {
 	layer* ls = net->layers;
 	assert(l->id == i);
 
-	if (l->n_classes == 0) {
-		l->n_classes = net->n_classes;
-		l->n_filters = l->n_classes;
-	}
+	if (l->n_classes == 0) l->n_classes = net->n_classes;
+	l->n_filters = l->n_classes;
 
 	if (l->in_ids.n == 0) {
 		l->in_ids.a = (int*)xcalloc(1, sizeof(int));
@@ -186,10 +186,13 @@ void build_classify_layer(int i, network* net) {
 	l->act_input = (float*)xcalloc(l->out_n, sizeof(float));
 	l->grads = (float*)xcalloc(l->out_n, sizeof(float)); // IDK IF THIS IS RIGHT LENGTH
 	l->truth = (float*)xcalloc(net->n_classes, sizeof(float));
-	l->weight_updates = (float*)xcalloc(l->weights.n, sizeof(float));
+	l->errors = (float*)xcalloc(net->n_classes, sizeof(float));
+	l->weight_grads = (float*)xcalloc(l->weights.n, sizeof(float));
+	l->bias_grads = (float*)xcalloc(l->n_filters, sizeof(float));
 
 	l->forward = forward_classify;
 	l->backprop = backprop_classify;
+	l->update = update_classify;
 	set_activate(l);
 	set_cost(l);
 }
@@ -246,6 +249,7 @@ void build_detect_layer(int i, network* net) {
 
 	l->forward = forward_conv;
 	l->backprop = backprop_conv;
+	l->update = update_conv;  // will probably need to change to predictor specific function
 	set_activate(l);
 	if (l->cost_type > 0) {
 		set_cost(l);

@@ -24,10 +24,6 @@ void train(network* net) {
 	initialize_weights_kaiming(net);
 	if (net->type == NET_DETECT) train_detector(net);
 	else if (net->type == NET_CLASSIFY) train_classifer(net);
-
-	/*for (size_t i = 0; i < n; i++) {
-		forward_network_train(net, &net->det_samples[i]);
-	}*/
 }
 
 void train_classifer(network* net) {
@@ -36,6 +32,10 @@ void train_classifer(network* net) {
 	snprintf(train_dir, sizeof(train_dir), "%s%s", train_dir, "train\\");
 	load_classifier_dataset(&net->data.clsr, train_dir, net->class_names, net->n_classes);
 	layer* prediction_layer = &net->layers[net->n_layers - 1];
+	net->max_iterations = 2;  // testing
+	layer* layers = net->layers;
+	size_t n_layers = net->n_layers;
+	float* input = net->input->output;
 	for (size_t iter = 0; iter < net->max_iterations; iter++) {
 		image* img = get_next_image_classifier_dataset(&net->data.clsr, prediction_layer->truth);
 		// TODO: Resize img to network dimensions if needed
@@ -45,20 +45,29 @@ void train_classifer(network* net) {
 			printf("net w,h,c = %zu,%zu,%zu\n", net->w, net->h, net->c);
 			wait_for_key_then_exit();
 		}
-		net->input->output = img->data;
-		for (size_t i = 0; i < net->n_layers; i++) {
+		input = img->data;
+		printf("\nFORWARD PASS\n");
+		for (size_t i = 0; i < n_layers; i++) {
 			printf("Forwarding layer index %zu...\n", i);
-			net->layers[i].forward(&net->layers[i], net);
+			layers[i].forward(&layers[i], net);
 			printf("Forward done.\n");
 		}
 		printf("All layers forwarded.\n");
-		for (size_t ii = net->n_layers; ii; ii--) {
+		printf("\nBACKWARD PASS\n");
+		for (size_t ii = n_layers; ii; ii--) {
 			size_t i = ii - 1;
 			printf("Backproping layer index %zu...\n", i);
-			net->layers[i].backprop(&net->layers[i], net);
+			layers[i].backprop(&layers[i], net);
 			printf("Backprop done.\n");
 		}
 		printf("All layers backproped.\n");
+		printf("\nUPDATE PASS\n");
+		for (size_t i = 0; i < n_layers; i++) {
+			printf("Updating layer index %zu...\n", i);
+			layers[i].update(&layers[i], net);
+			printf("Update done.\n");
+		}
+		printf("All layers updated.\n");
 		free_image(img);
 	}
 	

@@ -16,7 +16,7 @@ class_set* load_class_sets(char* classes_dir, char** class_names, size_t n_class
 	class_set* sets = (class_set*)xcalloc(n_classes, sizeof(class_set));
 	char buff[MAX_DIR_PATH] = { 0 };
 	for (int i = 0; i < n_classes; i++) {
-		snprintf(buff, sizeof(buff), "%s%s", classes_dir, class_names[i]);
+		snprintf(buff, sizeof(buff), "%s%s\\", classes_dir, class_names[i]);
 		sets[i].class_id = i;
 		load_class_set(&sets[i], buff);
 		print_str_array(sets[i].files, sets[i].n);

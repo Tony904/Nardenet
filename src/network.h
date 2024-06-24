@@ -76,7 +76,7 @@ extern "C" {
         void(*activate)  (layer*);
         void(*forward)   (layer*, network*);
         void(*backprop)  (layer*, network*);
-        void(*update)    (layer*, int, float, float, float); //layer, batch, learning rate, momentum, decay
+        void(*update)    (layer*, network*); //layer, batch, learning rate, momentum, decay
         void(*get_cost)  (layer*);
         size_t batch_size;
         size_t n_filters;
@@ -99,7 +99,8 @@ extern "C" {
         float* variances;
         float* errors;
         float* grads;
-        float* weight_updates;
+        float* weight_grads;
+        float* bias_grads;
         float cost;
         COST_TYPE cost_type;
         intarr in_ids;

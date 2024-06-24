@@ -14,18 +14,11 @@ int main(void) {
 
 	char* cfgfile = "D:/TonyDev/NardeNet/cfg/nardenet.cfg";
 	network* net = create_network_from_cfg(cfgfile);
+	net->n_classes;
 	print_network(net);
+	net->n_classes;
 	
-	//train(net);
-
-	/*layer* l = &net->layers[net->n_layers - 1];
-	image dst = { 0 };
-	dst.data = l->output;
-	dst.w = l->out_w;
-	dst.h = l->out_h;
-	dst.c = 3;
-	print_image_matrix(&dst);
-	show_image(&dst);*/
+	train(net);
 
 	//free_network(net);
 	//print_alloc_list();

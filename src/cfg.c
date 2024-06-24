@@ -21,7 +21,7 @@ void copy_to_cfg(cfg* c, char** tokens, char* header);
 void copy_to_cfg_layer(cfg_layer* l, char** tokens);
 void copy_cfg_to_network(cfg* cfig, network* net);
 void copy_data_augment_range(float* dst, floatarr src);
-char** load_class_names(char* filename);
+void load_class_names(char* filename, network* net, size_t n_classes);
 LR_POLICY str2lr_policy(char* str);
 ACTIVATION str2activation(char* str);
 COST_TYPE str2cost(char* str);
@@ -213,7 +213,7 @@ void copy_to_cfg_layer(cfg_layer* l, char** tokens) {
 void copy_cfg_to_network(cfg* cfig, network* net) {
 	// [data]
 	net->dataset_dir = cfig->dataset_dir;
-	net->class_names = load_class_names(cfig->classes_file);
+	load_class_names(cfig->classes_file, net, cfig->n_classes);
 	net->weights_file = cfig->weights_file;
 	net->backup_dir = cfig->backup_dir;
 	// [net]
@@ -279,7 +279,7 @@ void copy_data_augment_range(float* dst, floatarr src) {
 	dst[1] = y;
 }
 
-char** load_class_names(char* filename) {
+void load_class_names(char* filename, network* net, size_t n_classes) {
 	FILE* file = get_filestream(filename, "r");
 	char buff[LINESIZE] = { 0 };
 	size_t n = get_line_count(file);
@@ -287,14 +287,19 @@ char** load_class_names(char* filename) {
 		printf("Classes file is empty. %s\n", filename);
 		wait_for_key_then_exit();
 	}
+	else if (n != n_classes) {
+		printf("Number of classes found in %s do not match # of classes in cfg file. (%zu =/= %zu)\n", filename, n, net->n_classes);
+		wait_for_key_then_exit();
+	}
 	char** names = (char**)xcalloc(n, sizeof(char*));
 	for (size_t i = 0; i < n; i++) {
 		read_line_to_buff(file, buff, LINESIZE);
+		clean_string(buff);
 		size_t length = strlen(buff);
 		names[i] = (char*)xcalloc(length + 1, sizeof(char));
 		strcpy(names[i], buff);
 	}
-	return names;
+	net->class_names = names;
 }
 
 int is_header(char* str, char* header, int* is_layer) {

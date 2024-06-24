@@ -11,6 +11,7 @@ extern "C" {
 
 	void forward_classify(layer* l, network* net);
 	void backprop_classify(layer* l, network* net);
+	void update_classify(layer* l, network* net);
 
 #ifdef __cplusplus
 }

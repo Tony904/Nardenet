@@ -36,16 +36,17 @@ void forward_classify(layer* l, network* net) {
 	l->get_cost(l);
 }
 
+#pragma warning(suppress:4100)  // unreferenced formal parameter: 'net'
 void backprop_classify(layer* l, network* net) {
 	// calculate gradients of logits wrt weights and logits wrt biases
 	// dz/dw is just the activation of the previous layer
 	// dz/db is always 1
-	float* weight_updates = l->weight_updates;
+	float* weight_grads = l->weight_grads;
 	float* grads = l->grads;
-	float lr = net->learning_rate;
-	float* biases = l->biases;
+	float* bias_grads = l->bias_grads;
+	// bias gradients = dC/dz
 	for (size_t i = 0; i < l->out_n; i++) {
-		biases[i] += grads[i] * lr;  // biases += dC/dz * learning rate
+		bias_grads[i] += grads[i];  // += because they will be divided by batch count during update step
 	}
 	size_t w = 0;
 	int i;
@@ -57,8 +58,29 @@ void backprop_classify(layer* l, network* net) {
 		for (size_t j = 0; j < inl->out_n; j++) {
 			float grad = grads[w] * output[j];  // dC/dw = dC/dz * dz/dw
 			inl_grads[j] = grad;
-			weight_updates[w] = grad;
+			weight_grads[w] += grad;  // += because they will be divided by batch count during update step
 			++w;
 		}
+	}
+}
+
+void update_classify(layer* l, network* net) {
+	float batch_size = (float)net->batch_size;
+	float rate = net->learning_rate * batch_size;
+
+	float* biases = l->biases;
+	float* bias_grads = l->bias_grads;
+	int n = (int)l->n_filters;
+	for (int b = 0; b < n; b++) {
+		biases[b] += bias_grads[b] * rate;
+	}
+
+	float* weights = l->weights.a;
+	float* weight_grads = l->weight_grads;
+	n = (int)l->weights.n;
+	int w;
+#pragma omp parallel for
+	for (w = 0; w < n; w++) {
+		weights[w] += weight_grads[w] * rate;
 	}
 }

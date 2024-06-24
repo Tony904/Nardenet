@@ -321,7 +321,7 @@ char* wstr2str(const wchar_t* wstr) {
 }
 #endif
 
-// extensions are a list of extensions separated by a comma. i.e. ".jpg,.jpeg,.bmp"
+/* extensions are a list of extensions separated by a comma.i.e. ".jpg,.jpeg,.bmp" */
 list* get_files_list(char* dir, char* extensions) {
 	list* paths = (list*)xcalloc(1, sizeof(list));
 	size_t count = 0;
@@ -341,8 +341,8 @@ list* get_files_list(char* dir, char* extensions) {
 			xfree(paths);
 			return (list*)0;
 		}
-		printf("Unexpected error occured while searching for first file in directory %s\n", dir);
-		printf("Error Code: %d\n", GetLastError());
+		printf("Unexpected error occured while searching for first file in directory %s\nDirectory may be empty or does not exist.", dir);
+		printf("\nError Code: %d\n", GetLastError());
 		wait_for_key_then_exit();
 	}
 	int ret = 1;
@@ -350,8 +350,8 @@ list* get_files_list(char* dir, char* extensions) {
 	while (1) {
 		if (ret == 0) {
 			if (GetLastError() == ERROR_NO_MORE_FILES) break;
-			printf("Unexpected error occured while searching for files in directory %s\n", dir);
-			printf("Error Code: %d\n", GetLastError());
+			printf("Unexpected error occured while searching for files in directory %s\nDirectory may be empty or does not exist.", dir);
+			printf("\nError Code: %d\n", GetLastError());
 			wait_for_key_then_exit();
 		}
 		if (!(filedata.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
