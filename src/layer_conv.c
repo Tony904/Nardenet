@@ -9,17 +9,17 @@
 #include "activations.h"
 #include "derivatives.h"
 #include "xarrays.h"
+#include "utils.h"
 
 
 void forward_conv(layer* l, network* net) {
 	int M = (int)(l->n_filters);
 	int N = (int)(l->out_w * l->out_h);
 	int K = (int)(l->ksize * l->ksize * l->c);
-	float* A = l->weights.a;
-	//float* B = (float*)xcalloc((size_t)(N * K), sizeof(float));
-	float* B = net->workspace.a;
+	float* A = l->weights.a;  // M * K
+	float* B = net->workspace.a;  // K * N
 	float* B0 = B;
-	float* C = l->output;
+	float* C = l->act_input;  // M * N
 	int w = (int)l->w;
 	int h = (int)l->h;
 	for (int i = 0; i < l->in_ids.n; i++) {
@@ -32,12 +32,11 @@ void forward_conv(layer* l, network* net) {
 	}
 	gemm(M, N, K, A, B0, C);
 	add_biases(C, l->biases, M, N);
-	l->activate(l);
-	//xfree(B0);
+	l->activate(l);  // sends l->act_input through activation functio and stores in l->output
 }
 
 void backprop_conv(layer* l, network* net) {
-	float* grads = l->grads;  // propogated gradients up to this layer
+	float* grads = l->output;  // propogated gradients up to this layer
 	// dz/dw = previous layer (shallower layer) input
 	// da/dz = activation derivative
 	float* Z = l->act_input;
@@ -67,8 +66,7 @@ void backprop_conv(layer* l, network* net) {
 	int K = (int)(l->out_w * l->out_h); // # of patches
 
 	float* A = grads;  // M * K
-	//float* B = (float*)xcalloc((size_t)(N * K), sizeof(float));
-	float* B = net->workspace.a;
+	float* B = net->workspace.a;  // N * K
 	for (int i = 0; i < N * K; i++) { B[i] = 0.0F; }
 	float* B0 = B;
 	float* C = l->weight_grads;  // M * N
@@ -84,20 +82,20 @@ void backprop_conv(layer* l, network* net) {
 		B = im2col_cpu(im, c, h, w, (int)l->ksize, (int)l->pad, (int)l->stride, B);
 	}
 	B = B0;
+	
 	gemm_atb(M, N, K, A, B, C);
 	// C is now dC/dw for all weights. [filter_index * filter_length + filter_weight_index]
 	// Now need to create backpropogated "image" for shallower layer(s).
 	for (int i = 0; i < N; i++) { B[i] = 0.0F; }
 	sum_columns(M, N, C, B);
-	//printf("sum_columns done.\n");
 	for (int i = 0; i < l->in_ids.n; i++) {
 		layer* inl = l->in_layers[i];
 		int c = (int)inl->out_c;
 		float* im = inl->output;
 		for (int j = 0; j < inl->out_n; j++) { im[j] = 0.0F; }
-		//printf("wgrads2im, in_layer: %d\n", i);
 		wgrads2im_cpu(B, c, h, w, (int)l->ksize, (int)l->pad, (int)l->stride, im);
 	}
+	
 }
 
 void update_conv(layer* l, network* net) {
@@ -115,8 +113,10 @@ void update_conv(layer* l, network* net) {
 	float* weight_grads = l->weight_grads;
 	n = (int)l->weights.n;
 	int w;
-#pragma omp parallel for
+//#pragma omp parallel for
 	for (w = 0; w < n; w++) {
+		printf("%f + %f * %f\n", weights[w], weight_grads[w], rate);
 		weights[w] += weight_grads[w] * rate;
 	}
+	(void)getchar();
 }

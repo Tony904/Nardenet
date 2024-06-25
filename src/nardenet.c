@@ -11,12 +11,10 @@
 
 int main(void) {
 	
-	TODO: Cost is always zero. Fix.
-	char* cfgfile = "D:/TonyDev/NardeNet/cfg/nardenet.cfg";
+	srand(7777777);
+
+	char* cfgfile = "D:/TonyDev/NardeNet/cfg/nardenet2.cfg";
 	network* net = create_network_from_cfg(cfgfile);
-	net->n_classes;
-	print_network(net);
-	net->n_classes;
 	
 	train(net);
 

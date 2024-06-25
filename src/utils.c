@@ -421,6 +421,12 @@ void print_str_array(char** strs, size_t count) {
 	}
 }
 
+void print_float_array(float* array, size_t size) {
+	for (size_t i = 0; i < size; i++) {
+		printf("%f\n", array[i]);
+	}
+}
+
 void wait_for_key_then_exit(void) {
 	printf("\n\nPress ENTER to exit the program.");
 	(void)getchar();

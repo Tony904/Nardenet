@@ -7,9 +7,7 @@ void activate_relu(layer* l) {
 	int i;
 #pragma omp parallel for
 	for (i = 0; i < l->out_n; i++) {
-		float x = output[i];
-		act_input[i] = x;
-		output[i] = relu_x(x);
+		output[i] = relu_x(act_input[i]);
 	}
 }
 
@@ -19,9 +17,7 @@ void activate_leaky_relu(layer* l) {
 	int i;
 #pragma omp parallel for
 	for (i = 0; i < l->out_n; i++) {
-		float x = output[i];
-		act_input[i] = x;
-		output[i] = leaky_x(x);
+		output[i] = act_input[i];
 	}
 }
 
@@ -31,9 +27,7 @@ void activate_mish(layer* l) {
 	int i;
 #pragma omp parallel for
 	for (i = 0; i < l->out_n; i++) {
-		float x = output[i];
-		act_input[i] = x;
-		output[i] = mish_x(x, MISH_THRESH);
+		output[i] = mish_x(act_input[i], MISH_THRESH);
 	}
 }
 
@@ -43,9 +37,7 @@ void activate_sigmoid(layer* l) {
 	int i;
 #pragma omp parallel for
 	for (i = 0; i < l->out_n; i++) {
-		float x = output[i];
-		act_input[i] = x;
-		output[i] = sigmoid_x(x);
+		output[i] = sigmoid_x(act_input[i]);
 	}
 }
 
@@ -53,7 +45,7 @@ void activate_softmax(layer* l) {
 	float* dst = l->output;
 	float* src = l->act_input;
 	int size = (int)l->out_n;
-	float sum = 0.f;
+	float sum = 0.0F;
 	// Calculate maxval to then subtract for numerical stability
 	// https://stats.stackexchange.com/questions/338285/how-does-the-subtraction-of-the-logit-maximum-improve-learning
 	float maxval = src[0];

@@ -47,7 +47,7 @@ extern "C" {
             return NULL;
         }
         cv::Mat src = cv::imread(path);
-        std::cout << "mat.channels = " << src.channels() << "\n";
+        //std::cout << "mat.channels = " << src.channels() << "\n";
         cv::Mat dst;
         if (src.channels() == 3) cv::cvtColor(src, dst, cv::COLOR_RGB2BGR);
         else if (src.channels() == 1) dst = src;

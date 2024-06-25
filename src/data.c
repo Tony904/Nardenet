@@ -16,7 +16,6 @@ image* get_next_image_classifier_dataset(classifier_dataset* dataset, float* tru
 		truth[i] = 0.0F;
 	}
 	truth[set->class_id] = 1.0F;
-	printf("TRUTH = %f, %f\n", truth[0], truth[1]);
 	return class_set_get_next_rand_image(set);
 }
 

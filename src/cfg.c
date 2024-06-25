@@ -42,7 +42,7 @@ network* create_network_from_cfg(char* cfgfile) {
 	}
 #pragma warning (suppress:6011)  // Visual Studio is too stupid to recognize c.layers can't be null here
 	network* net = new_network(c.layers->length);
-	print_cfg(&c);
+	//print_cfg(&c);
 	copy_cfg_to_network(&c, net);
 	xfree(c.classes_file);
 	xfree(c.saturation.a);

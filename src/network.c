@@ -23,7 +23,7 @@ void free_layers(network* net);
 void free_layer_members(layer* l);
 void print_layer_conv(layer* l);
 void print_layer_classify(layer* l);
-void print_weights(network* net);
+void print_all_weights(network* net);
 
 
 network* new_network(size_t num_of_layers) {
@@ -184,7 +184,7 @@ void build_classify_layer(int i, network* net) {
 	l->weights.a = (float*)xcalloc(l->weights.n, sizeof(float));
 	l->biases = (float*)xcalloc(l->n_filters, sizeof(float));
 	l->act_input = (float*)xcalloc(l->out_n, sizeof(float));
-	l->grads = (float*)xcalloc(l->out_n, sizeof(float)); // IDK IF THIS IS RIGHT LENGTH
+	l->grads = (float*)xcalloc(l->out_n, sizeof(float));
 	l->truth = (float*)xcalloc(net->n_classes, sizeof(float));
 	l->errors = (float*)xcalloc(net->n_classes, sizeof(float));
 	l->weight_grads = (float*)xcalloc(l->weights.n, sizeof(float));
@@ -447,7 +447,7 @@ void print_cost_type(COST_TYPE c) {
 	else printf("NONE\n");
 }
 
-void print_weights(network* net) {
+void print_all_weights(network* net) {
 	layer* layers = net->layers;
 	size_t N = net->n_layers;
 	size_t n;
@@ -461,5 +461,13 @@ void print_weights(network* net) {
 			printf("%f, ", l->weights.a[j]);
 			if ((j + 1) % 10 == 0) printf("\n");
 		}
+	}
+}
+
+void print_some_weights(layer* l, size_t n) {
+	float* weights = l->weights.a;
+	assert(l->weights.n >= n);
+	for (size_t i = 0; i < n; i++) {
+		printf("%f\n", weights[i]);
 	}
 }

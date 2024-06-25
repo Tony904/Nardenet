@@ -14,6 +14,8 @@ void train_classifer(network* net);
 void train_detector(network* net);
 void forward_network_train(network* net, det_sample* samp);
 void initialize_weights_kaiming(network* net);
+void print_weights(layer* l);
+void print_some_weights(layer* l, size_t n);
 
 
 #define MAX_DIR_PATH 255
@@ -32,10 +34,9 @@ void train_classifer(network* net) {
 	snprintf(train_dir, sizeof(train_dir), "%s%s", train_dir, "train\\");
 	load_classifier_dataset(&net->data.clsr, train_dir, net->class_names, net->n_classes);
 	layer* prediction_layer = &net->layers[net->n_layers - 1];
-	net->max_iterations = 3;  // testing
+	net->max_iterations = 2;  // testing
 	layer* layers = net->layers;
 	size_t n_layers = net->n_layers;
-	float* input = net->input->output;
 	for (size_t iter = 0; iter < net->max_iterations; iter++) {
 		image* img = get_next_image_classifier_dataset(&net->data.clsr, prediction_layer->truth);
 		// TODO: Resize img to network dimensions if needed
@@ -45,15 +46,16 @@ void train_classifer(network* net) {
 			printf("net w,h,c = %zu,%zu,%zu\n", net->w, net->h, net->c);
 			wait_for_key_then_exit();
 		}
-		input = img->data;
-		printf("\nFORWARD PASS\n");
+		//show_image(img);
+		net->input->output = img->data;
+		//printf("\nFORWARD\n");
 		for (size_t i = 0; i < n_layers; i++) {
 			//printf("Forwarding layer index %zu...\n", i);
 			layers[i].forward(&layers[i], net);
 			//printf("Forward done.\n");
 		}
-		printf("All layers forwarded.\n");
-		printf("\nBACKWARD PASS\n");
+		//printf("/FORWARD.\n");
+		printf("\nBACKWARD\n");
 		for (size_t ii = n_layers; ii; ii--) {
 			size_t i = ii - 1;
 			//printf("Backproping layer index %zu...\n", i);
@@ -61,18 +63,18 @@ void train_classifer(network* net) {
 			//printf("Backprop done.\n");
 		}
 		printf("*** COST = %f\n", prediction_layer->cost);
-		printf("All layers backproped.\n");
-		printf("\nUPDATE PASS\n");
+		//printf("/BACKWARD\n");
+		printf("\nUPDATE\n");
+		//print_some_weights(&layers[7], layers[7].weights.n);
 		for (size_t i = 0; i < n_layers; i++) {
 			//printf("Updating layer index %zu...\n", i);
 			layers[i].update(&layers[i], net);
 			//printf("Update done.\n");
 		}
-		printf("All layers updated.\n");
+		//printf("/UPDATE\n");
 		free_image(img);
+		net->input->output = NULL;
 	}
-	
-
 }
 
 void train_detector(network* net) {
@@ -108,7 +110,6 @@ void forward_network_train(network* net, det_sample* samp) {
 // Initialize weights using Kaiming Initialization
 void initialize_weights_kaiming(network* net) {
 	printf("\nInitializing weights...");
-	srand(7777777);
 	layer* layers = net->layers;
 	size_t N = net->n_layers;
 	size_t n;
@@ -123,4 +124,12 @@ void initialize_weights_kaiming(network* net) {
 		}
 	}
 	printf(" done\n");
+}
+
+void print_weights(layer* l) {
+	size_t n_weights = l->weights.n;
+	float* weights = l->weights.a;
+	for (size_t i = 0; i < n_weights; i++) {
+		printf("%f\n", weights[i]);
+	}
 }

@@ -15,8 +15,10 @@ extern "C" {
 		int channels, int height, int width,
 		int ksize, int pad, int stride,
 		float* im);
-	void sum_columns(int rows, int cols, float const* data, float* sums);
+	void sum_columns(int rows, int cols, float* data, float* sums);
 	void test_wgrads2im(void);
+	void pprint_mat(float* data, int width, int height, int channels);
+	void test_sum_columns(void);
 
 #ifdef __cplusplus
 }

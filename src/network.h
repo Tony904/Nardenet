@@ -29,6 +29,7 @@ extern "C" {
     void print_layertype(LAYER_TYPE lt);
     void print_activation(ACTIVATION a);
     void print_cost_type(COST_TYPE c);
+    void print_some_weights(layer* l, size_t n);
 
     typedef struct network {
         size_t n_layers;

@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include "xallocs.h"
 #include "gemm.h"
+#include "utils.h"
 
 
 void test_im2col(void);
@@ -122,12 +123,13 @@ void wgrads2im_cpu(float* wgrads,
 	}
 }
 
-void sum_columns(int rows, int cols, float const * data, float* sums) {
-	int r, c;
-#pragma omp parallel for
+void sum_columns(int rows, int cols, float* data, float* sums) {
+	int r;
+//#pragma omp parallel for 
 	for (r = 0; r < rows; r++) {
 		int j = r * cols;
-		for (c = 0; c < cols; c++) {
+		for (int c = 0; c < cols; c++) {
+			printf("[%d] %f + %f\n", c, sums[c], data[j + c]);
 			sums[c] += data[j + c];
 		}
 	}
@@ -248,4 +250,13 @@ void col2im_cpu_general(const float* data_col, const int channels,
 			}
 		}
 	}
+}
+
+void test_sum_columns() {
+	int rows = 2;
+	int cols = 5;
+	float data[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 0 };
+	float sums[5] = { 0 };
+	sum_columns(rows, cols, data, sums);
+	pprint_mat(sums, cols, 1, 1);
 }
