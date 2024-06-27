@@ -16,6 +16,7 @@ void forward_network_train(network* net, det_sample* samp);
 void initialize_weights_kaiming(network* net);
 void print_weights(layer* l);
 void print_some_weights(layer* l, size_t n);
+void print_top_class_name(float* probs, int n_classes, char** class_names);
 
 
 #define MAX_DIR_PATH 255
@@ -34,11 +35,15 @@ void train_classifer(network* net) {
 	snprintf(train_dir, sizeof(train_dir), "%s%s", train_dir, "train\\");
 	load_classifier_dataset(&net->data.clsr, train_dir, net->class_names, net->n_classes);
 	layer* prediction_layer = &net->layers[net->n_layers - 1];
-	net->max_iterations = 2;  // testing
+	float* truth = prediction_layer->truth;
+	float* predictions = prediction_layer->output;
+	int n_classes = (int)net->n_classes;
+	char** class_names = net->class_names;
+	net->max_iterations = 30;  // testing
 	layer* layers = net->layers;
 	size_t n_layers = net->n_layers;
 	for (size_t iter = 0; iter < net->max_iterations; iter++) {
-		image* img = get_next_image_classifier_dataset(&net->data.clsr, prediction_layer->truth);
+		image* img = get_next_image_classifier_dataset(&net->data.clsr, truth);
 		// TODO: Resize img to network dimensions if needed
 		if (net->w != img->w || net->h != img->h || net->c != img->c) {
 			printf("Input image does not match network dimensions.\n");
@@ -48,30 +53,21 @@ void train_classifer(network* net) {
 		}
 		//show_image(img);
 		net->input->output = img->data;
-		//printf("\nFORWARD\n");
 		for (size_t i = 0; i < n_layers; i++) {
-			//printf("Forwarding layer index %zu...\n", i);
 			layers[i].forward(&layers[i], net);
-			//printf("Forward done.\n");
 		}
-		//printf("/FORWARD.\n");
-		printf("\nBACKWARD\n");
 		for (size_t ii = n_layers; ii; ii--) {
 			size_t i = ii - 1;
-			//printf("Backproping layer index %zu...\n", i);
 			layers[i].backprop(&layers[i], net);
-			//printf("Backprop done.\n");
 		}
-		printf("*** COST = %f\n", prediction_layer->cost);
-		//printf("/BACKWARD\n");
-		printf("\nUPDATE\n");
-		//print_some_weights(&layers[7], layers[7].weights.n);
+		printf("COST = %f\n", prediction_layer->cost);
 		for (size_t i = 0; i < n_layers; i++) {
-			//printf("Updating layer index %zu...\n", i);
 			layers[i].update(&layers[i], net);
-			//printf("Update done.\n");
 		}
-		//printf("/UPDATE\n");
+		printf("Truth:     ");
+		print_top_class_name(truth, n_classes, class_names);
+		printf("Predicted: ");
+		print_top_class_name(predictions, n_classes, class_names);
 		free_image(img);
 		net->input->output = NULL;
 	}
@@ -132,4 +128,17 @@ void print_weights(layer* l) {
 	for (size_t i = 0; i < n_weights; i++) {
 		printf("%f\n", weights[i]);
 	}
+}
+
+void print_top_class_name(float* probs, int n_classes, char** class_names) {
+	int c = 0;
+	float highscore = 0;
+	for (int i = 0; i < n_classes; i++) {
+		float p = probs[i];
+		if (p > highscore) {
+			highscore = p;
+			c = i;
+		}
+	}
+	printf("%s (%f)\n", class_names[c], highscore);
 }

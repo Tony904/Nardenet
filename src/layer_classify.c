@@ -72,17 +72,30 @@ void backprop_classify(layer* l, network* net) {
 	}
 	B = B0;
 	gemm_atb(M, N, K, A, B, C);
-	// C is now dC/dw for all weights. [filter_index * filter_length + filter_weight_index]
-	// Now need to create backpropogated "image" for shallower layer(s).
-	for (int i = 0; i < N; i++) { B[i] = 0.0F; }
-	sum_columns(M, N, C, B);  // something about this ain't right, i just get zeros.
+	// C is now dC/dw for all weights. 
+	// Note: C array's storage structure is [filter_index * filter_length + filter_weight_index]
+
+	// Now need to create backpropogated "image" for shallower layer(s),
+	// so we need to calculate dz/da (dz of this layer wrt da of input layer(s)),
+	// which is just the weights. (dz/da = weights of current layer)
+	// and then multiply that by dC/dz (which is currently the grads array).
+	// Note: Weight gradients DO NOT propagate back, they are just used to update the weights.
+
+	A = l->weights.a;  // M * N
+	B = grads;  // M * K
+	C = net->workspace.a;  // N * K
+	for (int i = 0; i < N * K; i++) { C[i] = 0.0F; }
+	gemm_tab(M, N, K, A, B, C);
+	// C is now dC/da in col'd form (as in im2col).
+	// So now we need to turn this "expanded" form (col) into the form of the dimensions of
+	// the output of the input layer (im). We do this using col2im().
+
 	for (int i = 0; i < l->in_ids.n; i++) {
 		layer* inl = l->in_layers[i];
 		int c = (int)inl->out_c;
 		float* im = inl->output;
 		for (int j = 0; j < inl->out_n; j++) { im[j] = 0.0F; }
-		wgrads2im_cpu(B, c, h, w, (int)l->ksize, (int)l->pad, (int)l->stride, im);
-		print_float_array(im, w * h * c);
+		col2im_cpu(C, c, h, w, (int)l->ksize, (int)l->pad, (int)l->stride, im);
 	}
 }
 

@@ -288,7 +288,7 @@ void load_class_names(char* filename, network* net, size_t n_classes) {
 		wait_for_key_then_exit();
 	}
 	else if (n != n_classes) {
-		printf("Number of classes found in %s do not match # of classes in cfg file. (%zu =/= %zu)\n", filename, n, net->n_classes);
+		printf("Number of classes found in %s do not match # of classes in cfg file. (%zu =/= %zu)\n", filename, n, n_classes);
 		wait_for_key_then_exit();
 	}
 	char** names = (char**)xcalloc(n, sizeof(char*));

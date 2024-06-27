@@ -36,7 +36,6 @@ void cost_softmax_cce(layer* l) {
 		grads[i] = t - p;  // This is the dC/da * da/dz for softmax with cross entropy
 		cost += errors[i];
 	}
-	printf("[%f, %f, %f]\n", grads[0], grads[1], grads[2]);
 	l->cost = cost;
 }
 

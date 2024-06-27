@@ -28,6 +28,7 @@ void gemm(int M, int N, int K, float* A, float* B, float* C) {
 	//printf("done.\n");
 }
 
+/*A[M*K], B[N*K], BT[K*N], C[M*N]*/
 void gemm_atb(int M, int N, int K, float* A, float* B, float* C) {
 	// M = # of filters
 	// N = # of weights per filter
@@ -41,12 +42,35 @@ void gemm_atb(int M, int N, int K, float* A, float* B, float* C) {
 	for (m = 0; m < M; m++) {
 		for (int k = 0; k < K; k++) {
 			float a = A[m * K + k];
+			int mN = m * N;
 			for (int n = 0; n < N; n++) {
-				C[m * N + n] += a * B[n * K + k];
+				C[mN + n] += a * B[n * K + k];
 			}
 		}
 	}
 	//printf("done.\n");
+}
+
+/*A[M*N], AT[N*M], B[M*K], C[N*K]*/
+void gemm_tab(int M, int N, int K, float* A, float* B, float* C) {
+	// M = # of filters
+	// N = # of weights per filter
+	// K = # of patches
+	// A = M * N -> transpose -> N * M
+	// B = M * K
+	// C = N * K
+	int m;
+#pragma omp parallel for
+	for (m = 0; m < M; m++) {
+		for (int n = 0; n < N; n++) {
+			float a = A[m * N + n];
+			int nK = n * K;
+			int mK = m * K;
+			for (int k = 0; k < K; k++) {
+				C[nK + k] += a * B[mK + k];
+			}
+		}
+	}
 }
 
 void add_biases(float* output, float* biases, int M, int N) {
@@ -55,8 +79,9 @@ void add_biases(float* output, float* biases, int M, int N) {
 	int m;
 #pragma omp parallel for
 	for (m = 0; m < M; m++) {
+		int mN = m * N;
 		for (int n = 0; n < N; n++) {
-			output[m * N + n] += biases[m];
+			output[mN + n] += biases[m];
 		}
 	}
 }
@@ -83,7 +108,7 @@ void gemm_test(int M, int N, int K, float* A, float* B, float* C) {
 	printf("\nmmm done.\n");
 }
 
-void gemm_atb_test(void) {
+void test_gemm_atb(void) {
 	int M = 3;
 	int N = 4;
 	int K = 9;
@@ -100,6 +125,25 @@ void gemm_atb_test(void) {
 	print_test_matrix(N, K, 1, B);
 	gemm_atb(M, N, K, A, B, C);
 	print_test_matrix(M, N, 1, C);
+}
+
+void test_gemm_tab(void) {
+	int M = 2;
+	int N = 3;
+	int K = 4;
+	float* A = (float*)xcalloc((size_t)(M * N), sizeof(float));
+	float* B = (float*)xcalloc((size_t)(M * K), sizeof(float));
+	float* C = (float*)xcalloc((size_t)(N * K), sizeof(float));
+	for (int i = 0; i < M * N; i++) {
+		A[i] = (float)(i + 1);
+	}
+	print_test_matrix(M, N, 1, A);
+	for (int i = 0; i < M * K; i++) {
+		B[i] = (float)(i + 2);
+	}
+	print_test_matrix(M, K, 1, B);
+	gemm_tab(M, N, K, A, B, C);
+	print_test_matrix(N, K, 1, C);
 }
 
 void print_test_matrix(int rows, int cols, int channels, float* matrix) {

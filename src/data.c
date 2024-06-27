@@ -12,9 +12,7 @@ image* class_set_get_next_rand_image(class_set* set);
 image* get_next_image_classifier_dataset(classifier_dataset* dataset, float* truth) {
 	class_set* set = classifier_dataset_get_next_rand_class_set(dataset);
 	size_t n = dataset->n;
-	for (size_t i = 0; i < n; i++) {
-		truth[i] = 0.0F;
-	}
+	for (size_t i = 0; i < n; i++) { truth[i] = 0.0F; }
 	truth[set->class_id] = 1.0F;
 	return class_set_get_next_rand_image(set);
 }
