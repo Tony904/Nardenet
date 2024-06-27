@@ -38,6 +38,7 @@ extern "C" {
 	size_t tokens_length(char** tokens);
 	void print_str_array(char** strs, size_t count);
 	void print_float_array(float* array, size_t size);
+	void pprint_mat(float* data, int width, int height, int channels);
 	void wait_for_key_then_exit(void);
 
 #ifdef _cplusplus

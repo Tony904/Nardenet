@@ -427,6 +427,23 @@ void print_float_array(float* array, size_t size) {
 	}
 }
 
+void pprint_mat(float* data, int width, int height, int channels) {
+	printf("\nMATRIX");
+	for (int channel = 0; channel < channels; channel++) {
+		for (int row = 0; row < height; row++) {
+			printf("\n");
+			for (int col = 0; col < width; col++) {
+				float val = data[channel * width * height + row * width + col];
+				if (val < 10 && val >= 0) printf("%0.1f   ", val);
+				else if (val >= 10 && val < 100) printf("%0.1f  ", val);
+				else printf("%0.1f ", val);
+			}
+		}
+		printf("(ch%d)", channel);
+	}
+	printf("\nend\n\n");
+}
+
 void wait_for_key_then_exit(void) {
 	printf("\n\nPress ENTER to exit the program.");
 	(void)getchar();
