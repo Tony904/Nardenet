@@ -12,6 +12,7 @@ extern "C" {
 	typedef struct class_set class_set;
 
 	class_set* load_class_sets(char* classes_dir, char** class_names, size_t n_classes);
+	void free_class_sets(class_set* set, size_t n);
 
 	typedef struct class_set {  // classifier class dataset
 		char** files;

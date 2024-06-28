@@ -48,7 +48,7 @@ network* create_network_from_cfg(char* cfgfile) {
 	xfree(c.saturation.a);
 	xfree(c.exposure.a);
 	xfree(c.hue.a);
-	free_list(c.layers);
+	free_list(c.layers, 1);
 	build_network(net);
 	return net;
 }

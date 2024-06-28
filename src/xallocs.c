@@ -197,7 +197,7 @@ void print_alloc_list(void) {
     while (node) {
         n = *node;
         printf("[NODE %d]\n", i);
-        printf("self address: %p\n", node);
+        printf("node address: %p\n", node);
         printf("p = %p\n", n.p);
         printf("bytes = %zu * %zu\n", n.n_elements, n.element_size);
         printf("filename = %s\n", n.filename);

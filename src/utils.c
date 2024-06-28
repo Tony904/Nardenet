@@ -404,6 +404,7 @@ list* get_files_list(char* dir, char* extensions) {
 	printf("# of files found: %zu\n", count);
 	closedir(dp);
 #endif
+	xfree(exts);
 	return paths;
 }
 

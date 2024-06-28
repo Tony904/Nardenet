@@ -29,7 +29,9 @@ extern "C" {
     void print_layertype(LAYER_TYPE lt);
     void print_activation(ACTIVATION a);
     void print_cost_type(COST_TYPE c);
+    void print_all_network_weights(network* net);
     void print_some_weights(layer* l, size_t n);
+    void print_top_class_name(float* probs, int n_classes, char** class_names);
 
     typedef struct network {
         size_t n_layers;
@@ -53,12 +55,8 @@ extern "C" {
         float saturation[2];
         float exposure[2];
         float hue[2];
-        float* anchors;
-        size_t n_anchors;
         layer* input;
         layer* layers;
-        float* output;
-        float* grads;
         floatarr workspace;
         char* dataset_dir;
         char* weights_file;
@@ -110,6 +108,7 @@ extern "C" {
         int train;
         int batch_norm;
         size_t n_classes;
+        size_t n_anchors;
         size_t* anchors;
         float* truth;
     } layer;

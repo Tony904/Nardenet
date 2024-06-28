@@ -32,11 +32,11 @@ void* list_get_item(list* lst, size_t index) {
 	return n->val;
 }
 
-void free_list(list* lst) {
+void free_list(list* lst, int free_vals) {
 	node* n = lst->first;
-	node* next;
 	while (n) {
-		next = n->next;
+		node* next = n->next;
+		if (free_vals) xfree(n->val);
 		xfree(n);
 		n = next;
 	}

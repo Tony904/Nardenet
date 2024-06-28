@@ -35,18 +35,30 @@ void load_class_set(class_set* set, char* class_dir) {
 	strcpy(dir, class_dir);
 	list* lst = get_files_list(dir, IMG_EXTS);
 	char** files = (char**)xcalloc(lst->length, sizeof(char*));
-	size_t i = 0;
-	node* n = lst->first;
-	node* next;
-	while (n) {
-		next = n->next;
-		files[i] = (char*)n->val;
-		n = next;
-		i++;
+	node* noed = lst->first;
+	for (size_t i = 0; i < lst->length; i++) {
+		files[i] = (char*)noed->val;
+		noed = noed->next;
 	}
 	set->n = lst->length;
 	set->files = files;
 	set->rands = (size_t*)xcalloc(set->n, sizeof(size_t));
 	get_random_numbers_no_repeats(set->rands, set->n, 0, set->n - 1);
-	xfree(lst);
+	free_list(lst, 0);
+}
+
+void free_class_sets(class_set* sets, size_t n) {
+	for (size_t i = 0; i < n; i++) {
+		for (size_t j = 0; j < sets[i].n; j++) {
+			xfree(sets[i].files[j]);
+		}
+		xfree(sets[i].files);
+		xfree(sets[i].rands);
+		sets[i].class_id = 0;
+		sets[i].files = 0;
+		sets[i].n = 0;
+		sets[i].rands = 0;
+		sets[i].ri = 0;
+	}
+	xfree(sets);
 }

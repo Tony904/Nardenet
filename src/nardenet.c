@@ -18,8 +18,8 @@ int main(void) {
 	
 	train(net);
 
-	//free_network(net);
-	//print_alloc_list();
+	free_network(net);
+	print_alloc_list();
 
 
 #ifndef _DEBUG
@@ -29,6 +29,9 @@ int main(void) {
 }
 
 /* TODO:
+BUGS:
+ not getting same cost when forwarding the same image twice in a row without updating
+
 PHASE 1:
  resize input images if needed
  batches

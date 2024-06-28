@@ -37,6 +37,7 @@ image* class_set_get_next_rand_image(class_set* set) {
 	size_t* rands = set->rands;
 	size_t n_sets = set->n;
 	image* img = load_file_to_image(set->files[rands[ri]]);
+	printf("%s\n", set->files[rands[ri]]);
 	ri++;
 	if (!(ri < n_sets)) {
 		ri = 0;
@@ -54,6 +55,11 @@ void load_classifier_dataset(classifier_dataset* dataset, char* classes_dir, cha
 	get_random_numbers_no_repeats(dataset->rands, n_classes, 0, n_classes - 1);
 }
 
-//void load_detector_dataset(detector_dataset* dataset) {
-//
-//}
+void free_classifier_dataset_members(classifier_dataset* dataset) {
+	free_class_sets(dataset->sets, dataset->n);
+	xfree(dataset->rands);
+	dataset->n = 0;
+	dataset->ri = 0;
+	dataset->rands = 0;
+	dataset->sets = 0;
+}

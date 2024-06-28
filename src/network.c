@@ -19,11 +19,10 @@ void build_detect_layer(int i, network* net);
 void set_activate(layer* l);
 void set_cost(layer* l);
 void free_network(network* net);
-void free_layers(network* net);
+void free_network_layers(network* net);
 void free_layer_members(layer* l);
 void print_layer_conv(layer* l);
 void print_layer_classify(layer* l);
-void print_all_weights(network* net);
 
 
 network* new_network(size_t num_of_layers) {
@@ -73,7 +72,6 @@ void build_input_layer(network* net) {
 	l->out_h = l->h;
 	l->out_c = l->c;
 	l->out_n = l->n;
-	l->output = (float*)xcalloc(l->out_n, sizeof(float));
 }
 
 // i = layer index in net->layers
@@ -244,8 +242,8 @@ void build_detect_layer(int i, network* net) {
 	l->weights.a = (float*)xcalloc(l->weights.n, sizeof(float));
 	l->biases = (float*)xcalloc(l->n_filters, sizeof(float));
 	l->act_input = (float*)xcalloc(l->out_n, sizeof(float));
-
-	l->truth = (float*)xcalloc((net->n_classes + NUM_ANCHOR_PARAMS) * net->n_anchors, sizeof(float));
+	//(net->n_classes + NUM_ANCHOR_PARAMS)* l->n_anchors
+	l->truth = (float*)xcalloc((net->n_classes + NUM_ANCHOR_PARAMS) * l->n_anchors, sizeof(float));
 
 	l->forward = forward_conv;
 	l->backprop = backprop_conv;
@@ -304,28 +302,39 @@ void set_cost(layer* l) {
 }
 
 void free_network(network* n) {
+	for (size_t i = 0; i < n->n_classes; i++) {
+		xfree(n->class_names[i]);
+	}
+	xfree(n->class_names);
 	xfree(n->step_percents.a);
 	xfree(n->step_scaling.a);
-	xfree(n->input->output);
+	free_layer_members(n->input);
 	xfree(n->input);
-	free_layers(n);
-	xfree(n->output);
+	free_network_layers(n);
+	xfree(n->workspace.a);
+	xfree(n->dataset_dir);
+	xfree(n->weights_file);
+	xfree(n->backup_dir);
+	free_classifier_dataset_members(&n->data.clsr);
 	xfree(n);
 }
 
-void free_layers(network* net) {
+void free_network_layers(network* net) {
 	for (size_t i = 0; i < net->n_layers; i++) {
 		free_layer_members(&net->layers[i]);
 	}
 	xfree(net->layers);
 }
 
-// TODO: Update
 void free_layer_members(layer* l) {
 	xfree(l->output);
 	xfree(l->weights.a);
 	xfree(l->biases);
 	xfree(l->grads);
+	xfree(l->weight_grads);
+	xfree(l->bias_grads);
+	xfree(l->act_input);
+	xfree(l->truth);
 	xfree(l->means);
 	xfree(l->variances);
 	xfree(l->errors);
@@ -447,7 +456,7 @@ void print_cost_type(COST_TYPE c) {
 	else printf("NONE\n");
 }
 
-void print_all_weights(network* net) {
+void print_all_network_weights(network* net) {
 	layer* layers = net->layers;
 	size_t N = net->n_layers;
 	size_t n;
@@ -470,4 +479,17 @@ void print_some_weights(layer* l, size_t n) {
 	for (size_t i = 0; i < n; i++) {
 		printf("%f\n", weights[i]);
 	}
+}
+
+void print_top_class_name(float* probs, int n_classes, char** class_names) {
+	int c = 0;
+	float highscore = 0;
+	for (int i = 0; i < n_classes; i++) {
+		float p = probs[i];
+		if (p > highscore) {
+			highscore = p;
+			c = i;
+		}
+	}
+	printf("%s (%f)\n", class_names[c], highscore);
 }

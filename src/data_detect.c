@@ -42,7 +42,7 @@ det_sample* load_det_samples(char* directory, size_t* count_dst) {
 		load_det_sample(antfile, imgfile, &samples[i]);
 	}
 	*count_dst = n_samps;
-	free_list(imgpaths);
+	free_list(imgpaths, 0);
 	return samples;
 }
 

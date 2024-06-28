@@ -118,7 +118,9 @@ void update_conv(layer* l, network* net) {
 	float* biases = l->biases;
 	float* bias_grads = l->bias_grads;
 	int n = (int)l->n_filters;
-	for (int b = 0; b < n; b++) {
+	int b;
+#pragma omp parallel for firstprivate(rate)
+	for (b = 0; b < n; b++) {
 		biases[b] += bias_grads[b] * rate;
 	}
 
@@ -126,7 +128,7 @@ void update_conv(layer* l, network* net) {
 	float* weight_grads = l->weight_grads;
 	n = (int)l->weights.n;
 	int w;
-//#pragma omp parallel for
+#pragma omp parallel for firstprivate(rate)
 	for (w = 0; w < n; w++) {
 		weights[w] += weight_grads[w] * rate;
 	}
