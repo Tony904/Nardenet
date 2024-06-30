@@ -1,25 +1,22 @@
 #include "nardenet.h"
 #include "xallocs.h"
-#include "network.h"
-#include "cfg.h"
-#include "train.h"
 #include "xopencv.h"
 #include "im2col.h"
-#include "data.h"
-#include "gemm.h"
 
 
 int main(void) {
 	
 	srand(7777777);
 
-	char* cfgfile = "D:/TonyDev/NardeNet/cfg/nardenet.cfg";
+	/*char* cfgfile = "D:/TonyDev/NardeNet/cfg/nardenet.cfg";
 	network* net = create_network_from_cfg(cfgfile);
 	
 	train(net);
 
 	free_network(net);
-	print_alloc_list();
+	print_alloc_list();*/
+
+	test_im2col_omp();
 
 
 #ifndef _DEBUG
@@ -31,6 +28,10 @@ int main(void) {
 /* TODO:
 BUGS:
  not getting same cost when forwarding the same image twice in a row without updating
+	(see if issue occurs when not performing backpropagation)
+ first layer doesnt need to do col2im for input layer
+ col2im part of backprop function does not properly distribute gradients when there are
+	more than 1 input layers.
 
 PHASE 1:
  resize input images if needed

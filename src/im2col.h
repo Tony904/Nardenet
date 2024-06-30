@@ -10,12 +10,12 @@ extern "C" {
 		const int channels, const int height, const int width, 
 		const int ksize, const int pad, const int stride,
 		float* data_col);
-	void test_im2col(void);
 	void col2im_cpu(const float* data_col,
 		int channels, int height, int width,
 		int kernel_size, int pad, int stride,
 		float* data_im);
 	void test_col2im(void);
+	void test_im2col_omp(void);
 
 #ifdef __cplusplus
 }
