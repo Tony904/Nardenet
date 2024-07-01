@@ -36,7 +36,7 @@ void train_classifer(network* net) {
 	float* predictions = prediction_layer->output;
 	int n_classes = (int)net->n_classes;
 	char** class_names = net->class_names;
-	net->max_iterations = 30;  // testing
+	net->max_iterations = 5;  // testing
 	layer* layers = net->layers;
 	size_t n_layers = net->n_layers;
 	print_network_summary(net, 1);
@@ -44,9 +44,9 @@ void train_classifer(network* net) {
 		for (int batch_i = 0; batch_i < net->batch_size; batch_i++) {
 			image* img = get_next_image_classifier_dataset(&net->data.clsr, truth);
 			if (net->w != img->w || net->h != img->h || net->c != img->c) {
-				printf("Input image does not match network dimensions.\n");
-				printf("img w,h,c = %zu,%zu,%zu\n", img->w, img->h, img->c);
-				printf("net w,h,c = %zu,%zu,%zu\n", net->w, net->h, net->c);
+				printf("Input image does not match network dimensions.\n"
+					"img w,h,c = %zu,%zu,%zu\nnet w,h,c = %zu,%zu,%zu\n",
+					 img->w, img->h, img->c, net->w, net->h, net->c);
 				wait_for_key_then_exit();
 			}
 			//show_image(img);
