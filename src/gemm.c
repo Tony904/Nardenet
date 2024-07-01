@@ -8,13 +8,12 @@ void print_test_matrix(int rows, int cols, int channels, float* matrix);
 
 
 void gemm(int M, int N, int K, float* A, float* B, float* C) {
-	// M = # of filters
-	// N = # of patches (# of dot products performed per filter)
-	// K = # of weights per filter
-	// A = filter matrix (M * K)
-	// B = expanded input matrix (K * N)
-	// C = output dot products (M * N)
-	//printf("gemm... ");
+	/*M = # of filters
+	N = # of patches (# of dot products performed per filter)
+	K = # of weights per filter
+	A = filter matrix (M * K)
+	B = expanded input matrix (K * N)
+	C = output dot products (M * N)*/
 	int m;
 #pragma omp parallel for
 	for (m = 0; m < M; m++) {
@@ -25,7 +24,6 @@ void gemm(int M, int N, int K, float* A, float* B, float* C) {
 			}
 		}
 	}
-	//printf("done.\n");
 }
 
 /*A[M*K], B[N*K], BT[K*N], C[M*N]*/
@@ -73,9 +71,8 @@ void gemm_tab(int M, int N, int K, float* A, float* B, float* C) {
 	}
 }
 
+/*M = # of filters, N = out_w * out_h*/
 void add_biases(float* output, float* biases, int M, int N) {
-	// M = # of filters (aka out_c)
-	// N = out_w * out_h
 	int m;
 #pragma omp parallel for
 	for (m = 0; m < M; m++) {
@@ -83,6 +80,20 @@ void add_biases(float* output, float* biases, int M, int N) {
 		for (int n = 0; n < N; n++) {
 			output[mN + n] += biases[m];
 		}
+	}
+}
+
+/*M = # of filters, K = out_w * out_h*/
+void get_bias_grads(float* bias_grads, float* grads, int M, int K) {
+	int m;
+#pragma omp parallel for
+	for (m = 0; m < M; m++) {
+		float sum = 0;
+		int mK = m * K;
+		for (int k = 0; k < K; k++) {
+			sum += grads[mK + k];
+		}
+		bias_grads[m] += sum;  // += because they will be divided by batch count during update step
 	}
 }
 

@@ -10,49 +10,8 @@ inline static int is_a_ge_zero_and_a_lt_b(int a, int b) {
 	return (unsigned)(a) < (unsigned)(b);
 }
 
-// https://github.com/BVLC/caffe/blob/master/src/caffe/util/im2col.cpp
 /* channels, height, width are dimensions of input image data_im */
-float* im2col_cpu(const float* data_im, const int channels,
-	const int height, const int width, const int ksize,
-	const int pad, const int stride,
-	float* data_col)
-{
-	const int output_h = (height + 2 * pad - ksize) / stride + 1;
-	const int output_w = (width + 2 * pad - ksize) / stride + 1;
-	const int channel_size = height * width;
-	int channel, kernel_row, kernel_col, output_rows, output_cols;
-	for (channel = channels; channel--; data_im += channel_size) {
-		for (kernel_row = 0; kernel_row < ksize; kernel_row++) {
-			for (kernel_col = 0; kernel_col < ksize; kernel_col++) {
-				int input_row = -pad + kernel_row;
-				for (output_rows = output_h; output_rows; output_rows--) {
-					if (!is_a_ge_zero_and_a_lt_b(input_row, height)) {
-						for (output_cols = output_w; output_cols; output_cols--) {
-							*(data_col++) = 0;
-						}
-					}
-					else {
-						int input_col = -pad + kernel_col;
-						for (output_cols = output_w; output_cols; output_cols--) {
-							if (is_a_ge_zero_and_a_lt_b(input_col, width)) {
-								*(data_col++) = data_im[input_row * width + input_col];
-							}
-							else {
-								*(data_col++) = 0;
-							}
-							input_col += stride;
-						}
-					}
-					input_row += stride;
-				}
-			}
-		}
-	}
-	return data_col;
-}
-
-/* channels, height, width are dimensions of input image data_im */
-void im2col_omp(float* data_im, int channels,
+void im2col(float* data_im, int channels,
 	int height, int width, int ksize,
 	int pad, int stride,
 	float* data_col)
@@ -60,41 +19,41 @@ void im2col_omp(float* data_im, int channels,
 	int out_h = (height + 2 * pad - ksize) / stride + 1;
 	int out_w = (width + 2 * pad - ksize) / stride + 1;
 	int out_wh = out_w * out_h;
-	int in_wh = width * height;
+	int im_wh = width * height;
 	int ch;
-#pragma omp parallel for firstprivate(out_h, out_w, ksize, pad, stride)
+#pragma omp parallel for firstprivate(width, height, out_h, out_w, ksize, pad, stride)
 	for (ch = 0; ch < channels; ch++) {
-		float* p1 = &data_col[ch * out_wh * ksize * ksize];
-		float* p2 = &data_im[ch * in_wh];
+		float* cm = &data_col[ch * out_wh * ksize * ksize];
+		float* im = &data_im[ch * im_wh];
 		for (int krow = 0; krow < ksize; krow++) {
 			for (int kcol = 0; kcol < ksize; kcol++) {
-				int in_row = krow - pad;
+				int im_row = krow - pad;
 				for (int out_rows = out_h; out_rows; out_rows--) {
-					if (!is_a_ge_zero_and_a_lt_b(in_row, height)) {
+					if (!is_a_ge_zero_and_a_lt_b(im_row, height)) {
 						for (int out_cols = out_w; out_cols; out_cols--) {
-							*(p1++) = 0;
+							*(cm++) = 0;
 						}
 					}
 					else {
-						int in_col = kcol - pad;
+						int im_col = kcol - pad;
 						for (int out_cols = out_w; out_cols; out_cols--) {
-							if (is_a_ge_zero_and_a_lt_b(in_col, width)) {
-								*(p1++) = p2[in_row * width + in_col];
+							if (is_a_ge_zero_and_a_lt_b(im_col, width)) {
+								*(cm++) = im[im_row * width + im_col];
 							}
 							else {
-								*(p1++) = 0;
+								*(cm++) = 0;
 							}
-							in_col += stride;
+							im_col += stride;
 						}
 					}
-					in_row += stride;
+					im_row += stride;
 				}
 			}
 		}
 	}
 }
 
-void test_im2col_omp(void) {
+void test_im2col(void) {
 	int width = 3;
 	int height = 3;
 	int channels = 2;
@@ -114,7 +73,7 @@ void test_im2col_omp(void) {
 		img[i] = (float)(i + 1);
 	}
 	pprint_mat(img, width, height, channels);
-	im2col_omp(img, channels, height, width, ksize, pad, stride, dst);
+	im2col(img, channels, height, width, ksize, pad, stride, dst);
 	float* dst0 = dst;
 	dst += dst_w * dst_h;
 	dst[0] = -1;
@@ -165,6 +124,45 @@ void col2im_cpu(const float* data_col,
 						}
 					}
 					input_row += stride;
+				}
+			}
+		}
+	}
+}
+
+/*height and width are of data_im.*/
+void col2im(float* data_col,
+	int channels, int height, int width,
+	int ksize, int pad, int stride,
+	float* data_im)
+{
+	int out_h = (height + 2 * pad - ksize) / stride + 1;
+	int out_w = (width + 2 * pad - ksize) / stride + 1;
+	int out_wh = out_w * out_h;
+	int im_wh = width * height;
+	int ch;
+#pragma omp parallel for firstprivate(width, height, out_h, out_w, ksize, pad, stride)
+	for (ch = 0; ch < channels; ch++) {
+		float* cm = &data_col[ch * out_wh * ksize * ksize];
+		float* im = &data_im[ch * im_wh];
+		for (int krow = 0; krow < ksize; krow++) {
+			for (int kcol = 0; kcol < ksize; kcol++) {
+				int im_row = krow - pad;
+				for (int out_rows = out_h; out_rows; out_rows--) {
+					if (!is_a_ge_zero_and_a_lt_b(im_row, height)) {
+						cm += out_w;
+					}
+					else {
+						int im_col = kcol - pad;
+						for (int out_col = out_w; out_col; out_col--) {
+							if (is_a_ge_zero_and_a_lt_b(im_col, width)) {
+								im[im_row * width + im_col] += *cm;
+							}
+							cm++;
+							im_col += stride;
+						}
+					}
+					im_row += stride;
 				}
 			}
 		}

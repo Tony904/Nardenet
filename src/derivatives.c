@@ -26,3 +26,11 @@ void get_grads_mish(float* grads, float* act_input, size_t size) {
 		grads[i] *= grad;
 	}
 }
+
+void get_grads_relu(float* grads, float* act_input, size_t size) {
+	size_t i;
+#pragma omp parallel for
+	for (i = 0; i < size; i++) {
+		grads[i] *= (act_input[i] > 0);
+	}
+}

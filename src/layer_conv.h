@@ -11,7 +11,7 @@ extern "C" {
 
 	void test_forward_conv(void);
 	void forward_conv(layer* l, network* net);
-	void backprop_conv(layer* l, network* net);
+	void backward_conv(layer* l, network* net);
 	void update_conv(layer* l, network* net);
 
 #ifdef __cplusplus

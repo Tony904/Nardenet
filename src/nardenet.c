@@ -21,8 +21,6 @@ int main(void) {
 	/*free_network(net);
 	print_alloc_list();*/
 
-	//test_forward_conv();
-
 #ifndef _DEBUG
 	printf("\n\nPress ENTER to exit the program.");
 	(void)getchar();
@@ -30,15 +28,8 @@ int main(void) {
 }
 
 /* TODO:
-BUGS:
- not getting same cost when forwarding the same image twice in a row without updating
-	(see if issue occurs when not performing backpropagation)
- first layer doesnt need to do col2im for input layer
- col2im part of backprop function does not properly distribute gradients when there are
-	more than 1 input layers.
 
 PHASE 1:
- add background class to classification?
  resize input images if needed
  batches
  batchnorm

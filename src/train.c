@@ -13,6 +13,7 @@
 void train_classifer(network* net);
 void train_detector(network* net);
 void initialize_weights_kaiming(network* net);
+void print_network_summary(network* net, int print_training_params);
 
 
 #define MAX_DIR_PATH 255
@@ -38,6 +39,7 @@ void train_classifer(network* net) {
 	net->max_iterations = 30;  // testing
 	layer* layers = net->layers;
 	size_t n_layers = net->n_layers;
+	print_network_summary(net, 1);
 	for (size_t iter = 0; iter < net->max_iterations; iter++) {
 		for (int batch_i = 0; batch_i < net->batch_size; batch_i++) {
 			image* img = get_next_image_classifier_dataset(&net->data.clsr, truth);
@@ -54,15 +56,15 @@ void train_classifer(network* net) {
 			}
 			for (size_t ii = n_layers; ii; ii--) {
 				size_t i = ii - 1;
-				layers[i].backprop(&layers[i], net);
+				layers[i].backward(&layers[i], net);
 			}
 			printf("Truth:     ");
 			print_top_class_name(truth, n_classes, class_names);
 			printf("Predicted: ");
 			print_top_class_name(predictions, n_classes, class_names);
+			printf("COST = %f\n", prediction_layer->cost);
 			free_image(img);
 			net->input->output = NULL;
-			printf("COST = %f\n", prediction_layer->cost);
 		}
 		printf("\n");
 		for (size_t i = 0; i < n_layers; i++) {
@@ -79,13 +81,10 @@ void train_detector(network* net) {
 	for (size_t s = 0; s < n; s++) {
 		image* img = load_file_to_image(data->samples[s].imgpath);
 		if (net->w != img->w || net->h != img->h || net->c != img->c) {
-			printf("Input image does not match network dimensions.\n");
-			printf("img w,h,c = %zu,%zu,%zu\n", img->w, img->h, img->c);
-			printf("net w,h,c = %zu,%zu,%zu\n", net->w, net->h, net->c);
-			print_location(NARDENET_LOCATION);
-			printf("\n\nPress ENTER to exit the program.");
-			(void)getchar();
-			exit(EXIT_FAILURE);
+			printf("Input image does not match network dimensions.\n"
+				"img w,h,c = %zu,%zu,%zu\nnet w,h,c = %zu,%zu,%zu\n",
+				 img->w, img->h, img->c,  net->w, net->h, net->c);
+			wait_for_key_then_exit();
 		}
 		for (size_t i = 0; i < net->n_layers; i++) {
 			printf("Forwarding layer index %zu...\n", i);
@@ -100,7 +99,6 @@ void train_detector(network* net) {
 
 // Initialize weights using Kaiming Initialization
 void initialize_weights_kaiming(network* net) {
-	printf("\nInitializing weights...");
 	layer* layers = net->layers;
 	size_t N = net->n_layers;
 	size_t n;
@@ -114,5 +112,21 @@ void initialize_weights_kaiming(network* net) {
 			l->weights.a[j] = (float)(stddev * randn(0.0, 1));
 		}
 	}
-	printf(" done\n");
+}
+
+void print_network_summary(network* net, int print_training_params) {
+	printf("[NETWORK]\n"
+		"cfg: %s\n"
+		"classes: %zu\n"
+		"input: %zux%zux%zu\n"
+		"layers: %zu\n",
+		net->cfg_file, net->n_classes, net->w, net->h, net->c, net->n_layers);
+	if (print_training_params) {
+		printf("learning rate: %f\n"
+			"momentum: %f\n"
+			"iterations: %zu\n",
+			net->learning_rate, net->momentum, net->max_iterations);
+	}
+	printf("\n");
+		
 }

@@ -29,7 +29,7 @@ void forward_classify(layer* l, network* net) {
 		assert(h == (int)inl->out_h);
 		int c = (int)inl->out_c;
 		float* im = inl->output;
-		im2col_omp(im, c, h, w, (int)l->ksize, (int)l->pad, (int)l->stride, B);
+		im2col(im, c, h, w, (int)l->ksize, (int)l->pad, (int)l->stride, B);
 		B += N * (int)(l->ksize * l->ksize) * c;
 	}
 	gemm(M, N, K, A, B0, C);
@@ -39,7 +39,7 @@ void forward_classify(layer* l, network* net) {
 }
 
 #pragma warning(suppress:4100)  // unreferenced formal parameter: 'net'
-void backprop_classify(layer* l, network* net) {
+void backward_classify(layer* l, network* net) {
 	// calculate gradients of logits (z) wrt weights and logits wrt biases
 	// dz/dw is just the activation of the previous layer
 	// dz/db is always 1
@@ -48,18 +48,20 @@ void backprop_classify(layer* l, network* net) {
 	
 	float* bias_grads = l->bias_grads;
 	// bias gradients = dC/dz
-	for (size_t i = 0; i < l->out_n; i++) {
-		bias_grads[i] += grads[i];  // += because they will be divided by batch count during update step
+	size_t j;
+#pragma omp parallel for
+	for (j = 0; j < l->out_n; j++) {
+		bias_grads[j] += grads[j];  // += because they will be divided by batch count during update step
 	}
 
 	// now get dz/dw for each weight (it's just the input from the previous layer in the forward pass).
 	int M = (int)l->n_filters;
 	int N = (int)(l->ksize * l->ksize * l->c); // filter length
-	int K = (int)(l->out_w * l->out_h); // # of patches
+	int K = (int)(l->out_w * l->out_h); // # of patches (is 1 for fully connected layer)
 
 	float* A = grads;  // M * K
 	float* B = net->workspace.a;  // N * K
-	for (int i = 0; i < N * K; i++) { B[i] = 0.0F; }
+	zero_array(B, (size_t)(N * K));
 	float* B0 = B;
 	float* C = l->weight_grads;  // M * N
 
@@ -71,7 +73,8 @@ void backprop_classify(layer* l, network* net) {
 		assert(h == (int)inl->out_h);
 		int c = (int)inl->out_c;
 		float* im = inl->output;
-		B = im2col_cpu(im, c, h, w, (int)l->ksize, (int)l->pad, (int)l->stride, B);
+		im2col(im, c, h, w, (int)l->ksize, (int)l->pad, (int)l->stride, B);
+		B += N * (int)(l->ksize * l->ksize) * c;
 	}
 	B = B0;
 	gemm_atb(M, N, K, A, B, C);
@@ -84,10 +87,12 @@ void backprop_classify(layer* l, network* net) {
 	// and then multiply that by dC/dz (which is currently the grads array).
 	// Note: Weight gradients DO NOT propagate back, they are just used to update the weights.
 
+	if (l->id == 0) return;
+
 	A = l->weights.a;  // M * N
 	B = grads;  // M * K
 	C = net->workspace.a;  // N * K
-	for (int i = 0; i < N * K; i++) { C[i] = 0.0F; }
+	zero_array(C, (size_t)(N * K));
 	gemm_tab(M, N, K, A, B, C);
 	// C is now dC/da in col'd form (as in im2col).
 	// So now we need to turn this "expanded" form (col) into the form of the dimensions of
@@ -97,8 +102,8 @@ void backprop_classify(layer* l, network* net) {
 		layer* inl = l->in_layers[i];
 		int c = (int)inl->out_c;
 		float* im = inl->output;
-		for (int j = 0; j < inl->out_n; j++) { im[j] = 0.0F; }
-		col2im_cpu(C, c, h, w, (int)l->ksize, (int)l->pad, (int)l->stride, im);
+		zero_array(im, inl->out_n);
+		col2im(C, c, h, w, (int)l->ksize, (int)l->pad, (int)l->stride, im);
 	}
 }
 

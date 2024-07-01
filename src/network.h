@@ -58,6 +58,7 @@ extern "C" {
         layer* input;
         layer* layers;
         floatarr workspace;
+        char* cfg_file;
         char* dataset_dir;
         char* weights_file;
         char* backup_dir;
@@ -74,7 +75,7 @@ extern "C" {
         ACTIVATION activation;
         void(*activate)  (layer*);
         void(*forward)   (layer*, network*);
-        void(*backprop)  (layer*, network*);
+        void(*backward)  (layer*, network*);
         void(*update)    (layer*, network*); //layer, batch, learning rate, momentum, decay
         void(*get_cost)  (layer*);
         size_t batch_size;

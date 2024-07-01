@@ -100,6 +100,14 @@ void zero_array(float* arr, size_t size) {
 	}
 }
 
+float sum_array(float* arr, size_t size) {
+	float sum = 0.0F;
+	for (size_t i = 0; i < size; i++) {
+		sum += arr[i];
+	}
+	return sum;
+}
+
 int char_in_string(char c, char* str) {
 	size_t length = strlen(str);
 	size_t i;

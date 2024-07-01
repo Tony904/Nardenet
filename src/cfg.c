@@ -35,6 +35,7 @@ void print_cfg_layer(cfg_layer* l);
 
 network* create_network_from_cfg(char* cfgfile) {
 	cfg c = { 0 };
+	printf("Loading cfg file: %s\n", cfgfile);
 	load_cfg(cfgfile, &c);
 	if (c.layers == NULL) {
 		printf("No layers in cfg.\n");
@@ -42,8 +43,8 @@ network* create_network_from_cfg(char* cfgfile) {
 	}
 #pragma warning (suppress:6011)  // Visual Studio is too stupid to recognize c.layers can't be null here
 	network* net = new_network(c.layers->length);
-	//print_cfg(&c);
 	copy_cfg_to_network(&c, net);
+	net->cfg_file = cfgfile;
 	xfree(c.classes_file);
 	xfree(c.saturation.a);
 	xfree(c.exposure.a);

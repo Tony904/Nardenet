@@ -131,7 +131,7 @@ void build_conv_layer(int i, network* net) {
 	l->bias_grads = (float*)xcalloc(l->n_filters, sizeof(float));
 
 	l->forward = forward_conv;
-	l->backprop = backprop_conv;
+	l->backward = backward_conv;
 	l->update = update_conv;
 	set_activate(l);
 }
@@ -189,7 +189,7 @@ void build_classify_layer(int i, network* net) {
 	l->bias_grads = (float*)xcalloc(l->n_filters, sizeof(float));
 
 	l->forward = forward_classify;
-	l->backprop = backprop_classify;
+	l->backward = backward_classify;
 	l->update = update_classify;
 	set_activate(l);
 	set_cost(l);
@@ -246,7 +246,7 @@ void build_detect_layer(int i, network* net) {
 	l->truth = (float*)xcalloc((net->n_classes + NUM_ANCHOR_PARAMS) * l->n_anchors, sizeof(float));
 
 	l->forward = forward_conv;
-	l->backprop = backprop_conv;
+	l->backward = backward_conv;
 	l->update = update_conv;  // will probably need to change to predictor specific function
 	set_activate(l);
 	if (l->cost_type > 0) {
