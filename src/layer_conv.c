@@ -20,6 +20,7 @@ void forward_conv(layer* l, network* net) {
 	float* B = net->workspace.a;  // K * N
 	float* B0 = B;
 	float* C = l->act_input;  // M * N
+	zero_array(C, (size_t)(M * N));
 	int w = (int)l->w;
 	int h = (int)l->h;
 	for (int i = 0; i < l->in_ids.n; i++) {
@@ -28,11 +29,60 @@ void forward_conv(layer* l, network* net) {
 		assert(h == (int)inl->out_h);
 		int c = (int)inl->out_c;
 		float* im = inl->output;
-		B = im2col_cpu(im, c, h, w, (int)l->ksize, (int)l->pad, (int)l->stride, B);
+		im2col_omp(im, c, h, w, (int)l->ksize, (int)l->pad, (int)l->stride, B);
+		B += N * (int)(l->ksize * l->ksize) * c;
 	}
 	gemm(M, N, K, A, B0, C);
 	add_biases(C, l->biases, M, N);
-	l->activate(l);  // sends l->act_input through activation functio and stores in l->output
+	l->activate(l);  // sends l->act_input through activation function and stores in l->output
+	
+}
+
+void test_forward_conv(void) {
+	layer* l = (layer*)xcalloc(1, sizeof(layer));
+	network* net = (network*)xcalloc(1, sizeof(network));
+	l->n_filters = 2;
+	l->ksize = 2;
+	l->pad = 0;
+	l->stride = 1;
+	l->w = 3;
+	l->h = 3;
+	l->c = 3;
+	l->out_w = (l->w + 2 * l->pad - l->ksize) / l->stride + 1;
+	l->out_h = (l->h + 2 * l->pad - l->ksize) / l->stride + 1;
+	l->out_c = l->n_filters;
+	l->biases = (float*)xcalloc(l->n_filters, sizeof(float));
+	fill_array(l->biases, l->n_filters, 0.5F);
+	l->activate = activate_none;
+	l->weights.n = l->n_filters * l->ksize * l->ksize * l->c;
+	l->weights.a = (float*)xcalloc(l->weights.n, sizeof(float));
+	fill_array(l->weights.a, l->weights.n, 1.0F);
+	l->act_input = (float*)xcalloc(l->n_filters * l->out_w * l->out_h, sizeof(float));
+	layer* inl1 = (layer*)xcalloc(1, sizeof(layer));
+	layer* inl2 = (layer*)xcalloc(1, sizeof(layer));
+	inl1->out_w = l->w;
+	inl2->out_w = l->w;
+	inl1->out_h = l->h;
+	inl2->out_h = l->h;
+	inl1->out_c = 1;
+	inl2->out_c = 2;
+	assert(l->c == inl1->out_c + inl2->out_c);
+	inl1->out_n = inl1->out_w * inl1->out_h * inl1->out_c;
+	inl2->out_n = inl2->out_w * inl2->out_h * inl2->out_c;
+	inl1->output = (float*)xcalloc(inl1->out_n, sizeof(float));
+	fill_array(inl1->output, inl1->out_n, 2.0F);
+	inl2->output = (float*)xcalloc(inl2->out_n, sizeof(float));
+	fill_array(inl2->output, inl2->out_n, 1.0F);
+	l->in_layers = (layer**)xcalloc(2, sizeof(layer*));
+	l->in_layers[0] = inl1;
+	l->in_layers[1] = inl2;
+	l->in_ids.n = 2;
+
+	net->workspace.a = (float*)xcalloc(l->out_w * l->out_h * l->ksize * l->ksize * l->c * 2, sizeof(float));
+
+	forward_conv(l, net);
+
+	pprint_mat(l->act_input, (int)l->out_w, (int)l->out_h, (int)l->out_c);
 }
 
 void backprop_conv(layer* l, network* net) {

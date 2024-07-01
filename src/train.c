@@ -35,13 +35,12 @@ void train_classifer(network* net) {
 	float* predictions = prediction_layer->output;
 	int n_classes = (int)net->n_classes;
 	char** class_names = net->class_names;
-	net->max_iterations = 20;  // testing
+	net->max_iterations = 30;  // testing
 	layer* layers = net->layers;
 	size_t n_layers = net->n_layers;
 	for (size_t iter = 0; iter < net->max_iterations; iter++) {
 		for (int batch_i = 0; batch_i < net->batch_size; batch_i++) {
 			image* img = get_next_image_classifier_dataset(&net->data.clsr, truth);
-			// TODO: Resize img to network dimensions if needed
 			if (net->w != img->w || net->h != img->h || net->c != img->c) {
 				printf("Input image does not match network dimensions.\n");
 				printf("img w,h,c = %zu,%zu,%zu\n", img->w, img->h, img->c);

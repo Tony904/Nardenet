@@ -4,11 +4,6 @@
 #include "gemm.h"
 #include "utils.h"
 
-void im2col_omp(float* data_im, int channels,
-	int height, int width, int ksize,
-	int pad, int stride,
-	float* data_col);
-
 
 // https://github.com/BVLC/caffe/blob/master/src/caffe/util/im2col.cpp
 inline static int is_a_ge_zero_and_a_lt_b(int a, int b) {
@@ -56,6 +51,7 @@ float* im2col_cpu(const float* data_im, const int channels,
 	return data_col;
 }
 
+/* channels, height, width are dimensions of input image data_im */
 void im2col_omp(float* data_im, int channels,
 	int height, int width, int ksize,
 	int pad, int stride,
@@ -67,7 +63,7 @@ void im2col_omp(float* data_im, int channels,
 	int in_wh = width * height;
 	int ch;
 #pragma omp parallel for firstprivate(out_h, out_w, ksize, pad, stride)
-	for (ch = 0; ch < channels; ch++ ) {
+	for (ch = 0; ch < channels; ch++) {
 		float* p1 = &data_col[ch * out_wh * ksize * ksize];
 		float* p2 = &data_im[ch * in_wh];
 		for (int krow = 0; krow < ksize; krow++) {
@@ -112,16 +108,20 @@ void test_im2col_omp(void) {
 	int dst_w = out_w * out_h;
 	int dst_h = ksize * ksize * channels;
 	int dst_size = dst_w * dst_h;
-	float* dst = (float*)xcalloc(dst_size, sizeof(float));
+	float* dst = (float*)xcalloc(dst_size * 2, sizeof(float));
 
 	for (int i = 0; i < img_size; i++) {
 		img[i] = (float)(i + 1);
 	}
 	pprint_mat(img, width, height, channels);
 	im2col_omp(img, channels, height, width, ksize, pad, stride, dst);
-	pprint_mat(dst, dst_w, dst_h, 1);
+	float* dst0 = dst;
+	dst += dst_w * dst_h;
+	dst[0] = -1;
+	pprint_mat(dst0, dst_w, dst_h, 2);
+	
 
-	int n_filters = 1;
+	/*int n_filters = 1;
 	int Awidth = ksize * ksize * channels;
 	int Aheight = n_filters;
 	int Asize = Awidth * Aheight;
@@ -132,13 +132,13 @@ void test_im2col_omp(void) {
 	pprint_mat(A, Awidth, Aheight, 1);
 	float* C = (float*)xcalloc(n_filters * dst_w, sizeof(float));
 	gemm(n_filters, dst_w, Awidth, A, dst, C);
-	pprint_mat(C, out_w, out_h, n_filters);
+	pprint_mat(C, out_w, out_h, n_filters);*/
 }
 
 // https://github.com/BVLC/caffe/blob/master/src/caffe/util/im2col.cpp
 /*height and width are of data_im.*/
-void col2im_cpu(const float* data_col, 
-	int channels, int height, int width, 
+void col2im_cpu(const float* data_col,
+	int channels, int height, int width,
 	int kernel_size, int pad, int stride,
 	float* data_im)
 {

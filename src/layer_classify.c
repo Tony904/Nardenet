@@ -20,18 +20,21 @@ void forward_classify(layer* l, network* net) {
 	float* B = net->workspace.a;
 	float* B0 = B;
 	float* C = l->act_input;
+	zero_array(C, (size_t)(M * N));
 	int w = (int)l->w;
 	int h = (int)l->h;
 	for (int i = 0; i < l->in_ids.n; i++) {
-		assert(w == (int)l->in_layers[i]->out_w);
-		assert(h == (int)l->in_layers[i]->out_h);
-		int c = (int)l->in_layers[i]->out_c;
-		float* im = l->in_layers[i]->output;
-		B = im2col_cpu(im, c, h, w, (int)l->ksize, (int)l->pad, (int)l->stride, B);
+		layer* inl = l->in_layers[i];
+		assert(w == (int)inl->out_w);
+		assert(h == (int)inl->out_h);
+		int c = (int)inl->out_c;
+		float* im = inl->output;
+		im2col_omp(im, c, h, w, (int)l->ksize, (int)l->pad, (int)l->stride, B);
+		B += N * (int)(l->ksize * l->ksize) * c;
 	}
 	gemm(M, N, K, A, B0, C);
 	add_biases(C, l->biases, M, N);
-	l->activate(l);  // sends l->act_input through activation functio and stores in l->output
+	l->activate(l);  // sends l->act_input through activation function and stores in l->output
 	l->get_cost(l);
 }
 

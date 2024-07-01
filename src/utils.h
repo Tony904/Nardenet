@@ -23,6 +23,8 @@ extern "C" {
 	#define str2sizet(str) zz_str2sizet(str, NARDENET_LOCATION)
 
 	int char_in_string(char c, char* str);
+	void fill_array(float* arr, size_t size, float val);
+	void zero_array(float* arr, size_t size);
 	double randn(double mean, double stddev);
 	void get_random_numbers_no_repeats(size_t* arr, size_t size, size_t range_start, size_t range_end);
 	char* read_line(FILE* file);

@@ -1,23 +1,27 @@
 #include "nardenet.h"
 #include "xallocs.h"
+#include "network.h"
+#include "cfg.h"
+#include "train.h"
 #include "xopencv.h"
 #include "im2col.h"
+#include "data.h"
+#include "gemm.h"
+#include "layer_conv.h"
 
 
 int main(void) {
-	
-	srand(7777777);
 
-	/*char* cfgfile = "D:/TonyDev/NardeNet/cfg/nardenet.cfg";
+	srand(77777774);
+
+	char* cfgfile = "D:/TonyDev/NardeNet/cfg/nardenet.cfg";
 	network* net = create_network_from_cfg(cfgfile);
-	
 	train(net);
 
-	free_network(net);
+	/*free_network(net);
 	print_alloc_list();*/
 
-	test_im2col_omp();
-
+	//test_forward_conv();
 
 #ifndef _DEBUG
 	printf("\n\nPress ENTER to exit the program.");
@@ -34,6 +38,7 @@ BUGS:
 	more than 1 input layers.
 
 PHASE 1:
+ add background class to classification?
  resize input images if needed
  batches
  batchnorm
@@ -46,7 +51,7 @@ PHASE 1:
  loading weights
  other activation functions
  other cost functions
- data augmentation: 
+ data augmentation:
 	saturation, exposure, hue, mosaic, rotation (classifier only), jitter
  decay (not entirely sure what this is yet)
 

@@ -6,9 +6,13 @@
 extern "C" {
 #endif
 
-	float* im2col_cpu(const float* data_im, 
-		const int channels, const int height, const int width, 
+	float* im2col_cpu(const float* data_im,
+		const int channels, const int height, const int width,
 		const int ksize, const int pad, const int stride,
+		float* data_col);
+	void im2col_omp(float* data_im, int channels,
+		int height, int width, int ksize,
+		int pad, int stride,
 		float* data_col);
 	void col2im_cpu(const float* data_col,
 		int channels, int height, int width,

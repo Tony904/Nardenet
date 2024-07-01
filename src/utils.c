@@ -84,6 +84,22 @@ float zz_str2float(char* str, const char* const filename, const char* const func
 	return ret;
 }
 
+void fill_array(float* arr, size_t size, float val) {
+	size_t i;
+#pragma omp parallel for
+	for (i = 0; i < size; i++) {
+		arr[i] = val;
+	}
+}
+
+void zero_array(float* arr, size_t size) {
+	size_t i;
+#pragma omp parallel for
+	for (i = 0; i < size; i++) {
+		arr[i] = 0.0F;
+	}
+}
+
 int char_in_string(char c, char* str) {
 	size_t length = strlen(str);
 	size_t i;
