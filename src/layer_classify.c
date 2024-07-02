@@ -10,31 +10,11 @@
 #include "costs.h"
 #include "utils.h"
 #include "derivatives.h"
+#include "layer_conv.h"
 
 
 void forward_classify(layer* l, network* net) {
-	int M = (int)(l->n_filters);
-	int N = (int)(l->out_w * l->out_h);
-	int K = (int)(l->ksize * l->ksize * l->c);
-	float* A = l->weights.a;
-	float* B = net->workspace.a;
-	float* B0 = B;
-	float* C = l->act_input;
-	zero_array(C, (size_t)(M * N));
-	int w = (int)l->w;
-	int h = (int)l->h;
-	for (int i = 0; i < l->in_ids.n; i++) {
-		layer* inl = l->in_layers[i];
-		assert(w == (int)inl->out_w);
-		assert(h == (int)inl->out_h);
-		int c = (int)inl->out_c;
-		float* im = inl->output;
-		im2col(im, c, h, w, (int)l->ksize, (int)l->pad, (int)l->stride, B);
-		B += N * (int)(l->ksize * l->ksize) * c;
-	}
-	gemm(M, N, K, A, B0, C);
-	add_biases(C, l->biases, M, N);
-	l->activate(l);  // sends l->act_input through activation function and stores in l->output
+	forward_conv(l, net);
 	l->get_cost(l);
 }
 
@@ -108,24 +88,5 @@ void backward_classify(layer* l, network* net) {
 }
 
 void update_classify(layer* l, network* net) {
-	float batch_size = (float)net->batch_size;
-	float rate = net->learning_rate * batch_size;
-
-	float* biases = l->biases;
-	float* bias_grads = l->bias_grads;
-	int n = (int)l->n_filters;
-	int b;
-#pragma omp parallel for firstprivate(rate)
-	for (b = 0; b < n; b++) {
-		biases[b] += bias_grads[b] * rate;
-	}
-
-	float* weights = l->weights.a;
-	float* weight_grads = l->weight_grads;
-	n = (int)l->weights.n;
-	int w;
-#pragma omp parallel for firstprivate(rate)
-	for (w = 0; w < n; w++) {
-		weights[w] += weight_grads[w] * rate;
-	}
+	update_conv(l, net);
 }

@@ -28,12 +28,12 @@ void cost_softmax_cce(layer* l) {
 	float cost = 0;
 	int n = (int)l->n_classes;
 	int i;
-#pragma omp parallel for
+#pragma omp parallel for reduction(+:cost)
 	for (i = 0; i < n; ++i) {
 		float t = truth[i];
 		float p = output[i];
+		grads[i] = p - t;  // This is the dC/da * da/dz for softmax with cross entropy
 		errors[i] = (t) ? -log(p) : 0;  // Only used for reporting performance, is not used for training
-		grads[i] = t - p;  // This is the dC/da * da/dz for softmax with cross entropy
 		cost += errors[i];
 	}
 	l->cost = cost;

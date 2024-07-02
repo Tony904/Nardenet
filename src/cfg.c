@@ -357,6 +357,7 @@ LR_POLICY str2lr_policy(char* str) {
 ACTIVATION str2activation(char* str) {
 	if (strcmp(str, "relu") == 0) return ACT_RELU;
 	if (strcmp(str, "mish") == 0) return ACT_MISH;
+	if (strcmp(str, "leaky") == 0) return ACT_LEAKY;
 	if (strcmp(str, "sigmoid") == 0) return ACT_SIGMOID;
 	if (strcmp(str, "softmax") == 0) return ACT_SOFTMAX;
 	fprintf(stderr, "Error: No valid activation named %s.\n", str);

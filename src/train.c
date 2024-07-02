@@ -13,7 +13,7 @@
 void train_classifer(network* net);
 void train_detector(network* net);
 void initialize_weights_kaiming(network* net);
-void print_network_summary(network* net, int print_training_params);
+void update_current_learning_rate(network* net, size_t iteration, size_t ease_in);
 
 
 #define MAX_DIR_PATH 255
@@ -36,12 +36,17 @@ void train_classifer(network* net) {
 	float* predictions = prediction_layer->output;
 	int n_classes = (int)net->n_classes;
 	char** class_names = net->class_names;
-	net->max_iterations = 5;  // testing
+	size_t ease_in = net->ease_in;
+	size_t batch_size = net->batch_size;
+	//net->max_iterations = 300;  // testing
 	layer* layers = net->layers;
 	size_t n_layers = net->n_layers;
 	print_network_summary(net, 1);
 	for (size_t iter = 0; iter < net->max_iterations; iter++) {
-		for (int batch_i = 0; batch_i < net->batch_size; batch_i++) {
+		printf("\nIteration: %zu\n", iter);
+		update_current_learning_rate(net, iter, ease_in);
+		printf("Learning rate: %f\n", net->current_learning_rate * (float)batch_size);
+		for (int batch_i = 0; batch_i < batch_size; batch_i++) {
 			image* img = get_next_image_classifier_dataset(&net->data.clsr, truth);
 			if (net->w != img->w || net->h != img->h || net->c != img->c) {
 				printf("Input image does not match network dimensions.\n"
@@ -66,7 +71,6 @@ void train_classifer(network* net) {
 			free_image(img);
 			net->input->output = NULL;
 		}
-		printf("\n");
 		for (size_t i = 0; i < n_layers; i++) {
 			layers[i].update(&layers[i], net);
 		}
@@ -97,7 +101,7 @@ void train_detector(network* net) {
 	}
 }
 
-// Initialize weights using Kaiming Initialization
+/*Initialize weights using Kaiming Initialization*/
 void initialize_weights_kaiming(network* net) {
 	layer* layers = net->layers;
 	size_t N = net->n_layers;
@@ -114,19 +118,9 @@ void initialize_weights_kaiming(network* net) {
 	}
 }
 
-void print_network_summary(network* net, int print_training_params) {
-	printf("[NETWORK]\n"
-		"cfg: %s\n"
-		"classes: %zu\n"
-		"input: %zux%zux%zu\n"
-		"layers: %zu\n",
-		net->cfg_file, net->n_classes, net->w, net->h, net->c, net->n_layers);
-	if (print_training_params) {
-		printf("learning rate: %f\n"
-			"momentum: %f\n"
-			"iterations: %zu\n",
-			net->learning_rate, net->momentum, net->max_iterations);
-	}
-	printf("\n");
-		
+void update_current_learning_rate(network* net, size_t iteration, size_t ease_in) {
+	if (iteration > ease_in) return;
+	float power = 4.0F;
+	float rate = net->learning_rate * powf((float)iteration / (float)ease_in, power);
+	net->current_learning_rate = rate / (float)net->batch_size;
 }

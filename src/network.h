@@ -21,7 +21,9 @@ extern "C" {
 
     network* new_network(size_t num_of_layers);
     void build_network(network* net);
+
     void free_network(network* net);
+
     void print_layers(network* net);
     void print_layer(layer* l);
     void print_network(network* net);
@@ -32,6 +34,7 @@ extern "C" {
     void print_all_network_weights(network* net);
     void print_some_weights(layer* l, size_t n);
     void print_top_class_name(float* probs, int n_classes, char** class_names);
+    void print_network_summary(network* net, int print_training_params);
 
     typedef struct network {
         size_t n_layers;
@@ -44,6 +47,7 @@ extern "C" {
         size_t subbatch_size;  // number of images per sub-batch, must divide evenly into batch_size
         size_t max_iterations;  // maximum number of training iterations before automatically ending training
         float learning_rate;
+        float current_learning_rate;
         LR_POLICY lr_policy;
         floatarr step_percents;
         floatarr step_scaling;
@@ -76,7 +80,7 @@ extern "C" {
         void(*activate)  (layer*);
         void(*forward)   (layer*, network*);
         void(*backward)  (layer*, network*);
-        void(*update)    (layer*, network*); //layer, batch, learning rate, momentum, decay
+        void(*update)    (layer*, network*);
         void(*get_cost)  (layer*);
         size_t batch_size;
         size_t n_filters;
@@ -101,6 +105,8 @@ extern "C" {
         float* grads;
         float* weight_grads;
         float* bias_grads;
+        float* weights_velocity;
+        float* biases_velocity;
         float cost;
         COST_TYPE cost_type;
         intarr in_ids;

@@ -44,8 +44,9 @@ void backward_conv(layer* l, network* net) {
 	float* Z = l->act_input;
 	if (l->activation == ACT_MISH) get_grads_mish(grads, Z, l->out_n);  // dC/da * da/dz
 	else if (l->activation == ACT_RELU) get_grads_relu(grads, Z, l->out_n);
+	else if (l->activation == ACT_LEAKY) get_grads_leaky_relu(grads, Z, l->out_n);
 	else {
-		printf("TODO: IMPLEMENT OTHER ACTIVATION GRADIENT FUNCTIONS.\n");
+		printf("Incorrect or unsupported activation function.\n");
 		exit(EXIT_FAILURE);
 	}
 	// grads[] is now dC/dz.
@@ -104,31 +105,42 @@ void backward_conv(layer* l, network* net) {
 		zero_array(im, inl->out_n);
 		col2im(C, c, h, w, (int)l->ksize, (int)l->pad, (int)l->stride, im);
 	}
-	
 }
 
 void update_conv(layer* l, network* net) {
-	float batch_size = (float)net->batch_size;
-	float rate = net->learning_rate * batch_size;
+	float rate = net->current_learning_rate;	
+	float momentum = net->momentum;
 
 	float* biases = l->biases;
 	float* bias_grads = l->bias_grads;
-	int n = (int)l->n_filters;
-	int b;
-#pragma omp parallel for firstprivate(rate)
+	float* biases_velocity = l->biases_velocity;
+	size_t n = l->n_filters;
+	size_t b;
+#pragma omp parallel for firstprivate(rate, momentum)
 	for (b = 0; b < n; b++) {
-		biases[b] += bias_grads[b] * rate;
+		float v_old = biases_velocity[b];
+		float v_new = momentum * v_old - rate * bias_grads[b];
+		biases[b] += -momentum * v_old + (1 + momentum) * v_new;  // Nesterov momentum
+		biases_velocity[b] = v_new;
+		bias_grads[b] = 0.0F;
 	}
 
 	float* weights = l->weights.a;
 	float* weight_grads = l->weight_grads;
-	n = (int)l->weights.n;
-	int w;
-#pragma omp parallel for firstprivate(rate)
+	float* weights_velocity = l->weights_velocity;
+	n = l->weights.n;
+	size_t w;
+#pragma omp parallel for firstprivate(rate, momentum)
 	for (w = 0; w < n; w++) {
-		weights[w] += weight_grads[w] * rate;
+		float v_old = weights_velocity[w];
+		float v_new = momentum * v_old - rate * weight_grads[w];
+		weights[w] += -momentum * v_old + (1 + momentum) * v_new;  // Nesterov momentum
+		weights_velocity[w] = v_new;
+		weight_grads[w] = 0.0F;
 	}
 }
+
+/*** TESTS ***/
 
 void test_forward_conv(void) {
 	layer* l = (layer*)xcalloc(1, sizeof(layer));

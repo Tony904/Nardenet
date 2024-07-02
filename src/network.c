@@ -16,11 +16,14 @@ void build_layer(int i, network* net);
 void build_conv_layer(int i, network* net);
 void build_classify_layer(int i, network* net);
 void build_detect_layer(int i, network* net);
+
 void set_activate(layer* l);
 void set_cost(layer* l);
+
 void free_network(network* net);
 void free_network_layers(network* net);
 void free_layer_members(layer* l);
+
 void print_layer_conv(layer* l);
 void print_layer_classify(layer* l);
 
@@ -45,6 +48,7 @@ void build_network(network* net) {
 	}
 	net->workspace.a = (float*)xcalloc(largest_workspace, sizeof(float));
 	net->workspace.n = largest_workspace;
+	net->current_learning_rate = net->learning_rate;
 }
 
 void build_layer(int i, network* net) {
@@ -129,6 +133,8 @@ void build_conv_layer(int i, network* net) {
 	l->grads = (float*)xcalloc(l->out_n, sizeof(float));
 	l->weight_grads = (float*)xcalloc(l->weights.n, sizeof(float));
 	l->bias_grads = (float*)xcalloc(l->n_filters, sizeof(float));
+	l->weights_velocity = (float*)xcalloc(l->weights.n, sizeof(float));
+	l->biases_velocity = (float*)xcalloc(l->n_filters, sizeof(float));
 
 	l->forward = forward_conv;
 	l->backward = backward_conv;
@@ -187,6 +193,8 @@ void build_classify_layer(int i, network* net) {
 	l->errors = (float*)xcalloc(net->n_classes, sizeof(float));
 	l->weight_grads = (float*)xcalloc(l->weights.n, sizeof(float));
 	l->bias_grads = (float*)xcalloc(l->n_filters, sizeof(float));
+	l->weights_velocity = (float*)xcalloc(l->weights.n, sizeof(float));
+	l->biases_velocity = (float*)xcalloc(l->n_filters, sizeof(float));
 
 	l->forward = forward_classify;
 	l->backward = backward_classify;
@@ -346,6 +354,10 @@ void free_layer_members(layer* l) {
 	}
 }
 
+
+/*** PRINTS ***/
+
+
 void print_network(network* n) {
 	printf("\n[NETWORK]\n\n");
 	printf("n_layers: %zu\n", n->n_layers);
@@ -492,4 +504,21 @@ void print_top_class_name(float* probs, int n_classes, char** class_names) {
 		}
 	}
 	printf("%s (%f)\n", class_names[c], highscore);
+}
+
+void print_network_summary(network* net, int print_training_params) {
+	printf("[NETWORK]\n"
+		"Cfg: %s\n"
+		"Classes: %zu\n"
+		"Input: %zux%zux%zu\n"
+		"Layers: %zu\n",
+		net->cfg_file, net->n_classes, net->w, net->h, net->c, net->n_layers);
+	if (print_training_params) {
+		printf("Learning rate: %f\n"
+			"Momentum: %f\n"
+			"Iterations: %zu\n",
+			net->learning_rate, net->momentum, net->max_iterations);
+	}
+	printf("\n");
+
 }

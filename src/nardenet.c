@@ -30,14 +30,11 @@ int main(void) {
 /* TODO:
 
 PHASE 1:
- resize input images if needed
- batches
- batchnorm
  maxpool
+ batchnorm
+ resize input images if needed
  fully connected tag for cfg files
- momentum
- ease in
- learning rate policies: step, cos, cos w/ momentum reset
+ learning rate policies: step, adam, adagrad, maybe cosine restart stuff
  saving weights
  loading weights
  other activation functions
@@ -48,7 +45,8 @@ PHASE 1:
 
 PHASE 2:
  training progress graph
- upsample layer
+ upsample layer (not super sure what this is yet)
+ spatial pooling (not super sure what this is yet)
  multiple prediction heads
  object detection
 	- anchor boxes, IOU, NMS
@@ -65,4 +63,8 @@ PHASE 4:
  Discover ways to optimize things for manufacturing applications
  Develop an image taking procedure that will provide adequate part detection with minimal images and labeling.
  Orientation detection for both classifier and object detector
+
+PHASE 9999:
+ Implement transformer architecture + attention modules
+ Mamba/Jamba if that's still a thing by the time I get everything else done
  */
