@@ -8,15 +8,18 @@
 #include "data.h"
 #include "gemm.h"
 #include "layer_conv.h"
+#include "layer_maxpool.h"
 
 
 int main(void) {
 
-	srand(77777774);
+	srand(7777777);
 
-	char* cfgfile = "D:/TonyDev/NardeNet/cfg/nardenet.cfg";
+	/*char* cfgfile = "D:/TonyDev/NardeNet/cfg/nardenet.cfg";
 	network* net = create_network_from_cfg(cfgfile);
-	train(net);
+	train(net);*/
+
+	test_forward_maxpool();
 
 	/*free_network(net);
 	print_alloc_list();*/
@@ -30,7 +33,7 @@ int main(void) {
 /* TODO:
 
 PHASE 1:
- maxpool
+ maxpool (forward done, backward left)
  batchnorm
  resize input images if needed
  fully connected tag for cfg files
@@ -45,6 +48,10 @@ PHASE 1:
 
 PHASE 2:
  training progress graph
+ group convolution (i.e. at group = 2, half of filters convolve over one half of the channels, the other
+	half of filters convolve over the other half of the filters. note: sometimes group convolutions
+	are followed up by a 1x1 convolution to maintain the same feature pooling as a normal 3x3 convolution.
+	video on group convs: https://www.youtube.com/watch?v=vVaRhZXovbw)
  upsample layer (not super sure what this is yet)
  spatial pooling (not super sure what this is yet)
  multiple prediction heads
@@ -67,4 +74,5 @@ PHASE 4:
 PHASE 9999:
  Implement transformer architecture + attention modules
  Mamba/Jamba if that's still a thing by the time I get everything else done
+ Unsupervised learning
  */

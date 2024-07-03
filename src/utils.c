@@ -7,6 +7,7 @@
 #include <inttypes.h>
 #include <assert.h>
 #include <math.h>
+#include <omp.h>
 #include "xallocs.h"
 
 
@@ -27,6 +28,7 @@
 wchar_t* str2wstr(const char* str);
 char* wstr2str(const wchar_t* wstr);
 #endif
+
 
 int is_valid_fopen_mode(char* mode);
 static void print_location_and_exit(const char* const filename, const char* const funcname, const int line);
@@ -98,6 +100,34 @@ void zero_array(float* arr, size_t size) {
 	for (i = 0; i < size; i++) {
 		arr[i] = 0.0F;
 	}
+}
+
+void fill_array_increment(float* arr, size_t size, float start_val, float increment) {
+	size_t i;
+#pragma omp parallel for firstprivate(start_val, increment)
+	for (i = 0; i < size; i++) {
+		arr[i] = start_val + (float)i * increment;
+	}
+}
+
+void fill_array_rand_float(float* arr, size_t size, int start, int end) {
+	size_t range_start = 0;
+	size_t range_end = (size_t)(end - start);
+	size_t range = range_end - range_start + 1;
+	size_t* tmp = (size_t*)xcalloc(range, sizeof(size_t));
+	for (size_t i = 0; i < range; i++) tmp[i] = range_start + i;
+	// Fisher-Yates shuffle
+	for (size_t i = range - 1; i > 0; i--) {
+		size_t j = rand() % (i + 1);
+		size_t temp = tmp[i];
+		tmp[i] = tmp[j];
+		tmp[j] = temp;
+	}
+	size = (range < size) ? range : size;
+	for (size_t i = 0; i < size; i++) {
+		arr[i] = (float)tmp[i] + (float)start;
+	}
+	xfree(tmp);
 }
 
 float sum_array(float* arr, size_t size) {

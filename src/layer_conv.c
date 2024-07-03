@@ -25,8 +25,6 @@ void forward_conv(layer* l, network* net) {
 	int h = (int)l->h;
 	for (int i = 0; i < l->in_ids.n; i++) {
 		layer* inl = l->in_layers[i];
-		assert(w == (int)inl->out_w);
-		assert(h == (int)inl->out_h);
 		int c = (int)inl->out_c;
 		float* im = inl->output;
 		im2col(im, c, h, w, (int)l->ksize, (int)l->pad, (int)l->stride, B);
@@ -69,8 +67,6 @@ void backward_conv(layer* l, network* net) {
 	int h = (int)l->h;
 	for (int i = 0; i < l->in_ids.n; i++) {
 		layer* inl = l->in_layers[i];
-		assert(w == (int)inl->out_w);
-		assert(h == (int)inl->out_h);
 		int c = (int)inl->out_c;
 		float* im = inl->output;
 		im2col(im, c, h, w, (int)l->ksize, (int)l->pad, (int)l->stride, B);
