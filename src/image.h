@@ -2,7 +2,7 @@
 #define IMAGE_H
 
 #include "lib_api.h"
-
+#include "stdlib.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -10,6 +10,7 @@ extern "C" {
     
     typedef struct image image;
     
+    void show_image(image* img);
     image* load_image(char* filename);
     image* new_image(size_t width, size_t height, size_t channels);
     void free_image(image* img);

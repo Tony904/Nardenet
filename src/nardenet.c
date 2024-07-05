@@ -1,13 +1,9 @@
 #include "nardenet.h"
-#include "xallocs.h"
 #include "network.h"
 #include "cfg.h"
 #include "train.h"
-#include "im2col.h"
-#include "data.h"
-#include "gemm.h"
-#include "layer_conv.h"
 #include "layer_maxpool.h"
+#include "image.h"
 
 
 int main(void) {
@@ -18,7 +14,8 @@ int main(void) {
 	network* net = create_network_from_cfg(cfgfile);
 	train(net);*/
 
-	test_forward_maxpool();
+	image* img = load_image("D:\\TonyDev\\NardeNet\\data\\cifar3\\train\\bird\\bird1.png");
+	show_image(img);
 
 	/*free_network(net);
 	print_alloc_list();*/

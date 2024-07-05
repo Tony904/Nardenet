@@ -191,7 +191,7 @@ void build_maxpool_layer(int i, network* net) {
 	l->out_n = l->out_w * l->out_h * l->out_c;
 
 	l->output = (float*)xcalloc(l->out_n, sizeof(float));
-	l->maxpool_indexes = (size_t*)xcalloc(l->out_n, sizeof(size_t));
+	l->maxpool_addresses = (float**)xcalloc(l->out_n, sizeof(float*));
 
 	l->forward = forward_maxpool;
 	l->backward = backward_maxpool;

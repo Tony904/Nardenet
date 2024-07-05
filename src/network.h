@@ -123,7 +123,7 @@ extern "C" {
         size_t* anchors;
         float* truth;
 
-        size_t* maxpool_indexes;  // indexes of max values for backprop. indexes are relative to the input layer.
+        float** maxpool_addresses;  // addresses of input layer outputs that were max values (for backprop)
     } layer;
 
     typedef enum NET_TYPE {

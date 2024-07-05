@@ -3,9 +3,23 @@
 #include "stdio.h"
 #include "stbimage.h"
 
+#ifdef OPENCV
+#include "xopencv.h"
+#endif
+
+/* REQUIRES COMPILATION WITH OPENCV */
+void show_image(image* img) {
+#ifdef OPENCV
+    show_image_opencv(img->data, (int)img->w, (int)img->h, (int)img->c, 0);
+#else
+    printf("Cannot display image. Nardenet must be compiled with OpenCV installed "
+           "and the preprocessor symbol OPENCV defined.\n");
+#endif
+}
 
 image* load_image(char* filename) {
     image* img = (image*)xcalloc(1, sizeof(image));
+    //img->data = load_image_opencv(filename, &img->w, &img->h, &img->c);
     img->data = load_image_stbi(filename, &img->w, &img->h, &img->c);
     return img;
 }
