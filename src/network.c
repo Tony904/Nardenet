@@ -6,6 +6,7 @@
 #include "xallocs.h"
 #include "layer_conv.h"
 #include "layer_classify.h"
+#include "layer_maxpool.h"
 #include "activations.h"
 #include "costs.h"
 #include "derivatives.h"
@@ -14,6 +15,7 @@
 void build_input_layer(network* net);
 void build_layer(int i, network* net);
 void build_conv_layer(int i, network* net);
+void build_maxpool_layer(int i, network* net);
 void build_classify_layer(int i, network* net);
 void build_detect_layer(int i, network* net);
 
@@ -78,7 +80,7 @@ void build_input_layer(network* net) {
 	l->out_n = l->n;
 }
 
-// i = layer index in net->layers
+/* i = layer index in net->layers */
 void build_conv_layer(int i, network* net) {
 	layer* l = &(net->layers[i]);
 	layer* ls = net->layers;
@@ -112,10 +114,10 @@ void build_conv_layer(int i, network* net) {
 	l->h = l->in_layers[0]->out_h;
 	l->c = l->in_layers[0]->out_c;
 	for (size_t j = 1; j < l->in_ids.n; j++) {
-		layer* inlay = l->in_layers[j];
-		assert(l->w == inlay->out_w);
-		assert(l->h == inlay->out_h);
-		l->c += inlay->out_c;
+		layer* inl = l->in_layers[j];
+		assert(l->w == inl->out_w);
+		assert(l->h == inl->out_h);
+		l->c += inl->out_c;
 	}
 	l->n = l->w * l->h * l->c;
 
@@ -130,7 +132,6 @@ void build_conv_layer(int i, network* net) {
 	l->weights.a = (float*)xcalloc(l->weights.n, sizeof(float));
 	l->biases = (float*)xcalloc(l->n_filters, sizeof(float));
 	l->act_input = (float*)xcalloc(l->out_n, sizeof(float));
-	l->grads = (float*)xcalloc(l->out_n, sizeof(float));
 	l->weight_grads = (float*)xcalloc(l->weights.n, sizeof(float));
 	l->bias_grads = (float*)xcalloc(l->n_filters, sizeof(float));
 	l->weights_velocity = (float*)xcalloc(l->weights.n, sizeof(float));
@@ -140,6 +141,61 @@ void build_conv_layer(int i, network* net) {
 	l->backward = backward_conv;
 	l->update = update_conv;
 	set_activate(l);
+}
+
+/* i = layer index in net->layers */
+void build_maxpool_layer(int i, network* net) {
+	layer* l = &(net->layers[i]);
+	layer* ls = net->layers;
+	assert(l->id == i);
+
+	// Set default in_ids and out_ids if none specified.
+	if (l->in_ids.n == 0) {
+		l->in_ids.a = (int*)xcalloc(1, sizeof(int));
+		l->in_ids.a[0] = i - 1;
+		l->in_ids.n = 1;
+	}
+	if (l->out_ids.n == 0) {
+		l->out_ids.a = (int*)xcalloc(1, sizeof(int));
+		l->out_ids.a[0] = i + 1;
+		l->out_ids.n = 1;
+	}
+
+	// Build array of input layer addresses.
+	l->in_layers = (layer**)xcalloc(l->in_ids.n, sizeof(layer*));
+	if (i > 0) {
+		for (size_t j = 0; j < l->in_ids.n; j++) {
+			l->in_layers[j] = &ls[l->in_ids.a[j]];
+		}
+	}
+	else { // if first layer
+		l->in_layers[0] = net->input;
+	}
+
+	// Calculate input dimensions.
+	l->w = l->in_layers[0]->out_w;
+	l->h = l->in_layers[0]->out_h;
+	l->c = l->in_layers[0]->out_c;
+	for (size_t j = 1; j < l->in_ids.n; j++) {
+		layer* inl = l->in_layers[j];
+		assert(l->w == inl->out_w);
+		assert(l->h == inl->out_h);
+		l->c += inl->out_c;
+	}
+	l->n = l->w * l->h * l->c;
+
+	// Calculate output dimensions.
+	l->out_w = ((l->w + (l->pad * 2) - l->ksize) / l->stride) + 1;
+	l->out_h = ((l->h + (l->pad * 2) - l->ksize) / l->stride) + 1;
+	l->out_c = l->n_filters;
+	l->out_n = l->out_w * l->out_h * l->out_c;
+
+	l->output = (float*)xcalloc(l->out_n, sizeof(float));
+	l->maxpool_indexes = (size_t*)xcalloc(l->out_n, sizeof(size_t));
+
+	l->forward = forward_maxpool;
+	l->backward = backward_maxpool;
+	l->update = update_none;
 }
 
 // i = layer index in net->layers
@@ -166,10 +222,10 @@ void build_classify_layer(int i, network* net) {
 	l->h = l->in_layers[0]->out_h;
 	l->c = l->in_layers[0]->out_c;
 	for (size_t j = 1; j < l->in_ids.n; j++) {
-		layer* inlay = l->in_layers[i];
-		assert(l->w == inlay->out_w);
-		assert(l->h == inlay->out_h);
-		l->c += inlay->out_c;
+		layer* inl = l->in_layers[i];
+		assert(l->w == inl->out_w);
+		assert(l->h == inl->out_h);
+		l->c += inl->out_c;
 	}
 	l->n = l->w * l->h * l->c;
 
@@ -188,7 +244,6 @@ void build_classify_layer(int i, network* net) {
 	l->weights.a = (float*)xcalloc(l->weights.n, sizeof(float));
 	l->biases = (float*)xcalloc(l->n_filters, sizeof(float));
 	l->act_input = (float*)xcalloc(l->out_n, sizeof(float));
-	l->grads = (float*)xcalloc(l->out_n, sizeof(float));
 	l->truth = (float*)xcalloc(net->n_classes, sizeof(float));
 	l->errors = (float*)xcalloc(net->n_classes, sizeof(float));
 	l->weight_grads = (float*)xcalloc(l->weights.n, sizeof(float));
@@ -309,6 +364,11 @@ void set_cost(layer* l) {
 	}
 }
 
+#pragma warning(suppress:4100)  // unreferenced formal parameter: 'net'
+void update_none(layer* l, network* net) {
+	l;
+}
+
 void free_network(network* n) {
 	for (size_t i = 0; i < n->n_classes; i++) {
 		xfree(n->class_names[i]);
@@ -338,7 +398,6 @@ void free_layer_members(layer* l) {
 	xfree(l->output);
 	xfree(l->weights.a);
 	xfree(l->biases);
-	xfree(l->grads);
 	xfree(l->weight_grads);
 	xfree(l->bias_grads);
 	xfree(l->act_input);

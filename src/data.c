@@ -1,6 +1,5 @@
 #include "data.h"
 #include <string.h>
-#include "xopencv.h"
 #include "utils.h"
 #include "xallocs.h"
 
@@ -36,7 +35,7 @@ image* class_set_get_next_rand_image(class_set* set) {
 	size_t ri = set->ri;
 	size_t* rands = set->rands;
 	size_t n_sets = set->n;
-	image* img = load_file_to_image(set->files[rands[ri]]);
+	image* img = load_image(set->files[rands[ri]]);
 	printf("%s\n", set->files[rands[ri]]);
 	ri++;
 	if (!(ri < n_sets)) {

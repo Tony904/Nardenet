@@ -20,7 +20,7 @@ extern "C" {
 	/*M = # of filters, N = out_w * out_h*/
 	void add_biases(float* output, float* biases, int M, int N);
 	/*M = # of filters, K = out_w * out_h*/
-	void get_bias_grads(float* bias_grads, float* grads, int M, int N);
+	void get_bias_grads(float* bias_grads, float* grads, int M, int K);
 
 	void test_gemm_atb(void);
 	void test_gemm_tab(void);

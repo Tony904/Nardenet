@@ -55,7 +55,7 @@ void backward_conv(layer* l, network* net) {
 	int K = (int)(l->out_w * l->out_h); // # of patches
 
 	// sum dC/dz for each filter to get it's bias gradients.
-	get_bias_grads(l->bias_grads, l->grads, M, K);
+	get_bias_grads(l->bias_grads, grads, M, K);
 
 	float* A = grads;  // M * K
 	float* B = net->workspace.a;  // N * K

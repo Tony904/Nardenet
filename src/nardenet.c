@@ -3,7 +3,6 @@
 #include "network.h"
 #include "cfg.h"
 #include "train.h"
-#include "xopencv.h"
 #include "im2col.h"
 #include "data.h"
 #include "gemm.h"

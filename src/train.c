@@ -6,7 +6,6 @@
 #include "utils.h"
 #include "image.h"
 #include "data.h"
-#include "xopencv.h"
 #include "costs.h"
 
 
@@ -83,7 +82,7 @@ void train_detector(network* net) {
 	data->samples = load_det_samples(net->dataset_dir, &data->n);
 	size_t n = data->n;
 	for (size_t s = 0; s < n; s++) {
-		image* img = load_file_to_image(data->samples[s].imgpath);
+		image* img = load_image(data->samples[s].imgpath);
 		if (net->w != img->w || net->h != img->h || net->c != img->c) {
 			printf("Input image does not match network dimensions.\n"
 				"img w,h,c = %zu,%zu,%zu\nnet w,h,c = %zu,%zu,%zu\n",

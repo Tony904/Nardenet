@@ -1,7 +1,14 @@
 #include "image.h"
 #include "xallocs.h"
+#include "stdio.h"
+#include "stbimage.h"
 
 
+image* load_image(char* filename) {
+    image* img = (image*)xcalloc(1, sizeof(image));
+    img->data = load_image_stbi(filename, &img->w, &img->h, &img->c);
+    return img;
+}
 
 image* new_image(size_t w, size_t h, size_t c) {
     image* img = (image*)xcalloc(1, sizeof(image));

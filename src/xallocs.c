@@ -1,10 +1,8 @@
 #include "xallocs.h"
 
-#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
-#include "list.h"
 
 #pragma warning(disable : 4996)
 
@@ -93,7 +91,6 @@ void zz_xfree(void* ptr, const char* const filename, const char* const funcname,
     if (!ptr) return;
     alloc_list_free_node((void* const)ptr);
     free(ptr);
-    //ptr = NULL;
 }
 
 static void print_location_and_exit(const char * const filename, const char * const funcname, const int line) {

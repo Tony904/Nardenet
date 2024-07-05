@@ -21,6 +21,7 @@ extern "C" {
 
     network* new_network(size_t num_of_layers);
     void build_network(network* net);
+    void update_none(layer* l, network* net);
 
     void free_network(network* net);
 
@@ -96,17 +97,19 @@ extern "C" {
         size_t out_c; // out_c = n_filters
         size_t out_n; // out_n = out_w * out_h * out_c
         float* output;  // n_outputs = out_w * out_h * out_c
+
         floatarr weights;  // n_weights = ksize * ksize * c * n_filters
         float* biases;
         float* act_input;
+        
         float* means;
         float* variances;
         float* errors;
-        float* grads;
         float* weight_grads;
         float* bias_grads;
         float* weights_velocity;
         float* biases_velocity;
+
         float cost;
         COST_TYPE cost_type;
         intarr in_ids;
@@ -114,10 +117,13 @@ extern "C" {
         layer** in_layers;
         int train;
         int batch_norm;
+
         size_t n_classes;
         size_t n_anchors;
         size_t* anchors;
         float* truth;
+
+        size_t* maxpool_indexes;  // indexes of max values for backprop. indexes are relative to the input layer.
     } layer;
 
     typedef enum NET_TYPE {

@@ -24,7 +24,7 @@ void backward_classify(layer* l, network* net) {
 	// dz/dw is just the activation of the previous layer
 	// dz/db is always 1
 
-	float* grads = l->grads;  // Size is n_classes (which is also out_n for classify layer)
+	float* grads = l->output;  // Size is n_classes (which is also out_n for classify layer)
 	
 	float* bias_grads = l->bias_grads;
 	// bias gradients = dC/dz
