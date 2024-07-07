@@ -12,6 +12,7 @@ extern "C" {
 	void forward_maxpool(layer* l, network* net);
 	void backward_maxpool(layer* l, network* net);
 	void test_forward_maxpool(void);
+	void test_backward_maxpool(void);
 
 #ifdef __cplusplus
 }

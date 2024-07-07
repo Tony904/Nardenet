@@ -33,10 +33,11 @@ void forward_conv(layer* l, network* net) {
 	gemm(M, N, K, A, B0, C);
 	add_biases(C, l->biases, M, N);
 	l->activate(l);  // sends l->act_input through activation function and stores in l->output
+	if (net->training) zero_array(l->grads, l->out_n);
 }
 
 void backward_conv(layer* l, network* net) {
-	float* grads = l->output;  // propogated gradients up to this layer
+	float* grads = l->grads;  // propogated gradients up to this layer
 	// dz/dw = previous layer (shallower layer) input
 	// da/dz = activation derivative
 	float* Z = l->act_input;
@@ -97,8 +98,7 @@ void backward_conv(layer* l, network* net) {
 	for (int i = 0; i < l->in_ids.n; i++) {
 		layer* inl = l->in_layers[i];
 		int c = (int)inl->out_c;
-		float* im = inl->output;
-		zero_array(im, inl->out_n);
+		float* im = inl->grads;
 		col2im(C, c, h, w, (int)l->ksize, (int)l->pad, (int)l->stride, im);
 	}
 }
@@ -106,6 +106,7 @@ void backward_conv(layer* l, network* net) {
 void update_conv(layer* l, network* net) {
 	float rate = net->current_learning_rate;	
 	float momentum = net->momentum;
+	float decay = net->decay;
 
 	float* biases = l->biases;
 	float* bias_grads = l->bias_grads;
@@ -125,6 +126,7 @@ void update_conv(layer* l, network* net) {
 	float* weight_grads = l->weight_grads;
 	float* weights_velocity = l->weights_velocity;
 	n = l->weights.n;
+	net->regularize_weights(weight_grads, weights, n, net->decay);
 	size_t w;
 #pragma omp parallel for firstprivate(rate, momentum)
 	for (w = 0; w < n; w++) {

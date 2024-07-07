@@ -14,8 +14,12 @@ int main(void) {
 	network* net = create_network_from_cfg(cfgfile);
 	train(net);*/
 
-	image* img = load_image("D:\\TonyDev\\NardeNet\\data\\cifar3\\train\\bird\\bird1.png");
-	show_image(img);
+	write_image();
+	image* img = load_image("C:\\Users\\TNard\\OneDrive\\Desktop\\dev\\Nardenet-main\\data\\testimg.bmp");
+	pprint_mat(img->data, (int)img->w, (int)img->h, (int)img->c);
+
+	/*image* img = load_image("D:\\TonyDev\\NardeNet\\data\\cifar3\\train\\bird\\bird1.png");
+	show_image(img);*/
 
 	/*free_network(net);
 	print_alloc_list();*/
@@ -27,9 +31,10 @@ int main(void) {
 }
 
 /* TODO:
+BUGS:
 
 PHASE 1:
- maxpool (forward done, backward left)
+ L1 and L2 regularization (L2 is far more used)
  batchnorm
  resize input images if needed
  fully connected tag for cfg files
@@ -37,7 +42,7 @@ PHASE 1:
  saving weights
  loading weights
  other activation functions
- other cost functions
+ other loss functions
  data augmentation:
 	saturation, exposure, hue, mosaic, rotation (classifier only), jitter
  decay (not entirely sure what this is yet)

@@ -2,11 +2,13 @@
 #include "xallocs.h"
 #include "stdio.h"
 #include "stbimage.h"
+#include "utils.h"
 
 #ifdef OPENCV
 #include "xopencv.h"
 #endif
 
+#pragma warning(disable:4100)  // 'img' unreferenced formal parameter (when OPENCV is not defined)
 /* REQUIRES COMPILATION WITH OPENCV */
 void show_image(image* img) {
 #ifdef OPENCV
@@ -22,6 +24,17 @@ image* load_image(char* filename) {
     //img->data = load_image_opencv(filename, &img->w, &img->h, &img->c);
     img->data = load_image_stbi(filename, &img->w, &img->h, &img->c);
     return img;
+}
+
+void write_image(void) {
+    int w = 2;
+    int h = 2;
+    int c = 3;
+    char* filename = "C:\\Users\\TNard\\OneDrive\\Desktop\\dev\\Nardenet-main\\data\\testimg.bmp";
+    float* data = (float*)xcalloc((size_t)(w * h * c), sizeof(float));
+    fill_array_increment(data, (size_t)(w * h * c), 0.0F, 1.0F);
+    pprint_mat(data, w, h, c);
+    write_image_stbi(filename, data, w, h, c);
 }
 
 image* new_image(size_t w, size_t h, size_t c) {

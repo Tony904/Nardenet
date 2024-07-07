@@ -6,7 +6,7 @@
 #include "utils.h"
 #include "image.h"
 #include "data.h"
-#include "costs.h"
+#include "loss.h"
 
 
 void train_classifer(network* net);
@@ -20,6 +20,7 @@ void update_current_learning_rate(network* net, size_t iteration, size_t ease_in
 
 
 void train(network* net) {
+	net->training = 1;
 	initialize_weights_kaiming(net);
 	if (net->type == NET_DETECT) train_detector(net);
 	else if (net->type == NET_CLASSIFY) train_classifer(net);
@@ -58,6 +59,7 @@ void train_classifer(network* net) {
 			for (size_t i = 0; i < n_layers; i++) {
 				layers[i].forward(&layers[i], net);
 			}
+			if (net->regularization != REG_NONE) net->reg_loss(net);
 			for (size_t ii = n_layers; ii; ii--) {
 				size_t i = ii - 1;
 				layers[i].backward(&layers[i], net);
@@ -66,7 +68,9 @@ void train_classifer(network* net) {
 			print_top_class_name(truth, n_classes, class_names);
 			printf("Predicted: ");
 			print_top_class_name(predictions, n_classes, class_names);
-			printf("COST = %f\n", prediction_layer->cost);
+			printf("Class loss = %f\n", prediction_layer->loss);
+			printf("Regularization loss = %f\n", net->loss);
+			printf("TOTAL LOSS = %f\n", prediction_layer->loss + net->loss);
 			free_image(img);
 			net->input->output = NULL;
 		}

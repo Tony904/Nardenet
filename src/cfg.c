@@ -24,7 +24,8 @@ void copy_data_augment_range(float* dst, floatarr src);
 void load_class_names(char* filename, network* net, size_t n_classes);
 LR_POLICY str2lr_policy(char* str);
 ACTIVATION str2activation(char* str);
-COST_TYPE str2cost(char* str);
+LOSS_TYPE str2loss(char* str);
+REGULARIZATION str2regularization(char* str);
 floatarr tokens2floatarr(char** tokens, size_t offset);
 intarr tokens2intarr(char** tokens, size_t offset);
 int is_header(char* str, char* header, int* is_layer);
@@ -151,6 +152,9 @@ void copy_to_cfg(cfg* c, char** tokens, char* header) {
 		else if (strcmp(k, "momentum") == 0) {
 			c->momentum = str2float(tokens[1]);
 		}
+		else if (strcmp(k, "regularization") == 0) {
+			c->regularization = str2regularization(tokens[1]);
+		}
 		else if (strcmp(k, "decay") == 0) {
 			c->decay = str2float(tokens[1]);
 		}
@@ -206,8 +210,8 @@ void copy_to_cfg_layer(cfg_layer* l, char** tokens) {
 	else if (strcmp(k, "classes") == 0) {
 		l->n_classes = str2sizet(tokens[1]);
 	}
-	else if (strcmp(k, "cost") == 0) {
-		l->cost_type = str2cost(tokens[1]);
+	else if (strcmp(k, "loss") == 0) {
+		l->loss_type = str2loss(tokens[1]);
 	}
 }
 
@@ -232,6 +236,7 @@ void copy_cfg_to_network(cfg* cfig, network* net) {
 	net->step_scaling = cfig->step_scaling;
 	net->ease_in = cfig->ease_in;
 	net->momentum = cfig->momentum;
+	net->regularization = cfig->regularization;
 	net->decay = cfig->decay;
 	copy_data_augment_range(net->saturation, cfig->saturation);
 	copy_data_augment_range(net->exposure, cfig->exposure);
@@ -255,7 +260,7 @@ void copy_cfg_to_network(cfg* cfig, network* net) {
 		l->pad = cl->pad;
 		l->stride = cl->stride;
 		l->train = cl->train;
-		l->cost_type = cl->cost_type;
+		l->loss_type = cl->loss_type;
 		l->n_classes = cl->n_classes;
 		noed = noed->next;
 	}
@@ -338,12 +343,22 @@ int is_header(char* str, char* header, int* is_layer) {
 	return 0;
 }
 
-COST_TYPE str2cost(char* str) {
-	if (strcmp(str, "mse") == 0) return COST_MSE;
-	if (strcmp(str, "bce") == 0) return COST_BCE;
-	if (strcmp(str, "cce") == 0) return COST_CCE;
-	fprintf(stderr, "Error: No valid cost function named %s.\n", str);
-	exit(EXIT_FAILURE);
+LOSS_TYPE str2loss(char* str) {
+	if (strcmp(str, "mse") == 0) return LOSS_MSE;
+	if (strcmp(str, "bce") == 0) return LOSS_BCE;
+	if (strcmp(str, "cce") == 0) return LOSS_CCE;
+	printf("Error: No valid loss function named %s.\n", str);
+	wait_for_key_then_exit();
+}
+
+REGULARIZATION str2regularization(char* str) {
+	char reg[2];
+	reg[1] = str[1];
+	reg[0] = (str[0] == 'L') ? 'l' : str[0];
+	if (strcmp(reg, "l2") == 0) return REG_L2;
+	if (strcmp(reg, "l1") == 0) return REG_L1;
+	printf("Unknown regularization %s.\n", reg);
+	wait_for_key_then_exit();
 }
 
 LR_POLICY str2lr_policy(char* str) {
@@ -464,6 +479,6 @@ void print_cfg_layer(cfg_layer* l) {
 	printf("activation = ");
 	print_activation(l->activation);
 	printf("n_classes = %zu\n", l->n_classes);
-	printf("cost = ");
-	print_cost_type(l->cost_type);
+	printf("loss = ");
+	print_loss_type(l->loss_type);
 }

@@ -37,6 +37,7 @@ extern "C" {
 		floatarr step_scaling;
 		size_t ease_in;
 		float momentum;
+		REGULARIZATION regularization;
 		float decay;
 		floatarr saturation;
 		floatarr exposure;
@@ -59,7 +60,7 @@ extern "C" {
 		ACTIVATION activation;
 		// [classify] or [detect]
 		size_t n_classes;
-		COST_TYPE cost_type;
+		LOSS_TYPE loss_type;
 	} cfg_layer;
 
 #ifdef __cplusplus

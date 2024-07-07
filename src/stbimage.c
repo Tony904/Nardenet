@@ -2,6 +2,8 @@
 #include "xallocs.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
 
 
 // Basic usage:
@@ -40,8 +42,20 @@ float* load_image_stbi(char* filename, size_t* w, size_t* h, size_t* c) {
 	size_t size = X * Y * N;
 	float* dataf = (float*)xcalloc(size, sizeof(float));
 	for (size_t i = 0; i < size; i++) {
-		dataf[i] = (float)data[i] / 255.0F;
+		dataf[i] = (float)data[i];
 	}
 	stbi_image_free(data);
 	return dataf;
+}
+
+
+void write_image_stbi(char* filename, float* data, int w, int h, int c) {
+	int size = w * h * c;
+	unsigned char* ucdata = (unsigned char*)xcalloc((size_t)size, sizeof(unsigned char));
+	for (int i = 0; i < size; i++) {
+		int x = (int)data[i];
+		ucdata[i] = (unsigned char)x;
+		printf("%f : %d\n", data[i], ucdata[i]);
+	}
+	stbi_write_bmp(filename, w, h, c, (void*)ucdata);
 }

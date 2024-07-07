@@ -7,7 +7,7 @@
 #include "gemm.h"
 #include "network.h"
 #include "activations.h"
-#include "costs.h"
+#include "loss.h"
 #include "utils.h"
 #include "derivatives.h"
 #include "layer_conv.h"
@@ -15,7 +15,7 @@
 
 void forward_classify(layer* l, network* net) {
 	forward_conv(l, net);
-	l->get_cost(l);
+	l->get_loss(l);
 }
 
 #pragma warning(suppress:4100)  // unreferenced formal parameter: 'net'
@@ -24,7 +24,7 @@ void backward_classify(layer* l, network* net) {
 	// dz/dw is just the activation of the previous layer
 	// dz/db is always 1
 
-	float* grads = l->output;  // Size is n_classes (which is also out_n for classify layer)
+	float* grads = l->grads;  // Size is n_classes (which is also out_n for classify layer)
 	
 	float* bias_grads = l->bias_grads;
 	// bias gradients = dC/dz
@@ -79,8 +79,7 @@ void backward_classify(layer* l, network* net) {
 	for (int i = 0; i < l->in_ids.n; i++) {
 		layer* inl = l->in_layers[i];
 		int c = (int)inl->out_c;
-		float* im = inl->output;
-		zero_array(im, inl->out_n);
+		float* im = inl->grads;
 		col2im(C, c, h, w, (int)l->ksize, (int)l->pad, (int)l->stride, im);
 	}
 }

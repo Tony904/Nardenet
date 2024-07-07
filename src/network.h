@@ -16,7 +16,7 @@ extern "C" {
     typedef enum LR_POLICY LR_POLICY;
     typedef enum LAYER_TYPE LAYER_TYPE;
     typedef enum ACTIVATION ACTIVATION;
-    typedef enum COST_TYPE COST_TYPE;
+    typedef enum LOSS_TYPE LOSS_TYPE;
     typedef enum NET_TYPE NET_TYPE;
 
     network* new_network(size_t num_of_layers);
@@ -31,7 +31,7 @@ extern "C" {
     void print_lrpolicy(LR_POLICY lrp);
     void print_layertype(LAYER_TYPE lt);
     void print_activation(ACTIVATION a);
-    void print_cost_type(COST_TYPE c);
+    void print_loss_type(LOSS_TYPE c);
     void print_all_network_weights(network* net);
     void print_some_weights(layer* l, size_t n);
     void print_top_class_name(float* probs, int n_classes, char** class_names);
@@ -44,6 +44,7 @@ extern "C" {
         size_t c;
         size_t n_classes;
         char** class_names;
+        int training;  // 1 = training, 0 = inference only
         size_t batch_size;  // number of images per batch
         size_t subbatch_size;  // number of images per sub-batch, must divide evenly into batch_size
         size_t max_iterations;  // maximum number of training iterations before automatically ending training
@@ -54,6 +55,10 @@ extern "C" {
         floatarr step_scaling;
         size_t ease_in;
         float momentum;
+        REGULARIZATION regularization;
+        void(*reg_loss)             (network*);
+        void(*regularize_weights)   (float*, float*, size_t, float);
+        float loss;
         float decay;
         size_t iteration;  // current iteration, one iteration = one batch processed
         size_t epoch_size;  // number of batches to complete one epoch
@@ -82,7 +87,7 @@ extern "C" {
         void(*forward)   (layer*, network*);
         void(*backward)  (layer*, network*);
         void(*update)    (layer*, network*);
-        void(*get_cost)  (layer*);
+        void(*get_loss)  (layer*);
         size_t batch_size;
         size_t n_filters;
         size_t ksize;
@@ -105,13 +110,14 @@ extern "C" {
         float* means;
         float* variances;
         float* errors;
+        float* grads;
         float* weight_grads;
         float* bias_grads;
         float* weights_velocity;
         float* biases_velocity;
 
-        float cost;
-        COST_TYPE cost_type;
+        float loss;
+        LOSS_TYPE loss_type;
         intarr in_ids;
         intarr out_ids;
         layer** in_layers;
@@ -153,12 +159,18 @@ extern "C" {
         ACT_SOFTMAX
     } ACTIVATION;
 
-    typedef enum COST_TYPE {
-        COST_NONE,
-        COST_MSE,  // mean squared error
-        COST_BCE,  // binary cross-entropy, used for 2-class classification (i.e. good/bad, yes/no)
-        COST_CCE  // categorical cross-entropy, used for >2 class classification
-    } COST_TYPE;
+    typedef enum LOSS_TYPE {
+        LOSS_NONE,
+        LOSS_MSE,  // mean squared error
+        LOSS_BCE,  // binary cross-entropy, used for 2-class classification (i.e. good/bad, yes/no)
+        LOSS_CCE  // categorical cross-entropy, used for >2 class classification
+    } LOSS_TYPE;
+
+    typedef enum REGULARIZATION {
+        REG_NONE,
+        REG_L1,  // sum of absolute values of weights
+        REG_L2  // sum of squared values of weights (much preferred over L1)
+    } REGULARIZATION;
 
 #ifdef __cplusplus
 }

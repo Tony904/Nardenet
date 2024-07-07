@@ -42,3 +42,24 @@ void get_grads_leaky_relu(float* grads, float* act_input, size_t size) {
 		grads[i] *= (act_input[i] > 0.0F) ? 1.0F : 0.1F;
 	}
 }
+
+void regularize_l1(float* weight_grads, float* weights, size_t size, float decay) {
+	size_t i;
+#pragma omp parallel for firstprivate(decay)
+	for (i = 0; i < size; i++) {
+		weight_grads[i] -= ((weights[i] > 0.0F) ? decay : -decay);
+	}
+}
+
+void regularize_l2(float* weight_grads, float* weights, size_t size, float decay) {
+	size_t i;
+#pragma omp parallel for firstprivate(decay)
+	for (i = 0; i < size; i++) {
+		weight_grads[i] -= weights[i] * decay;  // not multiplying by 2 cus it doesn't matter, just set decay to a higher value
+	}
+}
+
+#pragma warning(suppress:4100)  // unreferenced formal parameter
+void regularize_none(float* weight_grads, float* weights, size_t size, float decay) {
+	decay;
+}

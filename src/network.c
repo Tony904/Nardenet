@@ -8,7 +8,7 @@
 #include "layer_classify.h"
 #include "layer_maxpool.h"
 #include "activations.h"
-#include "costs.h"
+#include "loss.h"
 #include "derivatives.h"
 
 
@@ -20,7 +20,7 @@ void build_classify_layer(int i, network* net);
 void build_detect_layer(int i, network* net);
 
 void set_activate(layer* l);
-void set_cost(layer* l);
+void set_loss(layer* l);
 
 void free_network(network* net);
 void free_network_layers(network* net);
@@ -51,6 +51,17 @@ void build_network(network* net) {
 	net->workspace.a = (float*)xcalloc(largest_workspace, sizeof(float));
 	net->workspace.n = largest_workspace;
 	net->current_learning_rate = net->learning_rate;
+	if (net->regularization == REG_L1) {
+		net->reg_loss = loss_l1;
+		net->regularize_weights = regularize_l1;
+	}
+	else if (net->regularization == REG_L2) {
+		net->reg_loss = loss_l2;
+		net->regularize_weights = regularize_l2;
+	}
+	else {
+		net->regularize_weights = regularize_none;
+	}
 }
 
 void build_layer(int i, network* net) {
@@ -132,6 +143,7 @@ void build_conv_layer(int i, network* net) {
 	l->weights.a = (float*)xcalloc(l->weights.n, sizeof(float));
 	l->biases = (float*)xcalloc(l->n_filters, sizeof(float));
 	l->act_input = (float*)xcalloc(l->out_n, sizeof(float));
+	l->grads = (float*)xcalloc(l->out_n, sizeof(float));
 	l->weight_grads = (float*)xcalloc(l->weights.n, sizeof(float));
 	l->bias_grads = (float*)xcalloc(l->n_filters, sizeof(float));
 	l->weights_velocity = (float*)xcalloc(l->weights.n, sizeof(float));
@@ -191,6 +203,7 @@ void build_maxpool_layer(int i, network* net) {
 	l->out_n = l->out_w * l->out_h * l->out_c;
 
 	l->output = (float*)xcalloc(l->out_n, sizeof(float));
+	l->grads = (float*)xcalloc(l->out_n, sizeof(float));
 	l->maxpool_addresses = (float**)xcalloc(l->out_n, sizeof(float*));
 
 	l->forward = forward_maxpool;
@@ -246,6 +259,7 @@ void build_classify_layer(int i, network* net) {
 	l->act_input = (float*)xcalloc(l->out_n, sizeof(float));
 	l->truth = (float*)xcalloc(net->n_classes, sizeof(float));
 	l->errors = (float*)xcalloc(net->n_classes, sizeof(float));
+	l->grads = (float*)xcalloc(l->out_n, sizeof(float));
 	l->weight_grads = (float*)xcalloc(l->weights.n, sizeof(float));
 	l->bias_grads = (float*)xcalloc(l->n_filters, sizeof(float));
 	l->weights_velocity = (float*)xcalloc(l->weights.n, sizeof(float));
@@ -255,7 +269,7 @@ void build_classify_layer(int i, network* net) {
 	l->backward = backward_classify;
 	l->update = update_classify;
 	set_activate(l);
-	set_cost(l);
+	set_loss(l);
 }
 
 void build_detect_layer(int i, network* net) {
@@ -312,8 +326,8 @@ void build_detect_layer(int i, network* net) {
 	l->backward = backward_conv;
 	l->update = update_conv;  // will probably need to change to predictor specific function
 	set_activate(l);
-	if (l->cost_type > 0) {
-		set_cost(l);
+	if (l->loss_type > 0) {
+		set_loss(l);
 	}
 }
 
@@ -339,28 +353,28 @@ void set_activate(layer* l) {
 	}
 }
 
-void set_cost(layer* l) {
-	switch (l->cost_type) {
-	case COST_BCE:
-		l->get_cost = cost_bce;
+void set_loss(layer* l) {
+	switch (l->loss_type) {
+	case LOSS_BCE:
+		l->get_loss = loss_bce;
 		break;
-	case COST_CCE:
+	case LOSS_CCE:
 		if (l->activation == ACT_SIGMOID) {
-			l->get_cost = cost_sigmoid_cce;
+			l->get_loss = loss_sigmoid_cce;
 		}
 		else if (l->activation == ACT_SOFTMAX) {
-			l->get_cost = cost_softmax_cce;
+			l->get_loss = loss_softmax_cce;
 		}
 		else {
-			printf("Error: Invalid cost and activation combination.\n Layer id = %d\n", l->id);
+			printf("Error: Invalid loss and activation combination.\n Layer id = %d\n", l->id);
 			wait_for_key_then_exit();
 		}
 		break;
-	case COST_MSE:
-		l->get_cost = cost_mse;
+	case LOSS_MSE:
+		l->get_loss = loss_mse;
 		break;
 	default:
-		printf("No cost function set. Layer id = %d\n", l->id);
+		printf("No loss function set. Layer id = %d\n", l->id);
 	}
 }
 
@@ -485,8 +499,8 @@ void print_layer_classify(layer* l) {
 	printf("id: %d\n", l->id);
 	printf("layer_type: ");
 	print_layertype(l->type);
-	printf("cost: ");
-	print_cost_type(l->cost_type);
+	printf("loss: ");
+	print_loss_type(l->loss_type);
 	printf("# of classes: %zu\n", l->n_classes);
 	printf("batch_size: %zu\n", l->batch_size);
 	printf("w, h, c: %zu, %zu, %zu\n", l->w, l->h, l->c);
@@ -520,10 +534,10 @@ void print_activation(ACTIVATION a) {
 	else printf("NONE\n");
 }
 
-void print_cost_type(COST_TYPE c) {
-	if (c == COST_MSE) printf("mse\n");
-	else if (c == COST_BCE) printf("bce\n");
-	else if (c == COST_CCE) printf("cce\n");
+void print_loss_type(LOSS_TYPE c) {
+	if (c == LOSS_MSE) printf("mse\n");
+	else if (c == LOSS_BCE) printf("bce\n");
+	else if (c == LOSS_CCE) printf("cce\n");
 	else printf("NONE\n");
 }
 
