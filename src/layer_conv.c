@@ -10,37 +10,49 @@
 #include "derivatives.h"
 #include "xarrays.h"
 #include "utils.h"
+#include "batchnorm.h"
 
 
 void forward_conv(layer* l, network* net) {
+	size_t out_n = l->out_n;
+	size_t batch_size = net->batch_size;
+	zero_array(l->Z, out_n * batch_size);
+	int w = (int)l->w;
+	int h = (int)l->h;
 	int M = (int)(l->n_filters);
 	int N = (int)(l->out_w * l->out_h);
 	int K = (int)(l->ksize * l->ksize * l->c);
 	float* A = l->weights.a;  // M * K
-	float* B = net->workspace.a;  // K * N
-	float* B0 = B;
-	float* C = l->act_input;  // M * N
-	zero_array(C, (size_t)(M * N));
-	int w = (int)l->w;
-	int h = (int)l->h;
-	for (int i = 0; i < l->in_ids.n; i++) {
-		layer* inl = l->in_layers[i];
-		int c = (int)inl->out_c;
-		float* im = inl->output;
-		im2col(im, c, h, w, (int)l->ksize, (int)l->pad, (int)l->stride, B);
-		B += K * (int)(l->ksize * l->ksize) * c;
+	for (size_t s = 0; s < batch_size; s++) {		
+		float* B = net->workspace.a;  // K * N
+		float* B0 = B;
+		float* C = &l->Z[s * M * N];  // M * N
+		for (int i = 0; i < l->in_ids.n; i++) {
+			layer* inl = l->in_layers[i];
+			int c = (int)inl->out_c;
+			size_t n = inl->out_n;
+			float* im = &inl->output[s * n];
+			im2col(im, c, h, w, (int)l->ksize, (int)l->pad, (int)l->stride, B);
+			B += K * (int)(l->ksize * l->ksize) * c;
+		}
+		gemm(M, N, K, A, B0, C);
 	}
-	gemm(M, N, K, A, B0, C);
-	add_biases(C, l->biases, M, N);
-	l->activate(l);  // sends l->act_input through activation function and stores in l->output
-	if (net->training) zero_array(l->grads, l->out_n);
+	if (l->batch_norm) {
+		batch_normalize(l, batch_size);
+		l->activate(l->Z_norm, l->output, out_n * batch_size);
+	}
+	else {
+		add_biases(l->Z, l->biases, M, N, batch_size);
+		l->activate(l->Z, l->output, out_n, batch_size);  // note: l->Z == l->act_inputs when batchnorm disabled
+	}
+	if (net->training) zero_array(l->grads, out_n * batch_size);
 }
 
 void backward_conv(layer* l, network* net) {
 	float* grads = l->grads;  // propogated gradients up to this layer
 	// dz/dw = previous layer (shallower layer) input
 	// da/dz = activation derivative
-	float* Z = l->act_input;
+	float* Z = l->Z;
 	if (l->activation == ACT_MISH) get_grads_mish(grads, Z, l->out_n);  // dC/da * da/dz
 	else if (l->activation == ACT_RELU) get_grads_relu(grads, Z, l->out_n);
 	else if (l->activation == ACT_LEAKY) get_grads_leaky_relu(grads, Z, l->out_n);
@@ -159,7 +171,7 @@ void test_forward_conv(void) {
 	l->weights.n = l->n_filters * l->ksize * l->ksize * l->c;
 	l->weights.a = (float*)xcalloc(l->weights.n, sizeof(float));
 	fill_array(l->weights.a, l->weights.n, 1.0F);
-	l->act_input = (float*)xcalloc(l->n_filters * l->out_w * l->out_h, sizeof(float));
+	l->Z = (float*)xcalloc(l->n_filters * l->out_w * l->out_h, sizeof(float));
 	layer* inl1 = (layer*)xcalloc(1, sizeof(layer));
 	layer* inl2 = (layer*)xcalloc(1, sizeof(layer));
 	inl1->out_w = l->w;
@@ -184,5 +196,5 @@ void test_forward_conv(void) {
 
 	forward_conv(l, net);
 
-	pprint_mat(l->act_input, (int)l->out_w, (int)l->out_h, (int)l->out_c);
+	pprint_mat(l->Z, (int)l->out_w, (int)l->out_h, (int)l->out_c);
 }

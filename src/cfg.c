@@ -69,6 +69,7 @@ void load_cfg(char* filename, cfg* c) {
 		if (tokens[0] == NULL) continue;
 		if (is_header(line, header, &is_layer)) {
 			if (!is_layer) continue;
+			c->batch_norm = (l->batch_norm) ? 1 : 0;
 			l = (cfg_layer*)xcalloc(1, sizeof(cfg_layer));
 			l->train = 1;  // default
 			list_append(layers, l);
@@ -189,8 +190,8 @@ void copy_to_cfg_layer(cfg_layer* l, char** tokens) {
 	else if (strcmp(k, "out_ids") == 0) {
 		l->out_ids = tokens2intarr(tokens, 1);
 	}
-	else if (strcmp(k, "batch_normalize") == 0) {
-		l->batch_normalize = str2int(tokens[1]);
+	else if (strcmp(k, "batch_norm") == 0) {
+		l->batch_norm = str2int(tokens[1]);
 	}
 	else if (strcmp(k, "filters") == 0) {
 		l->n_filters = str2sizet(tokens[1]);
@@ -226,6 +227,7 @@ void copy_cfg_to_network(cfg* cfig, network* net) {
 	net->h = cfig->height;
 	net->c = cfig->channels;
 	net->n_classes = cfig->n_classes;
+	net->batch_norm = cfig->batch_norm;
 	// [training]
 	net->batch_size = cfig->batch_size;
 	net->subbatch_size = cfig->subbatch_size;
@@ -253,7 +255,7 @@ void copy_cfg_to_network(cfg* cfig, network* net) {
 		l->type = cl->type;
 		l->activation = cl->activation;
 		l->n_filters = cl->n_filters;
-		l->batch_norm = cl->batch_normalize;
+		l->batch_norm = cl->batch_norm;
 		l->ksize = cl->kernel_size;
 		l->in_ids = cl->in_ids;
 		l->out_ids = cl->out_ids;
@@ -471,7 +473,7 @@ void print_cfg_layer(cfg_layer* l) {
 	print_intarr(&l->in_ids);
 	printf("out_ids = ");
 	print_intarr(&l->out_ids);
-	printf("batch_normalize = %d\n", l->batch_normalize);
+	printf("batch_norm = %d\n", l->batch_norm);
 	printf("n_filters = %zu\n", l->n_filters);
 	printf("kernel_size = %zu\n", l->kernel_size);
 	printf("stride = %zu\n", l->stride);

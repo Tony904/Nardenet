@@ -34,11 +34,11 @@ int main(void) {
 BUGS:
 
 PHASE 1:
- L1 and L2 regularization (L2 is far more used)
  batchnorm
+	- forward pass done, todo backward pass and test time variation
  resize input images if needed
  fully connected tag for cfg files
- learning rate policies: step, adam, adagrad, maybe cosine restart stuff
+ learning rate policies: step, adam, adagrad, rmsprop, cyclic rates maybe
  saving weights
  loading weights
  other activation functions
@@ -61,6 +61,7 @@ PHASE 2:
  GPU support (cuda)
 
 PHASE 3:
+ group norm
  Speed Optimizations
  Python API
  GUI for running inference and training (Python based gui, probably tkinter since it's built in)
@@ -76,4 +77,5 @@ PHASE 9999:
  Implement transformer architecture + attention modules
  Mamba/Jamba if that's still a thing by the time I get everything else done
  Unsupervised learning
+ Adversarial training
  */

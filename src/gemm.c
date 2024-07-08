@@ -72,7 +72,7 @@ void gemm_tab(int M, int N, int K, float* A, float* B, float* C) {
 }
 
 /*M = # of filters, N = out_w * out_h*/
-void add_biases(float* output, float* biases, int M, int N) {
+void add_biases(float* output, float* biases, int M, int N, int batch_size) {
 	int m;
 #pragma omp parallel for
 	for (m = 0; m < M; m++) {

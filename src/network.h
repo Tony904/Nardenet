@@ -58,6 +58,7 @@ extern "C" {
         REGULARIZATION regularization;
         void(*reg_loss)             (network*);
         void(*regularize_weights)   (float*, float*, size_t, float);
+        int batch_norm;  // 1 if any layer has batch norm enabled
         float loss;
         float decay;
         size_t iteration;  // current iteration, one iteration = one batch processed
@@ -83,7 +84,7 @@ extern "C" {
         int id;
         LAYER_TYPE type;
         ACTIVATION activation;
-        void(*activate)  (layer*);
+        void(*activate)  (float*, float*, size_t);
         void(*forward)   (layer*, network*);
         void(*backward)  (layer*, network*);
         void(*update)    (layer*, network*);
@@ -101,28 +102,38 @@ extern "C" {
         size_t out_h; // out_h = ((h + (pad * 2) - ksize) / stride) + 1
         size_t out_c; // out_c = n_filters
         size_t out_n; // out_n = out_w * out_h * out_c
-        float* output;  // n_outputs = out_w * out_h * out_c
+        float* output;
 
         floatarr weights;  // n_weights = ksize * ksize * c * n_filters
         float* biases;
-        float* act_input;
-        
+        float* act_inputs;  // activation function inputs
+
+        int batch_norm;
+        float* Z;  // results of weights * inputs (when batchnorm enabled)
+        float* Z_norm;  // Normalized Z
         float* means;
         float* variances;
+        float* gammas;  // normalized values scales
+        float* rolling_means;
+        float* rolling_variances;
+        float* mean_grads;
+        float* variance_grads;
+
         float* errors;
-        float* grads;
+        float* grads;  // storage for propagated gradients
         float* weight_grads;
         float* bias_grads;
-        float* weights_velocity;
-        float* biases_velocity;
+        float* weights_velocity;  // momentum adjustment for weights
+        float* biases_velocity;  // momentum adjustment for biases
 
         float loss;
         LOSS_TYPE loss_type;
+
         intarr in_ids;
         intarr out_ids;
         layer** in_layers;
+
         int train;
-        int batch_norm;
 
         size_t n_classes;
         size_t n_anchors;

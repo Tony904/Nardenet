@@ -44,6 +44,8 @@ extern "C" {
 		floatarr hue;
 		// layers
 		list* layers;
+		// not read from cfg
+		int batch_norm;  // is 1 if any layer has batch norm enabled
 	} cfg;
 
 	typedef struct cfg_layer {
@@ -52,7 +54,7 @@ extern "C" {
 		int train;
 		intarr in_ids;
 		intarr out_ids;
-		int batch_normalize;
+		int batch_norm;
 		size_t n_filters;
 		size_t kernel_size;
 		size_t stride;
