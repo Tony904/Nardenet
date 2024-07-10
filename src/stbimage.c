@@ -4,6 +4,7 @@
 #include "stb_image.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
+#include "utils.h"
 
 
 // Basic usage:
@@ -50,12 +51,25 @@ float* load_image_stbi(char* filename, size_t* w, size_t* h, size_t* c) {
 
 
 void write_image_stbi(char* filename, float* data, int w, int h, int c) {
-	int size = w * h * c;
-	unsigned char* ucdata = (unsigned char*)xcalloc((size_t)size, sizeof(unsigned char));
-	for (int i = 0; i < size; i++) {
-		int x = (int)data[i];
-		ucdata[i] = (unsigned char)x;
-		printf("%f : %d\n", data[i], ucdata[i]);
+	int ext_i = get_filename_ext_index(filename);
+	assert(ext_i > -1);
+	char* ext = &filename[ext_i];
+	unsigned char* ucdata = (unsigned char*)xcalloc((size_t)(w * h * c), sizeof(unsigned char));
+	unsigned char* start = ucdata;
+	for (int row = 0; row < h; row++) {
+		for (int col = 0; col < w; col++) {
+			for (int ch = 0; ch < c; ch++) {
+				int x = (int)data[row * w * c + col * c + ch];  // need to convert to int first before converting to unsigned char to get correct value
+				*(ucdata++) = (unsigned char)x;
+			}
+		}
 	}
-	stbi_write_bmp(filename, w, h, c, (void*)ucdata);
+	ucdata = start;
+	if (strcmp(ext, ".png") == 0) stbi_write_png(filename, w, h, c, (void*)ucdata, 0); // idk if 0 for stride is correct
+	else if (strcmp(ext, ".bmp") == 0) stbi_write_bmp(filename, w, h, c, (void*)ucdata);
+	else if (strcmp(ext, ".jpg") == 0) stbi_write_jpg(filename, w, h, c, (void*)ucdata, 90);
+	else {
+		printf("Unsupported image format: %s\nPress enter to continue.", ext);
+		(void)getchar();
+	}
 }

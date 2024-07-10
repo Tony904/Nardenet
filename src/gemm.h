@@ -18,9 +18,9 @@ extern "C" {
 	/*A[M*N], AT[N*M], B[M*K], C[N*K]*/
 	void gemm_tab(int M, int N, int K, float* A, float* B, float* C);
 	/*M = # of filters, N = out_w * out_h*/
-	void add_biases(float* output, float* biases, int M, int N);
+	void add_biases(float* output, float* biases, int M, int N, int batch_size);
 	/*M = # of filters, K = out_w * out_h*/
-	void get_bias_grads(float* bias_grads, float* grads, int M, int K);
+	void get_bias_grads(float* bias_grads, float* grads, int M, int K, int batch_size);
 
 	void test_gemm_atb(void);
 	void test_gemm_tab(void);

@@ -345,6 +345,7 @@ int is_header(char* str, char* header, int* is_layer) {
 	return 0;
 }
 
+#pragma warning(suppress:4715)  // Visual Studio being stupid (4175 = not all control paths return a value)
 LOSS_TYPE str2loss(char* str) {
 	if (strcmp(str, "mse") == 0) return LOSS_MSE;
 	if (strcmp(str, "bce") == 0) return LOSS_BCE;
@@ -353,6 +354,7 @@ LOSS_TYPE str2loss(char* str) {
 	wait_for_key_then_exit();
 }
 
+#pragma warning(suppress:4715)  // Visual Studio being stupid (4175 = not all control paths return a value)
 REGULARIZATION str2regularization(char* str) {
 	char reg[2];
 	reg[1] = str[1];

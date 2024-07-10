@@ -462,6 +462,17 @@ list* get_files_list(char* dir, char* extensions) {
 	return paths;
 }
 
+/* Returns index of the last '.' character in filename.
+   If result is -1 that means no '.' was found. */
+int get_filename_ext_index(char* filename) {
+	int length = (int)strlen(filename);
+	for (int ii = length; ii; ii--) {
+		int i = ii - 1;
+		if (filename[i] == '.') return i;
+	}
+	return -1;
+}
+
 size_t tokens_length(char** tokens) {
 	size_t i = 0;
 	while (tokens[i] != NULL) {

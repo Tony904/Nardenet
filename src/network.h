@@ -17,6 +17,7 @@ extern "C" {
     typedef enum LAYER_TYPE LAYER_TYPE;
     typedef enum ACTIVATION ACTIVATION;
     typedef enum LOSS_TYPE LOSS_TYPE;
+    typedef enum REGULARIZATION REGULARIZATION;
     typedef enum NET_TYPE NET_TYPE;
 
     network* new_network(size_t num_of_layers);
@@ -84,7 +85,7 @@ extern "C" {
         int id;
         LAYER_TYPE type;
         ACTIVATION activation;
-        void(*activate)  (float*, float*, size_t);
+        void(*activate)  (float*, float*, size_t, size_t);
         void(*forward)   (layer*, network*);
         void(*backward)  (layer*, network*);
         void(*update)    (layer*, network*);
@@ -118,6 +119,7 @@ extern "C" {
         float* rolling_variances;
         float* mean_grads;
         float* variance_grads;
+        float* gamma_grads;
 
         float* errors;
         float* grads;  // storage for propagated gradients

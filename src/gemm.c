@@ -72,7 +72,9 @@ void gemm_tab(int M, int N, int K, float* A, float* B, float* C) {
 }
 
 /*M = # of filters, N = out_w * out_h*/
+#pragma warning(suppress:4100) // temporary
 void add_biases(float* output, float* biases, int M, int N, int batch_size) {
+	M = M * batch_size;
 	int m;
 #pragma omp parallel for
 	for (m = 0; m < M; m++) {
@@ -84,7 +86,8 @@ void add_biases(float* output, float* biases, int M, int N, int batch_size) {
 }
 
 /*M = # of filters, K = out_w * out_h*/
-void get_bias_grads(float* bias_grads, float* grads, int M, int K) {
+void get_bias_grads(float* bias_grads, float* grads, int M, int K, int batch_size) {
+	M = M * batch_size;
 	int m;
 #pragma omp parallel for
 	for (m = 0; m < M; m++) {

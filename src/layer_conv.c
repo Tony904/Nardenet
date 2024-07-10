@@ -23,39 +23,39 @@ void forward_conv(layer* l, network* net) {
 	int N = (int)(l->out_w * l->out_h);
 	int K = (int)(l->ksize * l->ksize * l->c);
 	float* A = l->weights.a;  // M * K
-	for (size_t s = 0; s < batch_size; s++) {		
+	for (int s = 0; s < (int)batch_size; s++) {
 		float* B = net->workspace.a;  // K * N
 		float* B0 = B;
 		float* C = &l->Z[s * M * N];  // M * N
 		for (int i = 0; i < l->in_ids.n; i++) {
 			layer* inl = l->in_layers[i];
 			int c = (int)inl->out_c;
-			size_t n = inl->out_n;
-			float* im = &inl->output[s * n];
+			float* im = &inl->output[s * inl->out_n];
 			im2col(im, c, h, w, (int)l->ksize, (int)l->pad, (int)l->stride, B);
 			B += K * (int)(l->ksize * l->ksize) * c;
 		}
 		gemm(M, N, K, A, B0, C);
 	}
 	if (l->batch_norm) {
-		batch_normalize(l, batch_size);
-		l->activate(l->Z_norm, l->output, out_n * batch_size);
+		forward_batch_norm(l, batch_size);
+		l->activate(l->Z_norm, l->output, out_n, batch_size);
 	}
 	else {
-		add_biases(l->Z, l->biases, M, N, batch_size);
+		add_biases(l->Z, l->biases, M, N, (int)batch_size);
 		l->activate(l->Z, l->output, out_n, batch_size);  // note: l->Z == l->act_inputs when batchnorm disabled
 	}
 	if (net->training) zero_array(l->grads, out_n * batch_size);
 }
 
 void backward_conv(layer* l, network* net) {
+	size_t batch_size = net->batch_size;
 	float* grads = l->grads;  // propogated gradients up to this layer
 	// dz/dw = previous layer (shallower layer) input
 	// da/dz = activation derivative
 	float* Z = l->Z;
-	if (l->activation == ACT_MISH) get_grads_mish(grads, Z, l->out_n);  // dC/da * da/dz
-	else if (l->activation == ACT_RELU) get_grads_relu(grads, Z, l->out_n);
-	else if (l->activation == ACT_LEAKY) get_grads_leaky_relu(grads, Z, l->out_n);
+	if (l->activation == ACT_MISH) get_grads_mish(grads, Z, l->out_n * batch_size);  // dC/da * da/dz
+	else if (l->activation == ACT_RELU) get_grads_relu(grads, Z, l->out_n * batch_size);
+	else if (l->activation == ACT_LEAKY) get_grads_leaky_relu(grads, Z, l->out_n * batch_size);
 	else {
 		printf("Incorrect or unsupported activation function.\n");
 		exit(EXIT_FAILURE);
@@ -68,25 +68,28 @@ void backward_conv(layer* l, network* net) {
 	int K = (int)(l->out_w * l->out_h); // # of patches
 
 	// sum dC/dz for each filter to get it's bias gradients.
-	get_bias_grads(l->bias_grads, grads, M, K);
+	get_bias_grads(l->bias_grads, grads, M, K, (int)batch_size);
 
-	float* A = grads;  // M * K
-	float* B = net->workspace.a;  // N * K
-	zero_array(B, (size_t)(N * K));
-	float* B0 = B;
-	float* C = l->weight_grads;  // M * N
+	if (l->batch_norm) backward_batch_norm(l, batch_size);
 
 	int w = (int)l->w;
 	int h = (int)l->h;
-	for (int i = 0; i < l->in_ids.n; i++) {
-		layer* inl = l->in_layers[i];
-		int c = (int)inl->out_c;
-		float* im = inl->output;
-		im2col(im, c, h, w, (int)l->ksize, (int)l->pad, (int)l->stride, B);
-		B += N * (int)(l->ksize * l->ksize) * c;
+	for (int s = 0; s < (int)batch_size; s++) {
+		float* A = &grads[s * M * K];  // M * K
+		float* B = net->workspace.a;  // N * K
+		zero_array(B, (size_t)(N * K));
+		float* B0 = B;
+		float* C = l->weight_grads;  // M * N
+		for (int i = 0; i < l->in_ids.n; i++) {
+			layer* inl = l->in_layers[i];
+			int c = (int)inl->out_c;
+			float* im = inl->output;
+			im2col(im, c, h, w, (int)l->ksize, (int)l->pad, (int)l->stride, B);
+			B += N * (int)(l->ksize * l->ksize) * c;
+		}
+		B = B0;
+		gemm_atb(M, N, K, A, B, C);
 	}
-	B = B0;
-	gemm_atb(M, N, K, A, B, C);
 	// C is now dC/dw for all weights. 
 	// Note: C array's storage structure is [filter_index * filter_length + filter_weight_index]
 	
@@ -98,27 +101,28 @@ void backward_conv(layer* l, network* net) {
 
 	if (l->id == 0) return;
 
-	A = l->weights.a;  // M * N
-	B = grads;  // M * K
-	C = net->workspace.a;  // N * K
-	zero_array(C, (size_t)(N * K));
-	gemm_tab(M, N, K, A, B, C);
-	// C is now dC/da in col'd form (as in im2col).
-	// So now we need to turn this "expanded" form (col) into the form of the dimensions of
-	// the output of the input layer (im). We do this using col2im().
-	
-	for (int i = 0; i < l->in_ids.n; i++) {
-		layer* inl = l->in_layers[i];
-		int c = (int)inl->out_c;
-		float* im = inl->grads;
-		col2im(C, c, h, w, (int)l->ksize, (int)l->pad, (int)l->stride, im);
+	for (int s = 0; s < (int)batch_size; s++) {
+		float* A = l->weights.a;  // M * N
+		float* B = &grads[s * M * K];  // M * K
+		float* C = net->workspace.a;  // N * K
+		zero_array(C, (size_t)(N * K));
+		gemm_tab(M, N, K, A, B, C);
+		// C is now dC/da in col'd form (as in im2col).
+		// So now we need to turn this "expanded" form (col) into the form of the dimensions of
+		// the output of the input layer (im). We do this using col2im().
+
+		for (int i = 0; i < l->in_ids.n; i++) {
+			layer* inl = l->in_layers[i];
+			int c = (int)inl->out_c;
+			float* im = &inl->grads[s * M * K];
+			col2im(C, c, h, w, (int)l->ksize, (int)l->pad, (int)l->stride, im);
+		}
 	}
 }
 
 void update_conv(layer* l, network* net) {
 	float rate = net->current_learning_rate;	
 	float momentum = net->momentum;
-	float decay = net->decay;
 
 	float* biases = l->biases;
 	float* bias_grads = l->bias_grads;

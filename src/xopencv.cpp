@@ -20,7 +20,7 @@ extern "C" {
             for (int row = 0; row < h; row++) {
                 for (int col = 0; col < w; col++) {
                     float val = data[ch * h * w + row * w + col];
-                    mat.data[row * step + col * c + ch] = (unsigned char)(val * 255.0F);
+                    mat.data[row * step + col * c + ch] = (unsigned char)val;
                 }
             }
         }

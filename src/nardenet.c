@@ -10,16 +10,9 @@ int main(void) {
 
 	srand(7777777);
 
-	/*char* cfgfile = "D:/TonyDev/NardeNet/cfg/nardenet.cfg";
+	char* cfgfile = "D:/TonyDev/NardeNet/cfg/nardenet.cfg";
 	network* net = create_network_from_cfg(cfgfile);
-	train(net);*/
-
-	write_image();
-	image* img = load_image("C:\\Users\\TNard\\OneDrive\\Desktop\\dev\\Nardenet-main\\data\\testimg.bmp");
-	pprint_mat(img->data, (int)img->w, (int)img->h, (int)img->c);
-
-	/*image* img = load_image("D:\\TonyDev\\NardeNet\\data\\cifar3\\train\\bird\\bird1.png");
-	show_image(img);*/
+	train(net);
 
 	/*free_network(net);
 	print_alloc_list();*/
@@ -35,7 +28,8 @@ BUGS:
 
 PHASE 1:
  batchnorm
-	- forward pass done, todo backward pass and test time variation
+	- forward and backward done but need to make sure they work correctly (surely they will...)
+	- implement updating of gammas and betas (include momentum for them?)
  resize input images if needed
  fully connected tag for cfg files
  learning rate policies: step, adam, adagrad, rmsprop, cyclic rates maybe

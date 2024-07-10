@@ -40,6 +40,7 @@ extern "C" {
 	void close_filestream(FILE* filestream);
 	size_t get_line_count(FILE* file);
 	list* get_files_list(char* dir, char* extensions);
+	int get_filename_ext_index(char* filename);
 	size_t tokens_length(char** tokens);
 	void print_str_array(char** strs, size_t count);
 	void print_float_array(float* array, size_t size);

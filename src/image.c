@@ -26,13 +26,18 @@ image* load_image(char* filename) {
     return img;
 }
 
-void write_image(void) {
+void write_image(image* img, char* filename) {
+    write_image_stbi(filename, img->data, (int)img->w, (int)img->h, (int)img->c);
+}
+
+void write_image_test(void) {
     int w = 2;
     int h = 2;
     int c = 3;
-    char* filename = "C:\\Users\\TNard\\OneDrive\\Desktop\\dev\\Nardenet-main\\data\\testimg.bmp";
-    float* data = (float*)xcalloc((size_t)(w * h * c), sizeof(float));
-    fill_array_increment(data, (size_t)(w * h * c), 0.0F, 1.0F);
+    char* filename = "D:\\TonyDev\\NardeNet\\data\\testimg.png";
+    //float* data = (float*)xcalloc((size_t)(w * h * c), sizeof(float));
+    //fill_array_increment(data, (size_t)(w * h * c), 0.0F, 21.0F);
+    float data[12] = { 255, 0, 0, 255, 0, 0, 255, 0, 0, 255, 0, 0 };
     pprint_mat(data, w, h, c);
     write_image_stbi(filename, data, w, h, c);
 }
