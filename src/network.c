@@ -89,6 +89,7 @@ void build_input_layer(network* net) {
 	l->out_h = l->h;
 	l->out_c = l->c;
 	l->out_n = l->n;
+	l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 }
 
 /* i = layer index in net->layers */
@@ -154,6 +155,7 @@ void build_conv_layer(int i, network* net) {
 		l->variances = (float*)xcalloc(l->out_c, sizeof(float));
 		l->gammas = (float*)xcalloc(l->out_c, sizeof(float));
 		l->gamma_grads = (float*)xcalloc(l->out_c, sizeof(float));
+		l->gammas_velocity = (float*)xcalloc(l->out_c, sizeof(float));
 		fill_array(l->gammas, l->out_c, 1.0F);
 		l->rolling_means = (float*)xcalloc(l->out_c, sizeof(float));
 		l->rolling_variances = (float*)xcalloc(l->out_c, sizeof(float));
@@ -283,6 +285,7 @@ void build_classify_layer(int i, network* net) {
 		l->variances = (float*)xcalloc(l->out_c, sizeof(float));
 		l->gammas = (float*)xcalloc(l->out_c, sizeof(float));
 		l->gamma_grads = (float*)xcalloc(l->out_c, sizeof(float));
+		l->gammas_velocity = (float*)xcalloc(l->out_c, sizeof(float));
 		fill_array(l->gammas, l->out_c, 1.0F);
 		l->rolling_means = (float*)xcalloc(l->out_c, sizeof(float));
 		l->rolling_variances = (float*)xcalloc(l->out_c, sizeof(float));
@@ -352,9 +355,7 @@ void build_detect_layer(int i, network* net) {
 	l->backward = backward_conv;
 	l->update = update_conv;  // will probably need to change to predictor specific function
 	set_activate(l);
-	if (l->loss_type > 0) {
-		set_loss(l);
-	}
+	set_loss(l);
 }
 
 void set_activate(layer* l) {
@@ -592,10 +593,10 @@ void print_some_weights(layer* l, size_t n) {
 	}
 }
 
-void print_top_class_name(float* probs, int n_classes, char** class_names) {
-	int c = 0;
+void print_top_class_name(float* probs, size_t n_classes, char** class_names) {
+	size_t c = 0;
 	float highscore = 0;
-	for (int i = 0; i < n_classes; i++) {
+	for (size_t i = 0; i < n_classes; i++) {
 		float p = probs[i];
 		if (p > highscore) {
 			highscore = p;
@@ -613,10 +614,11 @@ void print_network_summary(network* net, int print_training_params) {
 		"Layers: %zu\n",
 		net->cfg_file, net->n_classes, net->w, net->h, net->c, net->n_layers);
 	if (print_training_params) {
-		printf("Learning rate: %f\n"
+		printf("Batch size: %zu\n"
+			"Learning rate: %f\n"
 			"Momentum: %f\n"
 			"Iterations: %zu\n",
-			net->learning_rate, net->momentum, net->max_iterations);
+			net->batch_size, net->learning_rate, net->momentum, net->max_iterations);
 	}
 	printf("\n");
 

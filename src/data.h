@@ -15,8 +15,8 @@ extern "C" {
 	typedef struct classifier_dataset classifier_dataset;
 	typedef struct detector_dataset detector_dataset;
 
+	void get_next_batch(classifier_dataset* dataset, size_t batch_size, float* data, size_t w, size_t h, size_t c, float* truth, size_t n_classes);
 	void load_classifier_dataset(classifier_dataset* dataset, char* classes_dir, char** class_names, size_t n_classes);
-	image* get_next_image_classifier_dataset(classifier_dataset* dataset, float* truth);
 	void free_classifier_dataset_members(classifier_dataset* dataset);
 
 	typedef struct classifier_dataset {

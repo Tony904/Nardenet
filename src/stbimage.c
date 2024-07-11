@@ -5,6 +5,7 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 #include "utils.h"
+#include "xallocs.h"
 
 
 // Basic usage:
@@ -22,6 +23,33 @@
 //    int *channels_in_file  -- outputs # of image components in image file
 //    int desired_channels   -- if non-zero, # of image components requested in result
 
+
+void load_image_stbi_to_buffer(char* filename, size_t* w, size_t* h, size_t* c, float* dst) {
+	// TODO: Add interpolation if buffer size does not match size read.
+	int x;
+	int y;
+	int n;
+	unsigned char* data = stbi_load(filename, &x, &y, &n, 0);
+	if (!data) {
+		printf("Failed to load image %s\n", filename);
+		printf("Press enter to exit program.\n");
+		(void)getchar();
+		exit(EXIT_FAILURE);
+	}
+	size_t expected_size = (*w) * (*h) * (*c);
+	size_t X = (size_t)x;
+	size_t Y = (size_t)y;
+	size_t N = (size_t)n;
+	size_t size = X * Y * N;
+	if (size != expected_size) {
+		printf("Expected image size (%zu) does not equal actual image size (%zu).\n", expected_size, size);
+		wait_for_key_then_exit();
+	}
+	for (size_t i = 0; i < size; i++) {
+		dst[i] = (float)data[i];
+	}
+	stbi_image_free(data);
+}
 
 float* load_image_stbi(char* filename, size_t* w, size_t* h, size_t* c) {
 	int x;

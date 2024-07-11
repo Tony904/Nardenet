@@ -10,8 +10,9 @@ extern "C" {
     
     typedef struct image image;
     
-    void show_image(image* img);
     image* load_image(char* filename);
+    void load_image_to_buffer(char* filename, image* dst);
+    void show_image(image* img);
     void write_image(image* img, char* filename);
     void write_image_test(void);
     image* new_image(size_t width, size_t height, size_t channels);

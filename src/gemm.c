@@ -74,29 +74,39 @@ void gemm_tab(int M, int N, int K, float* A, float* B, float* C) {
 /*M = # of filters, N = out_w * out_h*/
 #pragma warning(suppress:4100) // temporary
 void add_biases(float* output, float* biases, int M, int N, int batch_size) {
-	M = M * batch_size;
-	int m;
-#pragma omp parallel for
-	for (m = 0; m < M; m++) {
-		int mN = m * N;
-		for (int n = 0; n < N; n++) {
-			output[mN + n] += biases[m];
+	size_t F = (size_t)M;
+	size_t S = (size_t)N;
+	size_t B = (size_t)batch_size;
+	size_t out_n = F * S;
+	size_t f;
+#pragma omp parallel for firstprivate(out_n)
+	for (f = 0; f < F; f++) {
+		for (size_t b = 0; b < B; b++) {
+			size_t offset = b * out_n + f * S;
+			for (size_t s = 0; s < S; s++) {
+				output[offset + s] += biases[f];
+			}
 		}
 	}
 }
 
 /*M = # of filters, K = out_w * out_h*/
 void get_bias_grads(float* bias_grads, float* grads, int M, int K, int batch_size) {
-	M = M * batch_size;
-	int m;
-#pragma omp parallel for
-	for (m = 0; m < M; m++) {
-		float sum = 0;
-		int mK = m * K;
-		for (int k = 0; k < K; k++) {
-			sum += grads[mK + k];
+	size_t F = (size_t)M;
+	size_t S = (size_t)K;
+	size_t B = (size_t)batch_size;
+	size_t out_n = F * S;
+	size_t f;
+#pragma omp parallel for firstprivate(out_n)
+	for (f = 0; f < F; f++) {
+		float sum = 0.0F;
+		for (size_t b = 0; b < B; b++) {
+			size_t offset = b * out_n + f * S;
+			for (size_t s = 0; s < S; s++) {
+				sum += grads[offset + s];
+			}
 		}
-		bias_grads[m] += sum;  // += because they will be divided by batch count during update step
+		bias_grads[f] += sum;  // += because they will be divided by batch count during update step
 	}
 }
 

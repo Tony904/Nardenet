@@ -34,10 +34,14 @@ void train_classifer(network* net) {
 	layer* prediction_layer = &net->layers[net->n_layers - 1];
 	float* truth = prediction_layer->truth;
 	float* predictions = prediction_layer->output;
-	int n_classes = (int)net->n_classes;
+	size_t n_classes = net->n_classes;
 	char** class_names = net->class_names;
 	size_t ease_in = net->ease_in;
 	size_t batch_size = net->batch_size;
+	size_t width = net->w;
+	size_t height = net->h;
+	size_t channels = net->c;
+	float* input = net->input->output;
 	//net->max_iterations = 300;  // testing
 	layer* layers = net->layers;
 	size_t n_layers = net->n_layers;
@@ -46,34 +50,22 @@ void train_classifer(network* net) {
 		printf("\nIteration: %zu\n", iter);
 		update_current_learning_rate(net, iter, ease_in);
 		printf("Learning rate: %f\n", net->current_learning_rate * (float)batch_size);
-		for (int batch_i = 0; batch_i < batch_size; batch_i++) {
-			image* img = get_next_image_classifier_dataset(&net->data.clsr, truth);
-			if (net->w != img->w || net->h != img->h || net->c != img->c) {
-				printf("Input image does not match network dimensions.\n"
-					"img w,h,c = %zu,%zu,%zu\nnet w,h,c = %zu,%zu,%zu\n",
-					 img->w, img->h, img->c, net->w, net->h, net->c);
-				wait_for_key_then_exit();
-			}
-			//show_image(img);
-			net->input->output = img->data;
-			for (size_t i = 0; i < n_layers; i++) {
-				layers[i].forward(&layers[i], net);
-			}
-			if (net->regularization != REG_NONE) net->reg_loss(net);
-			for (size_t ii = n_layers; ii; ii--) {
-				size_t i = ii - 1;
-				layers[i].backward(&layers[i], net);
-			}
-			printf("Truth:     ");
-			print_top_class_name(truth, n_classes, class_names);
-			printf("Predicted: ");
-			print_top_class_name(predictions, n_classes, class_names);
-			printf("Class loss = %f\n", prediction_layer->loss);
-			printf("Regularization loss = %f\n", net->loss);
-			printf("TOTAL LOSS = %f\n", prediction_layer->loss + net->loss);
-			free_image(img);
-			net->input->output = NULL;
+		get_next_batch(&net->data.clsr, batch_size, input, width, height, channels, truth, n_classes);
+		for (size_t i = 0; i < n_layers; i++) {
+			layers[i].forward(&layers[i], net);
 		}
+		if (net->regularization != REG_NONE) net->reg_loss(net);
+		for (size_t ii = n_layers; ii; ii--) {
+			size_t i = ii - 1;
+			layers[i].backward(&layers[i], net);
+		}
+		printf("Truth:     ");
+		print_top_class_name(truth, n_classes, class_names);
+		printf("Predicted: ");
+		print_top_class_name(predictions, n_classes, class_names);
+		printf("Class loss = %f\n", prediction_layer->loss);
+		printf("Regularization loss = %f\n", net->loss);
+		printf("TOTAL LOSS = %f\n", prediction_layer->loss + net->loss);
 		for (size_t i = 0; i < n_layers; i++) {
 			layers[i].update(&layers[i], net);
 		}

@@ -69,7 +69,7 @@ void load_cfg(char* filename, cfg* c) {
 		if (tokens[0] == NULL) continue;
 		if (is_header(line, header, &is_layer)) {
 			if (!is_layer) continue;
-			c->batch_norm = (l->batch_norm) ? 1 : 0;
+			if (l) c->batch_norm = (l->batch_norm) ? 1 : 0;
 			l = (cfg_layer*)xcalloc(1, sizeof(cfg_layer));
 			l->train = 1;  // default
 			list_append(layers, l);

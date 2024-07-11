@@ -15,7 +15,7 @@
 
 void forward_classify(layer* l, network* net) {
 	forward_conv(l, net);
-	l->get_loss(l);
+	l->get_loss(l, net->batch_size);
 }
 
 #pragma warning(suppress:4100)  // unreferenced formal parameter: 'net'

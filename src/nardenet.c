@@ -27,9 +27,9 @@ int main(void) {
 BUGS:
 
 PHASE 1:
+ change implementation of batches to accomodate batchnorm
  batchnorm
-	- forward and backward done but need to make sure they work correctly (surely they will...)
-	- implement updating of gammas and betas (include momentum for them?)
+	- make sure forward, backward, and update work
  resize input images if needed
  fully connected tag for cfg files
  learning rate policies: step, adam, adagrad, rmsprop, cyclic rates maybe

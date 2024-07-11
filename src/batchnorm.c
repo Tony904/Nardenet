@@ -74,7 +74,6 @@ void backward_batch_norm(layer* l, size_t batch_size) {
 	float* grads = l->grads;
 	float* Z = l->Z;
 	float* Z_norm = l->Z_norm;
-	float* act_inputs = l->act_inputs;
 	float* means = l->means;
 	float* variances = l->variances;
 	float* gammas = l->gammas;

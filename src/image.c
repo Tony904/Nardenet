@@ -19,9 +19,13 @@ void show_image(image* img) {
 #endif
 }
 
+void load_image_to_buffer(char* filename, image* dst) {
+    //img->data = load_image_opencv(filename, &img->w, &img->h, &img->c);
+    load_image_stbi_to_buffer(filename, &dst->w, &dst->h, &dst->c, dst->data);
+}
+
 image* load_image(char* filename) {
     image* img = (image*)xcalloc(1, sizeof(image));
-    //img->data = load_image_opencv(filename, &img->w, &img->h, &img->c);
     img->data = load_image_stbi(filename, &img->w, &img->h, &img->c);
     return img;
 }

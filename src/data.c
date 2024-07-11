@@ -4,16 +4,30 @@
 #include "xallocs.h"
 
 
+void classifier_dataset_get_next_image(classifier_dataset* dataset, image* dst, float* truth);
 class_set* classifier_dataset_get_next_rand_class_set(classifier_dataset* dataset);
-image* class_set_get_next_rand_image(class_set* set);
+void class_set_get_next_rand_image(class_set* set, image* dst);
 
 
-image* get_next_image_classifier_dataset(classifier_dataset* dataset, float* truth) {
+void get_next_batch(classifier_dataset* dataset, size_t batch_size, float* data, size_t w, size_t h, size_t c, float* truth, size_t n_classes) {
+	size_t n = w * h * c;
+	for (size_t s = 0; s < batch_size; s++) {
+		image img = { 0 };
+		img.w = w;
+		img.h = h;
+		img.c = c;
+		img.data = &data[s * n];
+		classifier_dataset_get_next_image(dataset, &img, &truth[s * n_classes]);
+	}
+	
+}
+
+void classifier_dataset_get_next_image(classifier_dataset* dataset, image* dst, float* truth) {
 	class_set* set = classifier_dataset_get_next_rand_class_set(dataset);
 	size_t n = dataset->n;
 	for (size_t i = 0; i < n; i++) { truth[i] = 0.0F; }
 	truth[set->class_id] = 1.0F;
-	return class_set_get_next_rand_image(set);
+	class_set_get_next_rand_image(set, dst);
 }
 
 class_set* classifier_dataset_get_next_rand_class_set(classifier_dataset* dataset) {
@@ -31,11 +45,11 @@ class_set* classifier_dataset_get_next_rand_class_set(classifier_dataset* datase
 	return set;
 }
 
-image* class_set_get_next_rand_image(class_set* set) {
+void class_set_get_next_rand_image(class_set* set, image* dst) {
 	size_t ri = set->ri;
 	size_t* rands = set->rands;
 	size_t n_sets = set->n;
-	image* img = load_image(set->files[rands[ri]]);
+	load_image_to_buffer(set->files[rands[ri]], dst);
 	printf("%s\n", set->files[rands[ri]]);
 	ri++;
 	if (!(ri < n_sets)) {
@@ -43,7 +57,6 @@ image* class_set_get_next_rand_image(class_set* set) {
 		get_random_numbers_no_repeats(rands, n_sets, 0, n_sets - 1);
 	}
 	set->ri = ri;
-	return img;
 }
 
 void load_classifier_dataset(classifier_dataset* dataset, char* classes_dir, char** class_names, size_t n_classes) {

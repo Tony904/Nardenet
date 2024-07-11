@@ -35,7 +35,7 @@ extern "C" {
     void print_loss_type(LOSS_TYPE c);
     void print_all_network_weights(network* net);
     void print_some_weights(layer* l, size_t n);
-    void print_top_class_name(float* probs, int n_classes, char** class_names);
+    void print_top_class_name(float* probs, size_t n_classes, char** class_names);
     void print_network_summary(network* net, int print_training_params);
 
     typedef struct network {
@@ -89,7 +89,7 @@ extern "C" {
         void(*forward)   (layer*, network*);
         void(*backward)  (layer*, network*);
         void(*update)    (layer*, network*);
-        void(*get_loss)  (layer*);
+        void(*get_loss)  (layer*, size_t);
         size_t batch_size;
         size_t n_filters;
         size_t ksize;
@@ -120,6 +120,7 @@ extern "C" {
         float* mean_grads;
         float* variance_grads;
         float* gamma_grads;
+        float* gammas_velocity;
 
         float* errors;
         float* grads;  // storage for propagated gradients
