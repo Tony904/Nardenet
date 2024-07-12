@@ -35,8 +35,9 @@ extern "C" {
     void print_loss_type(LOSS_TYPE c);
     void print_all_network_weights(network* net);
     void print_some_weights(layer* l, size_t n);
-    void print_top_class_name(float* probs, size_t n_classes, char** class_names);
+    void print_top_class_name(float* probs, size_t n_classes, char** class_names, int include_prob, int new_line);
     void print_network_summary(network* net, int print_training_params);
+    void print_prediction_results(network* net, layer* prediction_layer);
 
     typedef struct network {
         size_t n_layers;
@@ -89,7 +90,7 @@ extern "C" {
         void(*forward)   (layer*, network*);
         void(*backward)  (layer*, network*);
         void(*update)    (layer*, network*);
-        void(*get_loss)  (layer*, size_t);
+        void(*get_loss)  (layer*, network*);
         size_t batch_size;
         size_t n_filters;
         size_t ksize;

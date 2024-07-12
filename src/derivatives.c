@@ -2,9 +2,9 @@
 #include "activations.h"
 
 
-void get_grads_sigmoid(float* grads, float* act_output, size_t size) {
-	int n = (int)size;
-	int i;
+void get_grads_sigmoid(float* grads, float* act_output, size_t out_n, size_t batch_size) {
+	size_t n = out_n * batch_size;
+	size_t i;
 #pragma omp parallel for
 	for (i = 0; i < n; i++) {
 		grads[i] *= act_output[i] * (1.f - act_output[i]);
@@ -12,9 +12,9 @@ void get_grads_sigmoid(float* grads, float* act_output, size_t size) {
 }
 
 // implementation from Pytorch: https://github.com/thomasbrandon/mish-cuda/blob/master/csrc/mish.h#L26-L31
-void get_grads_mish(float* grads, float* Z, size_t size) {
-	int n = (int)size;
-	int i;
+void get_grads_mish(float* grads, float* Z, size_t out_n, size_t batch_size) {
+	size_t n = out_n * batch_size;
+	size_t i;
 #pragma omp parallel for
 	for (i = 0; i < n; i++) {
 		float inp = Z[i];
@@ -27,18 +27,20 @@ void get_grads_mish(float* grads, float* Z, size_t size) {
 	}
 }
 
-void get_grads_relu(float* grads, float* Z, size_t size) {
+void get_grads_relu(float* grads, float* Z, size_t out_n, size_t batch_size) {
+	size_t n = out_n * batch_size;
 	size_t i;
 #pragma omp parallel for
-	for (i = 0; i < size; i++) {
+	for (i = 0; i < n; i++) {
 		grads[i] *= (Z[i] > 0);
 	}
 }
 
-void get_grads_leaky_relu(float* grads, float* Z, size_t size) {
+void get_grads_leaky_relu(float* grads, float* Z, size_t out_n, size_t batch_size) {
+	size_t n = out_n * batch_size;
 	size_t i;
 #pragma omp parallel for
-	for (i = 0; i < size; i++) {
+	for (i = 0; i < n; i++) {
 		grads[i] *= (Z[i] > 0.0F) ? 1.0F : 0.1F;
 	}
 }

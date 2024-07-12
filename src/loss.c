@@ -3,7 +3,7 @@
 
 
 #pragma warning(suppress:4100)  // unused param
-void loss_mse(layer* l, size_t batch_size) {
+void loss_mse(layer* l, network* net) {
 	float* errors = l->errors;
 	float* output = l->output;
 	float* grads = l->grads;
@@ -21,7 +21,8 @@ void loss_mse(layer* l, size_t batch_size) {
 // Gradients for softmax are calculated wrt its logits, not its outputs, when paired with cross-entropy loss
 // because math. Otherwise we'd have to calculate the Jacobian of the softmax function which is a lot of math.
 // https://stackoverflow.com/questions/58461808/understanding-backpropagation-with-softmax
-void loss_softmax_cce(layer* l, size_t batch_size) {
+void loss_softmax_cce(layer* l, network* net) {
+	size_t batch_size = net->batch_size;
 	float* errors = l->errors;
 	float* output = l->output;
 	float* grads = l->grads;
@@ -29,7 +30,7 @@ void loss_softmax_cce(layer* l, size_t batch_size) {
 	size_t n = l->n_classes;
 	float loss = 0.0F;
 	size_t s;
-#pragma omp parallel for reduction(+:loss) firstprivate(n)
+//#pragma omp parallel for reduction(+:loss) firstprivate(n)
 	for (s = 0; s < batch_size; s++) {
 		size_t offset = s * n;
 		for (size_t i = 0; i < n; ++i) {
@@ -40,12 +41,16 @@ void loss_softmax_cce(layer* l, size_t batch_size) {
 			errors[index] = (t) ? -log(p) : 0.0F;  // Only used for reporting performance, is not used for training
 			loss += errors[index];
 		}
+		print_top_class_name(&truth[s * n], n, net->class_names, 0, 0);
+		printf(" : ");
+		print_top_class_name(&output[s * n], n, net->class_names, 0, 1);
 	}
 	l->loss = loss / (float)batch_size;
+	printf("Avg class loss:      %f\n", l->loss);
 }
 
 #pragma warning(suppress:4100)  // unused param
-void loss_sigmoid_cce(layer* l, size_t batch_size) {
+void loss_sigmoid_cce(layer* l, network* net) {
 	float* errors = l->errors;
 	float* output = l->output;
 	float* grads = l->grads;
@@ -61,7 +66,7 @@ void loss_sigmoid_cce(layer* l, size_t batch_size) {
 }
 
 #pragma warning(suppress:4100)  // unused param
-void loss_bce(layer* l, size_t batch_size) {
+void loss_bce(layer* l, network* net) {
 	l;
 }
 

@@ -50,7 +50,7 @@ void class_set_get_next_rand_image(class_set* set, image* dst) {
 	size_t* rands = set->rands;
 	size_t n_sets = set->n;
 	load_image_to_buffer(set->files[rands[ri]], dst);
-	printf("%s\n", set->files[rands[ri]]);
+	//printf("%s\n", set->files[rands[ri]]);
 	ri++;
 	if (!(ri < n_sets)) {
 		ri = 0;

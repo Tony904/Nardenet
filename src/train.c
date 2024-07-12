@@ -33,9 +33,7 @@ void train_classifer(network* net) {
 	load_classifier_dataset(&net->data.clsr, train_dir, net->class_names, net->n_classes);
 	layer* prediction_layer = &net->layers[net->n_layers - 1];
 	float* truth = prediction_layer->truth;
-	float* predictions = prediction_layer->output;
 	size_t n_classes = net->n_classes;
-	char** class_names = net->class_names;
 	size_t ease_in = net->ease_in;
 	size_t batch_size = net->batch_size;
 	size_t width = net->w;
@@ -44,6 +42,7 @@ void train_classifer(network* net) {
 	float* input = net->input->output;
 	//net->max_iterations = 300;  // testing
 	layer* layers = net->layers;
+	//layer* layer0 = net->layers;
 	size_t n_layers = net->n_layers;
 	print_network_summary(net, 1);
 	for (size_t iter = 0; iter < net->max_iterations; iter++) {
@@ -54,18 +53,14 @@ void train_classifer(network* net) {
 		for (size_t i = 0; i < n_layers; i++) {
 			layers[i].forward(&layers[i], net);
 		}
-		if (net->regularization != REG_NONE) net->reg_loss(net);
+		if (net->regularization != REG_NONE) {
+			net->reg_loss(net);
+			printf("Regularization loss: %f\n", net->loss);
+		}
 		for (size_t ii = n_layers; ii; ii--) {
 			size_t i = ii - 1;
 			layers[i].backward(&layers[i], net);
 		}
-		printf("Truth:     ");
-		print_top_class_name(truth, n_classes, class_names);
-		printf("Predicted: ");
-		print_top_class_name(predictions, n_classes, class_names);
-		printf("Class loss = %f\n", prediction_layer->loss);
-		printf("Regularization loss = %f\n", net->loss);
-		printf("TOTAL LOSS = %f\n", prediction_layer->loss + net->loss);
 		for (size_t i = 0; i < n_layers; i++) {
 			layers[i].update(&layers[i], net);
 		}
@@ -119,3 +114,4 @@ void update_current_learning_rate(network* net, size_t iteration, size_t ease_in
 	float rate = net->learning_rate * powf((float)iteration / (float)ease_in, power);
 	net->current_learning_rate = rate / (float)net->batch_size;
 }
+

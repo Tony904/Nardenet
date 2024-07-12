@@ -170,62 +170,6 @@ void build_conv_layer(int i, network* net) {
 	set_activate(l);
 }
 
-/* i = layer index in net->layers */
-void build_maxpool_layer(int i, network* net) {
-	layer* l = &(net->layers[i]);
-	layer* ls = net->layers;
-	assert(l->id == i);
-
-	// Set default in_ids and out_ids if none specified.
-	if (l->in_ids.n == 0) {
-		l->in_ids.a = (int*)xcalloc(1, sizeof(int));
-		l->in_ids.a[0] = i - 1;
-		l->in_ids.n = 1;
-	}
-	if (l->out_ids.n == 0) {
-		l->out_ids.a = (int*)xcalloc(1, sizeof(int));
-		l->out_ids.a[0] = i + 1;
-		l->out_ids.n = 1;
-	}
-
-	// Build array of input layer addresses.
-	l->in_layers = (layer**)xcalloc(l->in_ids.n, sizeof(layer*));
-	if (i > 0) {
-		for (size_t j = 0; j < l->in_ids.n; j++) {
-			l->in_layers[j] = &ls[l->in_ids.a[j]];
-		}
-	}
-	else { // if first layer
-		l->in_layers[0] = net->input;
-	}
-
-	// Calculate input dimensions.
-	l->w = l->in_layers[0]->out_w;
-	l->h = l->in_layers[0]->out_h;
-	l->c = l->in_layers[0]->out_c;
-	for (size_t j = 1; j < l->in_ids.n; j++) {
-		layer* inl = l->in_layers[j];
-		assert(l->w == inl->out_w);
-		assert(l->h == inl->out_h);
-		l->c += inl->out_c;
-	}
-	l->n = l->w * l->h * l->c;
-
-	// Calculate output dimensions.
-	l->out_w = ((l->w + (l->pad * 2) - l->ksize) / l->stride) + 1;
-	l->out_h = ((l->h + (l->pad * 2) - l->ksize) / l->stride) + 1;
-	l->out_c = l->n_filters;
-	l->out_n = l->out_w * l->out_h * l->out_c;
-
-	l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-	l->grads = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-	l->maxpool_addresses = (float**)xcalloc(l->out_n * net->batch_size, sizeof(float*));
-
-	l->forward = forward_maxpool;
-	l->backward = backward_maxpool;
-	l->update = update_none;
-}
-
 // i = layer index in net->layers
 void build_classify_layer(int i, network* net) {
 	layer* l = &(net->layers[i]);
@@ -299,6 +243,62 @@ void build_classify_layer(int i, network* net) {
 	l->update = update_classify;
 	set_activate(l);
 	set_loss(l);
+}
+
+/* i = layer index in net->layers */
+void build_maxpool_layer(int i, network* net) {
+	layer* l = &(net->layers[i]);
+	layer* ls = net->layers;
+	assert(l->id == i);
+
+	// Set default in_ids and out_ids if none specified.
+	if (l->in_ids.n == 0) {
+		l->in_ids.a = (int*)xcalloc(1, sizeof(int));
+		l->in_ids.a[0] = i - 1;
+		l->in_ids.n = 1;
+	}
+	if (l->out_ids.n == 0) {
+		l->out_ids.a = (int*)xcalloc(1, sizeof(int));
+		l->out_ids.a[0] = i + 1;
+		l->out_ids.n = 1;
+	}
+
+	// Build array of input layer addresses.
+	l->in_layers = (layer**)xcalloc(l->in_ids.n, sizeof(layer*));
+	if (i > 0) {
+		for (size_t j = 0; j < l->in_ids.n; j++) {
+			l->in_layers[j] = &ls[l->in_ids.a[j]];
+		}
+	}
+	else { // if first layer
+		l->in_layers[0] = net->input;
+	}
+
+	// Calculate input dimensions.
+	l->w = l->in_layers[0]->out_w;
+	l->h = l->in_layers[0]->out_h;
+	l->c = l->in_layers[0]->out_c;
+	for (size_t j = 1; j < l->in_ids.n; j++) {
+		layer* inl = l->in_layers[j];
+		assert(l->w == inl->out_w);
+		assert(l->h == inl->out_h);
+		l->c += inl->out_c;
+	}
+	l->n = l->w * l->h * l->c;
+
+	// Calculate output dimensions.
+	l->out_w = ((l->w + (l->pad * 2) - l->ksize) / l->stride) + 1;
+	l->out_h = ((l->h + (l->pad * 2) - l->ksize) / l->stride) + 1;
+	l->out_c = l->n_filters;
+	l->out_n = l->out_w * l->out_h * l->out_c;
+
+	l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	l->grads = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	l->maxpool_addresses = (float**)xcalloc(l->out_n * net->batch_size, sizeof(float*));
+
+	l->forward = forward_maxpool;
+	l->backward = backward_maxpool;
+	l->update = update_none;
 }
 
 void build_detect_layer(int i, network* net) {
@@ -593,7 +593,7 @@ void print_some_weights(layer* l, size_t n) {
 	}
 }
 
-void print_top_class_name(float* probs, size_t n_classes, char** class_names) {
+void print_top_class_name(float* probs, size_t n_classes, char** class_names, int include_prob, int new_line) {
 	size_t c = 0;
 	float highscore = 0;
 	for (size_t i = 0; i < n_classes; i++) {
@@ -603,7 +603,14 @@ void print_top_class_name(float* probs, size_t n_classes, char** class_names) {
 			c = i;
 		}
 	}
-	printf("%s (%f)\n", class_names[c], highscore);
+	if (new_line) {
+		if (include_prob) printf("%s (%f)\n", class_names[c], highscore);
+		else printf("%s\n", class_names[c]);
+	}
+	else {
+		if (include_prob) printf("%s (%f)", class_names[c], highscore);
+		else printf("%s", class_names[c]);
+	}
 }
 
 void print_network_summary(network* net, int print_training_params) {
@@ -622,4 +629,16 @@ void print_network_summary(network* net, int print_training_params) {
 	}
 	printf("\n");
 
+}
+
+void print_prediction_results(network* net, layer* prediction_layer) {
+	size_t n_classes = net->n_classes;
+	char** class_names = net->class_names;
+	float* predictions = prediction_layer->output;
+	float* truth = prediction_layer->truth;
+	printf("Truth:     ");
+	print_top_class_name(truth, n_classes, class_names, 1, 1);
+	printf("Predicted: ");
+	print_top_class_name(predictions, n_classes, class_names, 1, 1);
+	printf("Class loss = %f\n", prediction_layer->loss);
 }

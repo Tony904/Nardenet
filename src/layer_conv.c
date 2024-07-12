@@ -52,13 +52,14 @@ void backward_conv(layer* l, network* net) {
 	float* grads = l->grads;  // propogated gradients up to this layer
 	// dz/dw = previous layer (shallower layer) input
 	// da/dz = activation derivative
-	float* Z = l->Z;
-	if (l->activation == ACT_MISH) get_grads_mish(grads, Z, l->out_n * batch_size);  // dC/da * da/dz
-	else if (l->activation == ACT_RELU) get_grads_relu(grads, Z, l->out_n * batch_size);
-	else if (l->activation == ACT_LEAKY) get_grads_leaky_relu(grads, Z, l->out_n * batch_size);
-	else {
-		printf("Incorrect or unsupported activation function.\n");
-		exit(EXIT_FAILURE);
+	if (l->type == LAYER_CONV) {
+		if (l->activation == ACT_MISH) get_grads_mish(grads, l->Z, l->out_n, batch_size);  // dC/da * da/dz
+		else if (l->activation == ACT_RELU) get_grads_relu(grads, l->Z, l->out_n, batch_size);
+		else if (l->activation == ACT_LEAKY) get_grads_leaky_relu(grads, l->Z, l->out_n, batch_size);
+		else {
+			printf("Incorrect or unsupported activation function.\n");
+			exit(EXIT_FAILURE);
+		}
 	}
 	// grads[] is now dC/dz.
 	
@@ -100,7 +101,6 @@ void backward_conv(layer* l, network* net) {
 	// Note: Weight gradients DO NOT propagate back, they are just used to update the weights.
 
 	if (l->id == 0) return;
-
 	for (int s = 0; s < (int)batch_size; s++) {
 		float* A = l->weights.a;  // M * N
 		float* B = &grads[s * M * K];  // M * K
@@ -114,7 +114,7 @@ void backward_conv(layer* l, network* net) {
 		for (int i = 0; i < l->in_ids.n; i++) {
 			layer* inl = l->in_layers[i];
 			int c = (int)inl->out_c;
-			float* im = &inl->grads[s * M * K];
+			float* im = &inl->grads[s * w * h * c];
 			col2im(C, c, h, w, (int)l->ksize, (int)l->pad, (int)l->stride, im);
 		}
 	}
@@ -152,17 +152,19 @@ void update_conv(layer* l, network* net) {
 		weight_grads[i] = 0.0F;
 	}
 
-	float* gammas = l->gammas;
-	float* gamma_grads = l->gamma_grads;
-	float* gammas_velocity = l->gammas_velocity;
-	n = l->out_c;
+	if (l->batch_norm) {
+		float* gammas = l->gammas;
+		float* gamma_grads = l->gamma_grads;
+		float* gammas_velocity = l->gammas_velocity;
+		n = l->out_c;
 #pragma omp parallel for firstprivate(rate, momentum)
-	for (i = 0; i < n; i++) {
-		float v_old = weights_velocity[i];
-		float v_new = momentum * v_old - rate * weight_grads[i];
-		gammas[i] += -momentum * v_old + (1 + momentum) * v_new;
-		gammas_velocity[i] = v_new;
-		gamma_grads[i] = 0.0F;
+		for (i = 0; i < n; i++) {
+			float v_old = weights_velocity[i];
+			float v_new = momentum * v_old - rate * weight_grads[i];
+			gammas[i] += -momentum * v_old + (1 + momentum) * v_new;
+			gammas_velocity[i] = v_new;
+			gamma_grads[i] = 0.0F;
+		}
 	}
 }
 

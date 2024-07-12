@@ -356,7 +356,7 @@ LOSS_TYPE str2loss(char* str) {
 
 #pragma warning(suppress:4715)  // Visual Studio being stupid (4175 = not all control paths return a value)
 REGULARIZATION str2regularization(char* str) {
-	char reg[2];
+	char reg[3] = { 0, 0, 0 };
 	reg[1] = str[1];
 	reg[0] = (str[0] == 'L') ? 'l' : str[0];
 	if (strcmp(reg, "l2") == 0) return REG_L2;
