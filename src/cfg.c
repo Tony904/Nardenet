@@ -10,6 +10,7 @@
 #define hTRAINING "[training]"
 #define hCONV "[conv]"
 #define hCLASSIFY "[classify]"
+#define hMAXPOOL "[maxpool]"
 #define hDETECT "[detect]"
 
 #define LINESIZE 512
@@ -337,6 +338,11 @@ int is_header(char* str, char* header, int* is_layer) {
 		*is_layer = 1;
 		return 1;
 	}
+	else if (strcmp(str, hMAXPOOL) == 0) {
+		strcpy(header, hMAXPOOL);
+		*is_layer = 1;
+		return 1;
+	}
 	else if (strcmp(str, hDETECT) == 0) {
 		strcpy(header, hDETECT);
 		*is_layer = 1;
@@ -412,6 +418,7 @@ intarr tokens2intarr(char** tokens, size_t offset) {
 LAYER_TYPE header2layertype(char* header) {
 	if (strcmp(header, hCONV) == 0) return LAYER_CONV;
 	if (strcmp(header, hCLASSIFY) == 0) return LAYER_CLASSIFY;
+	if (strcmp(header, hMAXPOOL) == 0) return LAYER_MAXPOOL;
 	if (strcmp(header, hDETECT) == 0) return LAYER_DETECT;
 	return LAYER_NONE;
 }
@@ -468,6 +475,7 @@ void print_cfg(cfg* c) {
 void print_cfg_layer(cfg_layer* l) {
 	if (l->type == LAYER_CONV) printf(hCONV);
 	else if (l->type == LAYER_CLASSIFY) printf(hCLASSIFY);
+	else if (l->type == LAYER_MAXPOOL) printf(hMAXPOOL);
 	else if (l->type == LAYER_DETECT) printf(hDETECT);
 	printf("\nid = %d\n", l->id);
 	printf("train = %d\n", l->train);

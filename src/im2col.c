@@ -6,8 +6,8 @@
 
 
 // https://github.com/BVLC/caffe/blob/master/src/caffe/util/im2col.cpp
-inline static int is_a_ge_zero_and_a_lt_b(int a, int b) {
-	return (unsigned)(a) < (unsigned)(b);
+inline static int is_a_ge_zero_and_a_lt_b(int aa, int bb) {
+	return (unsigned)(aa) < (unsigned)(bb);
 }
 
 /* channels, height, width are dimensions of input image data_im */

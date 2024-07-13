@@ -2,16 +2,15 @@
 #include "network.h"
 #include "cfg.h"
 #include "train.h"
-#include "layer_maxpool.h"
-#include "image.h"
 
 
 int main(void) {
 
 	srand(7777777);
 
-	char* cfgfile = "D:/TonyDev/NardeNet/cfg/nardenet.cfg";
+	char* cfgfile = "C:\\Users\\TNard\\OneDrive\\Desktop\\dev\\Nardenet-main\\cfg\\nardenet2.cfg";
 	network* net = create_network_from_cfg(cfgfile);
+	print_network(net);
 	train(net);
 
 	/*free_network(net);
@@ -27,9 +26,6 @@ int main(void) {
 BUGS:
 
 PHASE 1:
- change implementation of batches to accomodate batchnorm
- batchnorm
-	- make sure forward, backward, and update work
  resize input images if needed
  fully connected tag for cfg files
  learning rate policies: step, adam, adagrad, rmsprop, cyclic rates maybe

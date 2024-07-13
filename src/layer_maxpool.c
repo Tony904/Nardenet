@@ -7,85 +7,165 @@
 #include "xallocs.h"
 
 
+void maxpool(layer* l, size_t batch_size);
+void maxpool_general(layer* l, size_t batch_size);
+
+
 // https://github.com/BVLC/caffe/blob/master/src/caffe/util/im2col.cpp
-inline static int is_a_ge_zero_and_a_lt_b(int a, int b) {
-	return (unsigned)(a) < (unsigned)(b);
+inline static int is_a_ge_zero_and_a_lt_b(int aa, int bb) {
+	return (unsigned)(aa) < (unsigned)(bb);
 }
 
-#pragma warning(suppress:4100)  // unreferenced formal parameter: 'net'
 void forward_maxpool(layer* l, network* net) {
-	float** max_addresses = l->maxpool_addresses;
-	int w = (int)l->w;
-	int h = (int)l->h;
-	size_t wh = (size_t)w * (size_t)h;
-	int stride = (int)l->stride;
-	int ksize = (int)l->ksize;
-	int pad = (int)l->pad;
+	size_t batch_size = net->batch_size;
+	maxpool(l, batch_size);
+	if (net->training) zero_array(l->grads, l->out_n * batch_size);
+}
+
+/* Standard maxpool operation with ksize = 2, pad = 0, stride = 2 */
+void maxpool(layer* l, size_t batch_size) {
+	size_t ksize = 2;
+	size_t stride = 2;
+	size_t w = l->w;
+	size_t h = l->h;
+	size_t wh = w * h;
+	size_t out_n = l->out_n;
 	size_t out_w = l->out_w;
 	size_t out_h = l->out_h;
 	size_t out_wh = out_w * out_h;
-	float* B = l->output;  // out_w * out_h * out_c (out_c = in_c)
-	fill_array(B, l->out_n, -FLT_MAX);
-	for (size_t i = 0; i < l->in_ids.n; i++) {
-		layer* inl = l->in_layers[i];
-		size_t channels = (int)inl->out_c;
-		float* A = inl->output;  // w * h * channels
-		float* G = inl->grads;
-		size_t ch;
-#pragma omp parallel for firstprivate(w, h, wh, out_w, out_h, out_wh, ksize, pad, stride)
-		for (ch = 0; ch < channels; ch++) {
-			float* inpool = &A[ch * wh];
-			float* ingrads = &G[ch * wh];
-			size_t out_whc = ch * out_wh;
-			float* maxpool_channel_start = &B[out_whc];
-			float** maxes_channel_start = &max_addresses[out_whc];
-			for (int krow = 0; krow < ksize; krow++) {
-				for (int kcol = 0; kcol < ksize; kcol++) {
-					float* maxpool = maxpool_channel_start;
-					float** maxes = maxes_channel_start;
-					int in_row = krow - pad;
-					for (size_t out_rows = out_h; out_rows; out_rows--) {
-						if (!is_a_ge_zero_and_a_lt_b(in_row, h)) {
-							maxpool += out_w;
-							maxes += out_w;
-						}
-						else {
-							int in_col = kcol - pad;
-							int r = in_row * w;
+	float** l_max_ptrs = l->maxpool_addresses;
+	float* l_output = l->output;
+	fill_array(l_output, out_n * batch_size, -FLT_MAX);
+	for (size_t b = 0; b < batch_size; b++) {
+		float* b_output = &l_output[b * out_n];
+		float** b_max_ptrs = &l_max_ptrs[b * out_n];
+		size_t bwh = b * wh;
+		for (size_t i = 0; i < l->in_ids.n; i++) {
+			layer* inl = l->in_layers[i];
+			size_t inl_out_c = inl->out_c;
+			float* inl_output = &inl->output[bwh * inl_out_c];
+			float* inl_grads = &inl->grads[bwh * inl_out_c];
+			size_t ch;
+#pragma omp parallel for firstprivate(w, h, wh, out_w, out_h, out_wh, ksize, stride)
+			for (ch = 0; ch < inl_out_c; ch++) {
+				size_t inl_ch_start = ch * wh;
+				size_t l_ch_start = ch * out_wh;
+				float* A = &inl_output[inl_ch_start];
+				float* G = &inl_grads[inl_ch_start];
+				float* max_vals_ch_start = &b_output[l_ch_start];
+				float** max_ptrs_ch_start = &b_max_ptrs[l_ch_start];
+				for (size_t krow = 0; krow < ksize; krow++) {
+					for (size_t kcol = 0; kcol < ksize; kcol++) {
+						float* max_vals = max_vals_ch_start;
+						float** max_ptrs = max_ptrs_ch_start;
+						size_t in_row = krow;
+						for (size_t out_rows = out_h; out_rows; out_rows--) {
+							size_t in_col = kcol;
+							size_t r = in_row * w;
 							for (size_t out_cols = out_w; out_cols; out_cols--) {
-								if (is_a_ge_zero_and_a_lt_b(in_col, w)) {
-									size_t index = (size_t)(r + in_col);
-									float val = inpool[index];
-									if (val > *maxpool) {
-										*maxpool = val;
-										*maxes = &ingrads[index];
-									}
+								size_t index = (size_t)(r + in_col);
+								float val = A[index];
+								if (val > *max_vals) {
+									*max_vals = val;
+									*max_ptrs = &G[index];
 								}
-								maxpool++;
-								maxes++;
+								max_vals++;
+								max_ptrs++;
 								in_col += stride;
 							}
+							in_row += stride;
 						}
-						in_row += stride;
 					}
 				}
 			}
+			// shift pointers by the size of the output of the input layer that was just processed
+			b_output += out_wh * inl_out_c;
+			b_max_ptrs += out_wh * inl_out_c;
 		}
-		B += out_wh * channels;
-		max_addresses += out_wh * channels;
 	}
-	if (net->training) zero_array(l->grads, l->out_n);
 }
+
+/* Version of maxpool that allows for any ksize, pad, and stride. */
+void maxpool_general(layer* l, size_t batch_size) {
+	int ksize = (int)l->ksize;
+	int pad = (int)l->pad;
+	int stride = (int)l->stride;
+	int w = (int)l->w;
+	int h = (int)l->h;
+	size_t wh = (size_t)(w * h);
+	size_t out_n = l->out_n;
+	size_t out_w = l->out_w;
+	size_t out_h = l->out_h;
+	size_t out_wh = out_w * out_h;
+	float** l_max_ptrs = l->maxpool_addresses;
+	for (size_t b = 0; b < batch_size; b++) {
+		float* b_output = &l->output[b * out_n];
+		fill_array(b_output, out_n, -FLT_MAX);
+		float** b_max_ptrs = &l_max_ptrs[b * out_n];
+		size_t bwh = b * wh;
+		for (size_t i = 0; i < l->in_ids.n; i++) {
+			layer* inl = l->in_layers[i];
+			size_t inl_out_c = inl->out_c;
+			float* inl_output = &inl->output[bwh * inl_out_c];
+			float* inl_grads = &inl->grads[bwh * inl_out_c];
+			size_t ch;
+#pragma omp parallel for firstprivate(w, h, wh, out_w, out_h, out_wh, ksize, pad, stride)
+			for (ch = 0; ch < inl_out_c; ch++) {
+				size_t inl_ch_start = ch * wh;
+				size_t l_ch_start = ch * out_wh;
+				float* A = &inl_output[inl_ch_start];
+				float* G = &inl_grads[inl_ch_start];
+				float* max_vals_ch_start = &b_output[l_ch_start];
+				float** max_ptrs_ch_start = &b_max_ptrs[l_ch_start];
+				for (int krow = 0; krow < ksize; krow++) {
+					for (int kcol = 0; kcol < ksize; kcol++) {
+						float* max_vals = max_vals_ch_start;
+						float** max_ptrs = max_ptrs_ch_start;
+						int in_row = krow - pad;
+						for (size_t out_rows = out_h; out_rows; out_rows--) {
+							if (!is_a_ge_zero_and_a_lt_b(in_row, h)) {
+								max_vals += out_w;
+								max_ptrs += out_w;
+							}
+							else {
+								int in_col = kcol - pad;
+								int r = in_row * w;
+								for (size_t out_cols = out_w; out_cols; out_cols--) {
+									if (is_a_ge_zero_and_a_lt_b(in_col, w)) {
+										size_t index = (size_t)(r + in_col);
+										float val = A[index];
+										if (val > *max_vals) {
+											*max_vals = val;
+											*max_ptrs = &G[index];
+										}
+									}
+									max_vals++;
+									max_ptrs++;
+									in_col += stride;
+								}
+							}
+							in_row += stride;
+						}
+					}
+				}
+			}
+			b_output += out_wh * inl_out_c;
+			b_max_ptrs += out_wh * inl_out_c;
+		}
+	}
+}
+
+
 
 #pragma warning(suppress:4100)  // unreferenced formal parameter: 'net'
 void backward_maxpool(layer* l, network* net) {
 	float* grads = l->grads;
-	float** maxes = l->maxpool_addresses;
-	size_t out_n = l->out_n;
+	float** max_ptrs = l->maxpool_addresses;
+	size_t n = l->out_n * l->batch_size;
 	size_t i;
 #pragma omp parallel for
-	for (i = 0; i < out_n; i++) {
-		*maxes[i] += grads[i];
+	for (i = 0; i < n; i++) {
+		*max_ptrs[i] += grads[i];
 	}
 }
 
@@ -96,6 +176,7 @@ void backward_maxpool(layer* l, network* net) {
 void test_forward_maxpool(void) {
 	layer* l = (layer*)xcalloc(1, sizeof(layer));
 	network* net = (network*)xcalloc(1, sizeof(network));
+	net->batch_size = 2;
 	l->ksize = 2;
 	l->pad = 0;
 	l->stride = 2;
@@ -106,8 +187,8 @@ void test_forward_maxpool(void) {
 	l->out_h = (l->h + 2 * l->pad - l->ksize) / l->stride + 1;
 	l->out_c = l->c;
 	l->out_n = l->out_w * l->out_h * l->out_c;
-	l->output = (float*)xcalloc(l->out_n, sizeof(float));
-	l->maxpool_addresses = (float**)xcalloc(l->out_n, sizeof(float*));
+	l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	l->maxpool_addresses = (float**)xcalloc(l->out_n * net->batch_size, sizeof(float*));
 	layer* inl1 = (layer*)xcalloc(1, sizeof(layer));
 	layer* inl2 = (layer*)xcalloc(1, sizeof(layer));
 	inl1->out_w = l->w;
@@ -119,26 +200,28 @@ void test_forward_maxpool(void) {
 	assert(l->c == inl1->out_c + inl2->out_c);
 	inl1->out_n = inl1->out_w * inl1->out_h * inl1->out_c;
 	inl2->out_n = inl2->out_w * inl2->out_h * inl2->out_c;
-	inl1->output = (float*)xcalloc(inl1->out_n, sizeof(float));
-	fill_array_rand_float(inl1->output, inl1->out_n, 0, 100);
-	inl2->output = (float*)xcalloc(inl2->out_n, sizeof(float));
-	fill_array_rand_float(inl2->output, inl2->out_n, 25, 75);
+	inl1->output = (float*)xcalloc(inl1->out_n * net->batch_size, sizeof(float));
+	fill_array_rand_float(inl1->output, inl1->out_n * net->batch_size, 0, (int)(inl1->out_n * net->batch_size));
+	inl2->output = (float*)xcalloc(inl2->out_n * net->batch_size, sizeof(float));
+	fill_array_rand_float(inl2->output, inl2->out_n * net->batch_size, 0, (int)(inl2->out_n * net->batch_size));
+	inl1->grads = (float*)xcalloc(inl1->out_n * net->batch_size, sizeof(float));
+	inl2->grads = (float*)xcalloc(inl2->out_n * net->batch_size, sizeof(float));
 	l->in_layers = (layer**)xcalloc(2, sizeof(layer*));
 	l->in_layers[0] = inl1;
 	l->in_layers[1] = inl2;
 	l->in_ids.n = 2;
-
 	forward_maxpool(l, net);
 
-	pprint_mat(inl1->output, (int)inl1->out_w, (int)inl1->out_h, (int)inl1->out_c);
-	pprint_mat(inl2->output, (int)inl2->out_w, (int)inl2->out_h, (int)inl2->out_c);
-	pprint_mat(l->output, (int)l->out_w, (int)l->out_h, (int)l->out_c);
+	pprint_mat(inl1->output, (int)inl1->out_w, (int)inl1->out_h, (int)inl1->out_c * (int)net->batch_size);
+	pprint_mat(inl2->output, (int)inl2->out_w, (int)inl2->out_h, (int)inl2->out_c * (int)net->batch_size);
+	pprint_mat(l->output, (int)l->out_w, (int)l->out_h, (int)l->out_c * (int)net->batch_size);
 }
 
 void test_backward_maxpool(void) {
 	layer* l = (layer*)xcalloc(1, sizeof(layer));
 	network* net = (network*)xcalloc(1, sizeof(network));
 	net->training = 1;
+	net->batch_size = 1;
 	l->ksize = 2;
 	l->pad = 0;
 	l->stride = 2;

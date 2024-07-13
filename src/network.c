@@ -28,6 +28,7 @@ void free_layer_members(layer* l);
 
 void print_layer_conv(layer* l);
 void print_layer_classify(layer* l);
+void print_layer_maxpool(layer* l);
 
 
 network* new_network(size_t num_of_layers) {
@@ -69,6 +70,7 @@ void build_layer(int i, network* net) {
 	assert(l->type != LAYER_NONE);
 	if (l->type == LAYER_CONV) build_conv_layer(i, net);
 	else if (l->type == LAYER_CLASSIFY) build_classify_layer(i, net);
+	else if (l->type == LAYER_MAXPOOL) build_maxpool_layer(i, net);
 	else if (l->type == LAYER_DETECT) build_detect_layer(i, net);
 	else {
 		printf("Unknown layer type: %d\n", (int)l->type);
@@ -289,7 +291,7 @@ void build_maxpool_layer(int i, network* net) {
 	// Calculate output dimensions.
 	l->out_w = ((l->w + (l->pad * 2) - l->ksize) / l->stride) + 1;
 	l->out_h = ((l->h + (l->pad * 2) - l->ksize) / l->stride) + 1;
-	l->out_c = l->n_filters;
+	l->out_c = l->c;
 	l->out_n = l->out_w * l->out_h * l->out_c;
 
 	l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
@@ -493,6 +495,7 @@ void print_layers(network* net) {
 void print_layer(layer* l) {
 	if (l->type == LAYER_CONV) print_layer_conv(l);
 	else if (l->type == LAYER_CLASSIFY) print_layer_classify(l);
+	else if (l->type == LAYER_MAXPOOL) print_layer_maxpool(l);
 	else printf("NONE_LAYER\n");
 }
 
@@ -504,7 +507,6 @@ void print_layer_conv(layer* l) {
 	printf("activation: ");
 	print_activation(l->activation);
 	printf("batch_norm: %d\n", l->batch_norm);
-	printf("batch_size: %zu\n", l->batch_size);
 	printf("w, h, c: %zu, %zu, %zu\n", l->w, l->h, l->c);
 	printf("n_filters: %zu\n", l->n_filters);
 	printf("ksize: %zu\n", l->ksize);
@@ -529,7 +531,6 @@ void print_layer_classify(layer* l) {
 	printf("loss: ");
 	print_loss_type(l->loss_type);
 	printf("# of classes: %zu\n", l->n_classes);
-	printf("batch_size: %zu\n", l->batch_size);
 	printf("w, h, c: %zu, %zu, %zu\n", l->w, l->h, l->c);
 	printf("stride: %zu\n", l->stride);
 	printf("# of inputs: %zu\n", l->n);
@@ -541,6 +542,26 @@ void print_layer_classify(layer* l) {
 	printf("[END LAYER]\n");
 }
 
+void print_layer_maxpool(layer* l) {
+	printf("\n[LAYER]\n");
+	printf("id: %d\n", l->id);
+	printf("layer_type: ");
+	print_layertype(l->type);
+	printf("w, h, c: %zu, %zu, %zu\n", l->w, l->h, l->c);
+	printf("ksize: %zu\n", l->ksize);
+	printf("stride: %zu\n", l->stride);
+	printf("pad: %zu\n", l->pad);
+	printf("# of inputs: %zu\n", l->n);
+	printf("# of outputs: %zu\n", l->out_n);
+	printf("# of weights: %zu\n", l->weights.n);
+	printf("train: %d\n", l->train);
+	printf("in_ids: ");
+	print_intarr(&(l->in_ids));
+	printf("out_ids: ");
+	print_intarr(&(l->out_ids));
+	printf("[END LAYER]\n");
+}
+
 void print_lrpolicy(LR_POLICY lrp) {
 	if (lrp == LR_STEPS) printf("steps\n");
 	else printf("NONE\n");
@@ -549,6 +570,7 @@ void print_lrpolicy(LR_POLICY lrp) {
 void print_layertype(LAYER_TYPE lt) {
 	if (lt == LAYER_CONV) printf("conv\n");
 	else if (lt == LAYER_CLASSIFY) printf("classify\n");
+	else if (lt == LAYER_MAXPOOL) printf("maxpool\n");
 	else printf("NONE\n");
 }
 
