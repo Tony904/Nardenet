@@ -68,10 +68,10 @@ void loss_sigmoid_cce(layer* l, network* net) {
 		size_t offset = b * n;
 		for (size_t i = 0; i < n; ++i) {
 			size_t index = offset + i;
-			float t = truth[i];
-			float p = output[i];
-			errors[i] = -t * log(p) - (1 - t) * log(1 - p);
-			grads[i] = p - t;
+			float t = truth[index];
+			float p = output[index];
+			errors[index] = -t * log(p) - (1 - t) * log(1 - p);
+			grads[index] = p - t;
 		}
 	}
 }

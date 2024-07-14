@@ -8,7 +8,7 @@ int main(void) {
 
 	srand(7777777);
 
-	char* cfgfile = "C:\\Users\\TNard\\OneDrive\\Desktop\\dev\\Nardenet-main\\cfg\\nardenet2.cfg";
+	char* cfgfile = "C:\\Users\\TNard\\OneDrive\\Desktop\\dev\\Nardenet-main\\cfg\\nardenet-alexnetish.cfg";
 	network* net = create_network_from_cfg(cfgfile);
 	train(net);
 
@@ -25,6 +25,7 @@ int main(void) {
 BUGS:
 
 PHASE 1:
+ actual residual connections (activation of layer concatenated with Z of deeper layer)
  resize input images if needed
  learning rate policies: step, adam, adagrad, rmsprop, cyclic rates maybe
  saving weights
@@ -45,6 +46,8 @@ PHASE 2:
  spatial pooling (not super sure what this is yet)
  multiple prediction heads
  GPU support (cuda)
+ yolov4-csp implementation
+ yolov7 implementation
 
 PHASE 3:
  group norm
