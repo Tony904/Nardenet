@@ -157,6 +157,7 @@ extern "C" {
         LAYER_NONE,
         LAYER_CONV,
         LAYER_MAXPOOL,
+        LAYER_FC,
         LAYER_CLASSIFY,
         LAYER_DETECT
     } LAYER_TYPE;

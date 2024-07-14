@@ -23,6 +23,7 @@ extern "C" {
 	void activate_relu(float* Z, float* output, size_t size, size_t batch_size);
 	void activate_sigmoid(float* Z, float* output, size_t size, size_t batch_size);
 	void activate_leaky_relu(float* Z, float* output, size_t size, size_t batch_size);
+	void activate_tanh(float* Z, float* output, size_t out_n, size_t batch_size);
 	void activate_softmax(float* Z, float* output, size_t size, size_t batch_size);
 
 #ifdef __cplusplus

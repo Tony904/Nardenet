@@ -7,7 +7,7 @@ void get_grads_sigmoid(float* grads, float* act_output, size_t out_n, size_t bat
 	size_t i;
 #pragma omp parallel for
 	for (i = 0; i < n; i++) {
-		grads[i] *= act_output[i] * (1.f - act_output[i]);
+		grads[i] *= act_output[i] * (1.0F - act_output[i]);
 	}
 }
 
@@ -19,9 +19,9 @@ void get_grads_mish(float* grads, float* Z, size_t out_n, size_t batch_size) {
 	for (i = 0; i < n; i++) {
 		float inp = Z[i];
 		const float sp = softplus_x(inp, MISH_THRESH);
-		const float grad_sp = 1 - exp(-sp);
+		const float grad_sp = 1.0F - exp(-sp);
 		const float tsp = tanh_x(sp);
-		const float grad_tsp = (1 - tsp * tsp) * grad_sp;
+		const float grad_tsp = (1.0F - tsp * tsp) * grad_sp;
 		const float grad = inp * grad_tsp + tsp;
 		grads[i] *= grad;
 	}
@@ -42,6 +42,16 @@ void get_grads_leaky_relu(float* grads, float* Z, size_t out_n, size_t batch_siz
 #pragma omp parallel for
 	for (i = 0; i < n; i++) {
 		grads[i] *= (Z[i] > 0.0F) ? 1.0F : 0.1F;
+	}
+}
+
+void get_grads_tanh(float* grads, float* Z, size_t out_n, size_t batch_size) {
+	size_t n = out_n * batch_size;
+	size_t i;
+#pragma omp parallel for
+	for (i = 0; i < n; i++) {
+		float x = tanh_x(Z[i]);
+		grads[i] *= 1 - (x * x);
 	}
 }
 

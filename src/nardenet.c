@@ -10,7 +10,6 @@ int main(void) {
 
 	char* cfgfile = "C:\\Users\\TNard\\OneDrive\\Desktop\\dev\\Nardenet-main\\cfg\\nardenet2.cfg";
 	network* net = create_network_from_cfg(cfgfile);
-	print_network(net);
 	train(net);
 
 	/*free_network(net);
@@ -27,18 +26,17 @@ BUGS:
 
 PHASE 1:
  resize input images if needed
- fully connected tag for cfg files
  learning rate policies: step, adam, adagrad, rmsprop, cyclic rates maybe
  saving weights
  loading weights
- other activation functions
- other loss functions
+ other loss functions?
  data augmentation:
 	saturation, exposure, hue, mosaic, rotation (classifier only), jitter
  decay (not entirely sure what this is yet)
 
 PHASE 2:
  training progress graph
+ object detection
  group convolution (i.e. at group = 2, half of filters convolve over one half of the channels, the other
 	half of filters convolve over the other half of the filters. note: sometimes group convolutions
 	are followed up by a 1x1 convolution to maintain the same feature pooling as a normal 3x3 convolution.
@@ -46,8 +44,6 @@ PHASE 2:
  upsample layer (not super sure what this is yet)
  spatial pooling (not super sure what this is yet)
  multiple prediction heads
- object detection
-	- anchor boxes, IOU, NMS
  GPU support (cuda)
 
 PHASE 3:
@@ -55,7 +51,7 @@ PHASE 3:
  Speed Optimizations
  Python API
  GUI for running inference and training (Python based gui, probably tkinter since it's built in)
- Figure out how to load and display images without OpenCV (to make installation easier)
+ Figure out how to display images without OpenCV (to make installation easier)
  Make installation braindead easy
 
 PHASE 4:

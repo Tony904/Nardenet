@@ -15,6 +15,7 @@
 void build_input_layer(network* net);
 void build_layer(int i, network* net);
 void build_conv_layer(int i, network* net);
+void build_fc_layer(int i, network* net);
 void build_maxpool_layer(int i, network* net);
 void build_classify_layer(int i, network* net);
 void build_detect_layer(int i, network* net);
@@ -145,6 +146,76 @@ void build_conv_layer(int i, network* net) {
 	l->weights.n = l->n_filters * l->ksize * l->ksize * l->c;
 	l->weights.a = (float*)xcalloc(l->weights.n, sizeof(float));
 	l->biases = (float*)xcalloc(l->n_filters, sizeof(float));
+	l->grads = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	l->weight_grads = (float*)xcalloc(l->weights.n, sizeof(float));
+	l->bias_grads = (float*)xcalloc(l->n_filters, sizeof(float));
+	l->weights_velocity = (float*)xcalloc(l->weights.n, sizeof(float));
+	l->biases_velocity = (float*)xcalloc(l->n_filters, sizeof(float));
+	if (l->batch_norm) {
+		l->Z = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+		l->Z_norm = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+		l->means = (float*)xcalloc(l->out_c, sizeof(float));
+		l->variances = (float*)xcalloc(l->out_c, sizeof(float));
+		l->gammas = (float*)xcalloc(l->out_c, sizeof(float));
+		l->gamma_grads = (float*)xcalloc(l->out_c, sizeof(float));
+		l->gammas_velocity = (float*)xcalloc(l->out_c, sizeof(float));
+		fill_array(l->gammas, l->out_c, 1.0F);
+		l->rolling_means = (float*)xcalloc(l->out_c, sizeof(float));
+		l->rolling_variances = (float*)xcalloc(l->out_c, sizeof(float));
+	}
+	else {
+		l->Z = l->act_inputs;
+	}
+
+	l->forward = forward_conv;
+	l->backward = backward_conv;
+	l->update = update_conv;
+	set_activate(l);
+}
+
+void build_fc_layer(int i, network* net) {
+	layer* l = &(net->layers[i]);
+	layer* ls = net->layers;
+	assert(l->id == i);
+
+	if (l->in_ids.n == 0) {
+		l->in_ids.a = (int*)xcalloc(1, sizeof(int));
+		l->in_ids.a[0] = i - 1;
+		l->in_ids.n = 1;
+	}
+
+	l->in_layers = (layer**)xcalloc(l->in_ids.n, sizeof(layer*));
+	for (size_t j = 0; j < l->in_ids.n; j++) {
+		l->in_layers[j] = &ls[l->in_ids.a[j]];
+	}
+
+	l->w = l->in_layers[0]->out_w;
+	l->h = l->in_layers[0]->out_h;
+	l->c = l->in_layers[0]->out_c;
+	for (size_t j = 1; j < l->in_ids.n; j++) {
+		layer* inl = l->in_layers[i];
+		assert(l->w == inl->out_w);
+		assert(l->h == inl->out_h);
+		l->c += inl->out_c;
+	}
+	l->n = l->w * l->h * l->c;
+
+	l->pad = 0;
+	l->stride = 1;
+	assert(l->w == l->h);
+	l->ksize = l->w;
+
+	l->out_w = ((l->w + (l->pad * 2) - l->ksize) / l->stride) + 1;
+	l->out_h = ((l->h + (l->pad * 2) - l->ksize) / l->stride) + 1;
+	l->out_c = l->n_filters;
+	l->out_n = l->out_w * l->out_h * l->out_c;
+	l->act_inputs = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	l->weights.n = l->n_filters * l->ksize * l->ksize * l->c;
+	l->weights.a = (float*)xcalloc(l->weights.n, sizeof(float));
+	l->biases = (float*)xcalloc(l->n_filters, sizeof(float));
+	l->truth = (float*)xcalloc(net->n_classes * net->batch_size, sizeof(float));
+	l->errors = (float*)xcalloc(net->n_classes * net->batch_size, sizeof(float));
 	l->grads = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 	l->weight_grads = (float*)xcalloc(l->weights.n, sizeof(float));
 	l->bias_grads = (float*)xcalloc(l->n_filters, sizeof(float));

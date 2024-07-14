@@ -9,6 +9,7 @@
 #define hNET "[net]"
 #define hTRAINING "[training]"
 #define hCONV "[conv]"
+#define hFC "[fc]"
 #define hCLASSIFY "[classify]"
 #define hMAXPOOL "[maxpool]"
 #define hDETECT "[detect]"
@@ -348,6 +349,11 @@ int is_header(char* str, char* header, int* is_layer) {
 		*is_layer = 1;
 		return 1;
 	}
+	else if (strcmp(str, hFC) == 0) {
+		strcpy(header, hFC);
+		*is_layer = 1;
+		return 1;
+	}
 	return 0;
 }
 
@@ -420,6 +426,7 @@ LAYER_TYPE header2layertype(char* header) {
 	if (strcmp(header, hCLASSIFY) == 0) return LAYER_CLASSIFY;
 	if (strcmp(header, hMAXPOOL) == 0) return LAYER_MAXPOOL;
 	if (strcmp(header, hDETECT) == 0) return LAYER_DETECT;
+	if (strcmp(header, hFC) == 0) return LAYER_FC;
 	return LAYER_NONE;
 }
 
@@ -477,6 +484,7 @@ void print_cfg_layer(cfg_layer* l) {
 	else if (l->type == LAYER_CLASSIFY) printf(hCLASSIFY);
 	else if (l->type == LAYER_MAXPOOL) printf(hMAXPOOL);
 	else if (l->type == LAYER_DETECT) printf(hDETECT);
+	else if (l->type == LAYER_FC) printf(hFC);
 	printf("\nid = %d\n", l->id);
 	printf("train = %d\n", l->train);
 	printf("in_ids = ");
