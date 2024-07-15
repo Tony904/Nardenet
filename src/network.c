@@ -149,8 +149,7 @@ void build_conv_layer(int i, network* net) {
 	l->out_h = ((l->h + (l->pad * 2) - l->ksize) / l->stride) + 1;
 	l->out_c = l->n_filters;
 	l->out_n = l->out_w * l->out_h * l->out_c;
-	l->act_inputs = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-	l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	l->Z = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 	l->weights.n = l->n_filters * l->ksize * l->ksize * l->c;
 	l->weights.a = (float*)xcalloc(l->weights.n, sizeof(float));
 	l->biases = (float*)xcalloc(l->n_filters, sizeof(float));
@@ -160,8 +159,8 @@ void build_conv_layer(int i, network* net) {
 	l->weights_velocity = (float*)xcalloc(l->weights.n, sizeof(float));
 	l->biases_velocity = (float*)xcalloc(l->n_filters, sizeof(float));
 	if (l->batch_norm) {
-		l->Z = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 		l->Z_norm = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+		l->act_inputs = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 		l->means = (float*)xcalloc(l->out_c, sizeof(float));
 		l->variances = (float*)xcalloc(l->out_c, sizeof(float));
 		l->gammas = (float*)xcalloc(l->out_c, sizeof(float));
@@ -172,12 +171,16 @@ void build_conv_layer(int i, network* net) {
 		l->rolling_variances = (float*)xcalloc(l->out_c, sizeof(float));
 	}
 	else {
-		l->Z = l->act_inputs;
+		l->act_inputs = l->Z;
 	}
+
+	if (l->activation) l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	else l->output = l->act_inputs;
 
 	l->forward = forward_conv;
 	l->backward = backward_conv;
 	l->update = update_conv;
+	
 	set_activate(l);
 }
 
@@ -213,25 +216,24 @@ void build_fc_layer(int i, network* net) {
 	assert(l->w == l->h);
 	l->ksize = l->w;
 
+	// Calculate output dimensions.
 	l->out_w = ((l->w + (l->pad * 2) - l->ksize) / l->stride) + 1;
 	l->out_h = ((l->h + (l->pad * 2) - l->ksize) / l->stride) + 1;
 	l->out_c = l->n_filters;
 	l->out_n = l->out_w * l->out_h * l->out_c;
-	l->act_inputs = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-	l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+
+	l->Z = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 	l->weights.n = l->n_filters * l->ksize * l->ksize * l->c;
 	l->weights.a = (float*)xcalloc(l->weights.n, sizeof(float));
 	l->biases = (float*)xcalloc(l->n_filters, sizeof(float));
-	l->truth = (float*)xcalloc(net->n_classes * net->batch_size, sizeof(float));
-	l->errors = (float*)xcalloc(net->n_classes * net->batch_size, sizeof(float));
 	l->grads = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 	l->weight_grads = (float*)xcalloc(l->weights.n, sizeof(float));
 	l->bias_grads = (float*)xcalloc(l->n_filters, sizeof(float));
 	l->weights_velocity = (float*)xcalloc(l->weights.n, sizeof(float));
 	l->biases_velocity = (float*)xcalloc(l->n_filters, sizeof(float));
 	if (l->batch_norm) {
-		l->Z = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 		l->Z_norm = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+		l->act_inputs = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 		l->means = (float*)xcalloc(l->out_c, sizeof(float));
 		l->variances = (float*)xcalloc(l->out_c, sizeof(float));
 		l->gammas = (float*)xcalloc(l->out_c, sizeof(float));
@@ -242,8 +244,11 @@ void build_fc_layer(int i, network* net) {
 		l->rolling_variances = (float*)xcalloc(l->out_c, sizeof(float));
 	}
 	else {
-		l->Z = l->act_inputs;
+		l->act_inputs = l->Z;
 	}
+
+	if (l->activation) l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	else l->output = l->act_inputs;
 
 	l->forward = forward_conv;
 	l->backward = backward_conv;
@@ -287,25 +292,28 @@ void build_classify_layer(int i, network* net) {
 	assert(l->w == l->h);
 	l->ksize = l->w;
 
+	
+
+	// Calculate output dimensions.
 	l->out_w = ((l->w + (l->pad * 2) - l->ksize) / l->stride) + 1;
 	l->out_h = ((l->h + (l->pad * 2) - l->ksize) / l->stride) + 1;
 	l->out_c = l->n_filters;
 	l->out_n = l->out_w * l->out_h * l->out_c;
-	l->act_inputs = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-	l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+
+	l->Z = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 	l->weights.n = l->n_filters * l->ksize * l->ksize * l->c;
 	l->weights.a = (float*)xcalloc(l->weights.n, sizeof(float));
 	l->biases = (float*)xcalloc(l->n_filters, sizeof(float));
-	l->truth = (float*)xcalloc(net->n_classes * net->batch_size, sizeof(float));
-	l->errors = (float*)xcalloc(net->n_classes * net->batch_size, sizeof(float));
 	l->grads = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 	l->weight_grads = (float*)xcalloc(l->weights.n, sizeof(float));
 	l->bias_grads = (float*)xcalloc(l->n_filters, sizeof(float));
 	l->weights_velocity = (float*)xcalloc(l->weights.n, sizeof(float));
 	l->biases_velocity = (float*)xcalloc(l->n_filters, sizeof(float));
+	l->truth = (float*)xcalloc(net->n_classes * net->batch_size, sizeof(float));
+	l->errors = (float*)xcalloc(net->n_classes * net->batch_size, sizeof(float));
 	if (l->batch_norm) {
-		l->Z = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 		l->Z_norm = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+		l->act_inputs = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 		l->means = (float*)xcalloc(l->out_c, sizeof(float));
 		l->variances = (float*)xcalloc(l->out_c, sizeof(float));
 		l->gammas = (float*)xcalloc(l->out_c, sizeof(float));
@@ -316,13 +324,18 @@ void build_classify_layer(int i, network* net) {
 		l->rolling_variances = (float*)xcalloc(l->out_c, sizeof(float));
 	}
 	else {
-		l->Z = l->act_inputs;
+		l->act_inputs = l->Z;
 	}
+	
+	if (l->activation) l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	else l->output = l->act_inputs;
 	
 	l->forward = forward_classify;
 	l->backward = backward_classify;
 	l->update = update_classify;
+
 	set_activate(l);
+
 	set_loss(l);
 }
 
@@ -377,7 +390,7 @@ void build_maxpool_layer(int i, network* net) {
 	l->grads = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 	l->maxpool_addresses = (float**)xcalloc(l->out_n * net->batch_size, sizeof(float*));
 
-	l->forward = forward_maxpool;
+	l->forward = (l->ksize != 2 || l->stride != 2) ? forward_maxpool_general : forward_maxpool;
 	l->backward = backward_maxpool;
 	l->update = update_none;
 }
@@ -422,9 +435,12 @@ void build_residual_layer(int i, network* net) {
 	l->out_c = l->c;
 	l->out_n = l->out_w * l->out_h * l->out_c;
 
-	if (l->activation) l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 	l->Z = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	l->act_inputs = l->Z;
 	l->grads = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+
+	if (l->activation) l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	else l->output = l->Z;
 
 	l->forward = forward_residual;
 	l->backward = backward_residual;

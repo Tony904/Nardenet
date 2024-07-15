@@ -7,8 +7,7 @@
 #include "xallocs.h"
 
 
-void maxpool(layer* l, size_t batch_size);
-void maxpool_general(layer* l, size_t batch_size);
+
 
 
 // https://github.com/BVLC/caffe/blob/master/src/caffe/util/im2col.cpp
@@ -16,14 +15,9 @@ inline static int is_a_ge_zero_and_a_lt_b(int aa, int bb) {
 	return (unsigned)(aa) < (unsigned)(bb);
 }
 
+/* Standard maxpool operation with ksize = 2, pad = 0, stride = 2 */
 void forward_maxpool(layer* l, network* net) {
 	size_t batch_size = net->batch_size;
-	maxpool(l, batch_size);
-	if (net->training) zero_array(l->grads, l->out_n * batch_size);
-}
-
-/* Standard maxpool operation with ksize = 2, pad = 0, stride = 2 */
-void maxpool(layer* l, size_t batch_size) {
 	size_t ksize = 2;
 	size_t stride = 2;
 	size_t w = l->w;
@@ -83,10 +77,12 @@ void maxpool(layer* l, size_t batch_size) {
 			b_max_ptrs += out_wh * inl_out_c;
 		}
 	}
+	if (net->training) zero_array(l->grads, l->out_n * batch_size);
 }
 
 /* Version of maxpool that allows for any ksize, pad, and stride. */
-void maxpool_general(layer* l, size_t batch_size) {
+void forward_maxpool_general(layer* l, network* net) {
+	size_t batch_size = net->batch_size;
 	int ksize = (int)l->ksize;
 	int pad = (int)l->pad;
 	int stride = (int)l->stride;
@@ -153,9 +149,8 @@ void maxpool_general(layer* l, size_t batch_size) {
 			b_max_ptrs += out_wh * inl_out_c;
 		}
 	}
+	if (net->training) zero_array(l->grads, l->out_n * batch_size);
 }
-
-
 
 #pragma warning(suppress:4100)  // unreferenced formal parameter: 'net'
 void backward_maxpool(layer* l, network* net) {

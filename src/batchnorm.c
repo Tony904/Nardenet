@@ -49,7 +49,7 @@ void forward_batch_norm(layer* l, size_t batch_size) {
 		}
 		variances[f] = sum / SB;
 	}
-	// calculate Z_norm
+	// calculate Z_norm and apply scaling and shift
 #pragma omp parallel for firstprivate(S, B, out_n)
 	for (f = 0; f < F; f++) {
 		float mean = means[f];

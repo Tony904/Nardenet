@@ -253,7 +253,7 @@ void copy_cfg_to_network(cfg* cfig, network* net) {
 		assert(noed);
 		layer* l = &net->layers[i];
 		cfg_layer* cl = (cfg_layer*)noed->val;
-		assert(cl->id == i);
+		cl->id = i;
 		l->id = cl->id;
 		l->type = cl->type;
 		l->activation = cl->activation;
@@ -398,6 +398,7 @@ ACTIVATION str2activation(char* str) {
 	if (strcmp(str, "sigmoid") == 0) return ACT_SIGMOID;
 	if (strcmp(str, "softmax") == 0) return ACT_SOFTMAX;
 	if (strcmp(str, "tanh") == 0) return ACT_TANH;
+	if (strcmp(str, "none") == 0) return ACT_NONE;
 	fprintf(stderr, "Error: No valid activation named %s.\n", str);
 	exit(EXIT_FAILURE);
 }

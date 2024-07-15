@@ -38,11 +38,12 @@ void forward_conv(layer* l, network* net) {
 	}
 	if (l->batch_norm) {
 		forward_batch_norm(l, batch_size);
-		l->activate(l->Z_norm, l->output, out_n, batch_size);
+		l->activate(l->act_inputs, l->output, out_n, batch_size);
 	}
 	else {
+		// l->Z == l->act_inputs when batchnorm disabled
 		add_biases(l->Z, l->biases, M, N, batch_size);
-		l->activate(l->Z, l->output, out_n, batch_size);  // note: l->Z == l->act_inputs when batchnorm disabled
+		l->activate(l->Z, l->output, out_n, batch_size);
 	}
 	if (net->training) zero_array(l->grads, out_n * batch_size);
 }
@@ -53,11 +54,12 @@ void backward_conv(layer* l, network* net) {
 	// dz/dw = previous layer (shallower layer) input
 	// da/dz = activation derivative
 	if (l->type == LAYER_CONV) {
-		if (l->activation == ACT_MISH) get_grads_mish(grads, l->Z, l->out_n, batch_size);  // dC/da * da/dz
-		else if (l->activation == ACT_RELU) get_grads_relu(grads, l->Z, l->out_n, batch_size);
-		else if (l->activation == ACT_LEAKY) get_grads_leaky_relu(grads, l->Z, l->out_n, batch_size);
-		else if (l->activation == ACT_SIGMOID) get_grads_sigmoid(grads, l->Z, l->out_n, batch_size);
-		else if (l->activation == ACT_TANH) get_grads_tanh(grads, l->Z, l->out_n, batch_size);
+		if (l->activation == ACT_MISH) get_grads_mish(grads, l->act_inputs, l->out_n, batch_size);  // dC/da * da/dz
+		else if (l->activation == ACT_RELU) get_grads_relu(grads, l->act_inputs, l->out_n, batch_size);
+		else if (l->activation == ACT_LEAKY) get_grads_leaky_relu(grads, l->act_inputs, l->out_n, batch_size);
+		else if (l->activation == ACT_SIGMOID) get_grads_sigmoid(grads, l->output, l->out_n, batch_size);
+		else if (l->activation == ACT_TANH) get_grads_tanh(grads, l->act_inputs, l->out_n, batch_size);
+		else if (l->activation == ACT_NONE);
 		else {
 			printf("Incorrect or unsupported activation function.\n");
 			exit(EXIT_FAILURE);
