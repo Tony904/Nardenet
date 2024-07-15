@@ -42,7 +42,7 @@ void load_image_stbi_to_buffer(char* filename, size_t* w, size_t* h, size_t* c, 
 	size_t N = (size_t)n;
 	size_t size = X * Y * N;
 	if (size != expected_size) {
-		printf("Expected image size (%zu) does not equal actual image size (%zu).\n", expected_size, size);
+		printf("Expected image size (%zu,%zu,%zu) does not equal actual image size (%zu,%zu,%zu).\n", *w, *h, *c, X, Y, N);
 		wait_for_key_then_exit();
 	}
 	for (size_t i = 0; i < size; i++) {

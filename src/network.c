@@ -7,6 +7,7 @@
 #include "layer_conv.h"
 #include "layer_classify.h"
 #include "layer_maxpool.h"
+#include "layer_residual.h"
 #include "activations.h"
 #include "loss.h"
 #include "derivatives.h"
@@ -17,11 +18,15 @@ void build_layer(int i, network* net);
 void build_conv_layer(int i, network* net);
 void build_fc_layer(int i, network* net);
 void build_maxpool_layer(int i, network* net);
+void build_residual_layer(int i, network* net);
 void build_classify_layer(int i, network* net);
 void build_detect_layer(int i, network* net);
 
 void set_activate(layer* l);
 void set_loss(layer* l);
+
+size_t get_train_params_count(network* net);
+size_t get_layer_param_count(layer* l);
 
 void free_network(network* net);
 void free_network_layers(network* net);
@@ -30,6 +35,7 @@ void free_layer_members(layer* l);
 void print_layer_conv(layer* l);
 void print_layer_classify(layer* l);
 void print_layer_maxpool(layer* l);
+void print_layer_residual(layer* l);
 
 
 network* new_network(size_t num_of_layers) {
@@ -72,6 +78,8 @@ void build_layer(int i, network* net) {
 	if (l->type == LAYER_CONV) build_conv_layer(i, net);
 	else if (l->type == LAYER_CLASSIFY) build_classify_layer(i, net);
 	else if (l->type == LAYER_MAXPOOL) build_maxpool_layer(i, net);
+	else if (l->type == LAYER_FC) build_fc_layer(i, net);
+	else if (l->type == LAYER_RESIDUAL) build_residual_layer(i, net);
 	else if (l->type == LAYER_DETECT) build_detect_layer(i, net);
 	else {
 		printf("Unknown layer type: %d\n", (int)l->type);
@@ -99,7 +107,7 @@ void build_input_layer(network* net) {
 void build_conv_layer(int i, network* net) {
 	layer* l = &(net->layers[i]);
 	layer* ls = net->layers;
-	assert(l->id == i);
+	l->id = i;
 
 	// Set default in_ids and out_ids if none specified.
 	if (l->in_ids.n == 0) {
@@ -176,7 +184,7 @@ void build_conv_layer(int i, network* net) {
 void build_fc_layer(int i, network* net) {
 	layer* l = &(net->layers[i]);
 	layer* ls = net->layers;
-	assert(l->id == i);
+	l->id = i;
 
 	if (l->in_ids.n == 0) {
 		l->in_ids.a = (int*)xcalloc(1, sizeof(int));
@@ -247,7 +255,7 @@ void build_fc_layer(int i, network* net) {
 void build_classify_layer(int i, network* net) {
 	layer* l = &(net->layers[i]);
 	layer* ls = net->layers;
-	assert(l->id == i);
+	l->id = i;
 
 	if (l->n_classes == 0) l->n_classes = net->n_classes;
 	l->n_filters = l->n_classes;
@@ -322,7 +330,7 @@ void build_classify_layer(int i, network* net) {
 void build_maxpool_layer(int i, network* net) {
 	layer* l = &(net->layers[i]);
 	layer* ls = net->layers;
-	assert(l->id == i);
+	l->id = i;
 
 	// Set default in_ids and out_ids if none specified.
 	if (l->in_ids.n == 0) {
@@ -374,11 +382,62 @@ void build_maxpool_layer(int i, network* net) {
 	l->update = update_none;
 }
 
+void build_residual_layer(int i, network* net) {
+	layer* l = &(net->layers[i]);
+	layer* ls = net->layers;
+	l->id = i;
+
+	// Set default in_ids and out_ids if none specified.
+	if (l->in_ids.n == 0) {
+		l->in_ids.a = (int*)xcalloc(1, sizeof(int));
+		l->in_ids.a[0] = i - 1;
+		l->in_ids.n = 1;
+	}
+	if (l->out_ids.n == 0) {
+		l->out_ids.a = (int*)xcalloc(1, sizeof(int));
+		l->out_ids.a[0] = i + 1;
+		l->out_ids.n = 1;
+	}
+
+	// Build array of input layer addresses.
+	l->in_layers = (layer**)xcalloc(l->in_ids.n, sizeof(layer*));
+	if (i > 0) {
+		for (size_t j = 0; j < l->in_ids.n; j++) {
+			l->in_layers[j] = &ls[l->in_ids.a[j]];
+		}
+	}
+	else { // if first layer
+		l->in_layers[0] = net->input;
+	}
+
+	// Calculate input dimensions.
+	l->w = l->in_layers[0]->out_w;
+	l->h = l->in_layers[0]->out_h;
+	l->c = l->in_layers[0]->out_c;
+	l->n = l->w * l->h * l->c;
+
+	// Calculate output dimensions.
+	l->out_w = l->w;
+	l->out_h = l->h;
+	l->out_c = l->c;
+	l->out_n = l->out_w * l->out_h * l->out_c;
+
+	if (l->activation) l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	l->Z = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	l->grads = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+
+	l->forward = forward_residual;
+	l->backward = backward_residual;
+	l->update = update_none;
+
+	set_activate(l);
+}
+
 void build_detect_layer(int i, network* net) {
 	// UNDER CONSTRUCTION - COPY/PASTED BUILD_CONV_LAYER FOR NOW
 	layer* l = &(net->layers[i]);
 	layer* ls = net->layers;
-	assert(l->id == i);
+	l->id = i;
 
 	// Set default in_ids and out_ids if none specified.
 	if (l->in_ids.n == 0) {
@@ -444,6 +503,9 @@ void set_activate(layer* l) {
 		break;
 	case ACT_LEAKY:
 		l->activate = activate_leaky_relu;
+		break;
+	case ACT_TANH:
+		l->activate = activate_tanh;
 		break;
 	case ACT_SOFTMAX:
 		l->activate = activate_softmax;
@@ -567,6 +629,8 @@ void print_layer(layer* l) {
 	if (l->type == LAYER_CONV) print_layer_conv(l);
 	else if (l->type == LAYER_CLASSIFY) print_layer_classify(l);
 	else if (l->type == LAYER_MAXPOOL) print_layer_maxpool(l);
+	else if (l->type == LAYER_FC) print_layer_conv(l);
+	else if (l->type == LAYER_RESIDUAL) print_layer_residual(l);
 	else printf("NONE_LAYER\n");
 }
 
@@ -599,6 +663,8 @@ void print_layer_classify(layer* l) {
 	printf("id: %d\n", l->id);
 	printf("layer_type: ");
 	print_layertype(l->type);
+	printf("activation: ");
+	print_activation(l->activation);
 	printf("loss: ");
 	print_loss_type(l->loss_type);
 	printf("# of classes: %zu\n", l->n_classes);
@@ -624,8 +690,24 @@ void print_layer_maxpool(layer* l) {
 	printf("pad: %zu\n", l->pad);
 	printf("# of inputs: %zu\n", l->n);
 	printf("# of outputs: %zu\n", l->out_n);
-	printf("# of weights: %zu\n", l->weights.n);
 	printf("train: %d\n", l->train);
+	printf("in_ids: ");
+	print_intarr(&(l->in_ids));
+	printf("out_ids: ");
+	print_intarr(&(l->out_ids));
+	printf("[END LAYER]\n");
+}
+
+void print_layer_residual(layer* l) {
+	printf("\n[LAYER]\n");
+	printf("id: %d\n", l->id);
+	printf("layer_type: ");
+	print_layertype(l->type);
+	printf("activation: ");
+	print_activation(l->activation);
+	printf("w, h, c: %zu, %zu, %zu\n", l->w, l->h, l->c);
+	printf("# of inputs: %zu\n", l->n);
+	printf("# of outputs: %zu\n", l->out_n);
 	printf("in_ids: ");
 	print_intarr(&(l->in_ids));
 	printf("out_ids: ");
@@ -642,6 +724,8 @@ void print_layertype(LAYER_TYPE lt) {
 	if (lt == LAYER_CONV) printf("conv\n");
 	else if (lt == LAYER_CLASSIFY) printf("classify\n");
 	else if (lt == LAYER_MAXPOOL) printf("maxpool\n");
+	else if (lt == LAYER_FC) printf("fc\n");
+	else if (lt == LAYER_RESIDUAL) printf("residual\n");
 	else printf("NONE\n");
 }
 
@@ -651,6 +735,7 @@ void print_activation(ACTIVATION a) {
 	else if (a == ACT_MISH) printf("mish\n");
 	else if (a == ACT_SIGMOID) printf("sigmoid\n");
 	else if (a == ACT_SOFTMAX) printf("softmax\n");
+	else if (a == ACT_TANH) printf("tanh\n");
 	else printf("NONE\n");
 }
 
@@ -717,11 +802,30 @@ void print_network_summary(network* net, int print_training_params) {
 		printf("Batch size: %zu\n"
 			"Learning rate: %f\n"
 			"Momentum: %f\n"
-			"Iterations: %zu\n",
-			net->batch_size, net->learning_rate, net->momentum, net->max_iterations);
+			"Iterations: %zu\n"
+			"# of trainable params: %zu\n",
+			net->batch_size, net->learning_rate, net->momentum, net->max_iterations, get_train_params_count(net));
 	}
 	printf("\n");
+}
 
+size_t get_train_params_count(network* net) {
+	size_t n_layers = net->n_layers;
+	layer* ls = net->layers;
+	size_t sum = 0;
+	size_t i;
+#pragma omp parallel for reduction(+:sum)
+	for (i = 0; i < n_layers; i++) {
+		sum += get_layer_param_count(&ls[i]);
+	}
+	return sum;
+}
+
+size_t get_layer_param_count(layer* l) {
+	size_t N = l->weights.n;
+	N += l->n_filters;  // # of biases
+	if (l->batch_norm) N += l->out_c * 3;  // gammas, rolling means & variances
+	return N;
 }
 
 void print_prediction_results(network* net, layer* prediction_layer) {

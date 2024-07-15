@@ -19,6 +19,7 @@ void loss_mse(layer* l, network* net) {
 			float delta = output[index] - truth[index];
 			errors[index] = delta * delta;
 			grads[index] = delta;  // is not 2 * delta because it doesn't matter apparently despite d/dx(x^2) == 2x
+			loss += errors[index];
 		}
 	}
 }
@@ -72,6 +73,7 @@ void loss_sigmoid_cce(layer* l, network* net) {
 			float p = output[index];
 			errors[index] = -t * log(p) - (1 - t) * log(1 - p);
 			grads[index] = p - t;
+			loss += errors[index];
 		}
 	}
 }

@@ -10,8 +10,9 @@
 #define hTRAINING "[training]"
 #define hCONV "[conv]"
 #define hFC "[fc]"
-#define hCLASSIFY "[classify]"
 #define hMAXPOOL "[maxpool]"
+#define hRESIDUAL "[residual]"
+#define hCLASSIFY "[classify]"
 #define hDETECT "[detect]"
 
 #define LINESIZE 512
@@ -354,6 +355,11 @@ int is_header(char* str, char* header, int* is_layer) {
 		*is_layer = 1;
 		return 1;
 	}
+	else if (strcmp(str, hRESIDUAL) == 0) {
+		strcpy(header, hRESIDUAL);
+		*is_layer = 1;
+		return 1;
+	}
 	return 0;
 }
 
@@ -391,6 +397,7 @@ ACTIVATION str2activation(char* str) {
 	if (strcmp(str, "leaky") == 0) return ACT_LEAKY;
 	if (strcmp(str, "sigmoid") == 0) return ACT_SIGMOID;
 	if (strcmp(str, "softmax") == 0) return ACT_SOFTMAX;
+	if (strcmp(str, "tanh") == 0) return ACT_TANH;
 	fprintf(stderr, "Error: No valid activation named %s.\n", str);
 	exit(EXIT_FAILURE);
 }
@@ -427,6 +434,7 @@ LAYER_TYPE header2layertype(char* header) {
 	if (strcmp(header, hMAXPOOL) == 0) return LAYER_MAXPOOL;
 	if (strcmp(header, hDETECT) == 0) return LAYER_DETECT;
 	if (strcmp(header, hFC) == 0) return LAYER_FC;
+	if (strcmp(header, hRESIDUAL) == 0) return LAYER_RESIDUAL;
 	return LAYER_NONE;
 }
 
@@ -485,6 +493,7 @@ void print_cfg_layer(cfg_layer* l) {
 	else if (l->type == LAYER_MAXPOOL) printf(hMAXPOOL);
 	else if (l->type == LAYER_DETECT) printf(hDETECT);
 	else if (l->type == LAYER_FC) printf(hFC);
+	else if (l->type == LAYER_RESIDUAL) printf(hRESIDUAL);
 	printf("\nid = %d\n", l->id);
 	printf("train = %d\n", l->train);
 	printf("in_ids = ");

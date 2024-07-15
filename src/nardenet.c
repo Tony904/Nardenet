@@ -8,7 +8,7 @@ int main(void) {
 
 	srand(7777777);
 
-	char* cfgfile = "C:\\Users\\TNard\\OneDrive\\Desktop\\dev\\Nardenet-main\\cfg\\nardenet-alexnetish.cfg";
+	char* cfgfile = "C:\\Users\\TNard\\OneDrive\\Desktop\\dev\\Nardenet-main\\cfg\\nardenet-residuals.cfg";
 	network* net = create_network_from_cfg(cfgfile);
 	train(net);
 
@@ -25,7 +25,7 @@ int main(void) {
 BUGS:
 
 PHASE 1:
- actual residual connections (activation of layer concatenated with Z of deeper layer)
+ residual layer - make sure it works
  resize input images if needed
  learning rate policies: step, adam, adagrad, rmsprop, cyclic rates maybe
  saving weights

@@ -17,21 +17,21 @@ void forward_conv(layer* l, network* net) {
 	size_t out_n = l->out_n;
 	size_t batch_size = net->batch_size;
 	zero_array(l->Z, out_n * batch_size);
-	int w = (int)l->w;
-	int h = (int)l->h;
-	int M = (int)(l->n_filters);
-	int N = (int)(l->out_w * l->out_h);
-	int K = (int)(l->ksize * l->ksize * l->c);
+	size_t w = l->w;
+	size_t h = l->h;
+	size_t M = l->n_filters;
+	size_t N = l->out_w * l->out_h;
+	size_t K = l->ksize * l->ksize * l->c;
 	float* A = l->weights.a;  // M * K
-	for (int s = 0; s < (int)batch_size; s++) {
+	for (size_t s = 0; s < batch_size; s++) {
 		float* B = net->workspace.a;  // K * N
 		float* B0 = B;
-		for (int i = 0; i < l->in_ids.n; i++) {
+		for (size_t i = 0; i < l->in_ids.n; i++) {
 			layer* inl = l->in_layers[i];
-			int c = (int)inl->out_c;
+			size_t c = inl->out_c;
 			float* im = &inl->output[s * inl->out_n];
-			im2col(im, c, h, w, (int)l->ksize, (int)l->pad, (int)l->stride, B);
-			B += K * (int)(l->ksize * l->ksize) * c;
+			im2col(im, (int)c, (int)h, (int)w, (int)l->ksize, (int)l->pad, (int)l->stride, B);
+			B += K * l->ksize * l->ksize * c;
 		}
 		float* C = &l->Z[s * M * N];  // M * N
 		gemm(M, N, K, A, B0, C);
@@ -41,7 +41,7 @@ void forward_conv(layer* l, network* net) {
 		l->activate(l->Z_norm, l->output, out_n, batch_size);
 	}
 	else {
-		add_biases(l->Z, l->biases, M, N, (int)batch_size);
+		add_biases(l->Z, l->biases, M, N, batch_size);
 		l->activate(l->Z, l->output, out_n, batch_size);  // note: l->Z == l->act_inputs when batchnorm disabled
 	}
 	if (net->training) zero_array(l->grads, out_n * batch_size);
@@ -56,6 +56,8 @@ void backward_conv(layer* l, network* net) {
 		if (l->activation == ACT_MISH) get_grads_mish(grads, l->Z, l->out_n, batch_size);  // dC/da * da/dz
 		else if (l->activation == ACT_RELU) get_grads_relu(grads, l->Z, l->out_n, batch_size);
 		else if (l->activation == ACT_LEAKY) get_grads_leaky_relu(grads, l->Z, l->out_n, batch_size);
+		else if (l->activation == ACT_SIGMOID) get_grads_sigmoid(grads, l->Z, l->out_n, batch_size);
+		else if (l->activation == ACT_TANH) get_grads_tanh(grads, l->Z, l->out_n, batch_size);
 		else {
 			printf("Incorrect or unsupported activation function.\n");
 			exit(EXIT_FAILURE);
@@ -64,29 +66,29 @@ void backward_conv(layer* l, network* net) {
 	// grads[] is now dC/dz.
 	
 	// now get dz/dw for each weight (it's just the input from the previous layer in the forward pass).
-	int M = (int)l->n_filters;
-	int N = (int)(l->ksize * l->ksize * l->c); // filter length
-	int K = (int)(l->out_w * l->out_h); // # of patches
+	size_t M = l->n_filters;
+	size_t N = l->ksize * l->ksize * l->c; // filter length
+	size_t K = l->out_w * l->out_h; // # of patches
 
 	// sum dC/dz for each filter to get it's bias gradients.
-	get_bias_grads(l->bias_grads, grads, M, K, (int)batch_size);
+	get_bias_grads(l->bias_grads, grads, M, K, batch_size);
 
 	if (l->batch_norm) backward_batch_norm(l, batch_size);
 
-	int w = (int)l->w;
-	int h = (int)l->h;
-	for (int s = 0; s < (int)batch_size; s++) {
+	size_t w = l->w;
+	size_t h = l->h;
+	for (size_t s = 0; s < batch_size; s++) {
 		float* A = &grads[s * M * K];  // M * K
 		float* B = net->workspace.a;  // N * K
 		zero_array(B, (size_t)(N * K));
 		float* B0 = B;
 		float* C = l->weight_grads;  // M * N
-		for (int i = 0; i < l->in_ids.n; i++) {
+		for (size_t i = 0; i < l->in_ids.n; i++) {
 			layer* inl = l->in_layers[i];
-			int c = (int)inl->out_c;
+			size_t c = inl->out_c;
 			float* im = inl->output;
-			im2col(im, c, h, w, (int)l->ksize, (int)l->pad, (int)l->stride, B);
-			B += N * (int)(l->ksize * l->ksize) * c;
+			im2col(im, (int)c, (int)h, (int)w, (int)l->ksize, (int)l->pad, (int)l->stride, B);
+			B += N * l->ksize * l->ksize * c;
 		}
 		B = B0;
 		gemm_atb(M, N, K, A, B, C);
@@ -101,7 +103,7 @@ void backward_conv(layer* l, network* net) {
 	// Note: Weight gradients DO NOT propagate back, they are just used to update the weights.
 
 	if (l->id == 0) return;
-	for (int s = 0; s < (int)batch_size; s++) {
+	for (size_t s = 0; s < batch_size; s++) {
 		float* A = l->weights.a;  // M * N
 		float* B = &grads[s * M * K];  // M * K
 		float* C = net->workspace.a;  // N * K
@@ -111,11 +113,11 @@ void backward_conv(layer* l, network* net) {
 		// So now we need to turn this "expanded" form (col) into the form of the dimensions of
 		// the output of the input layer (im). We do this using col2im().
 
-		for (int i = 0; i < l->in_ids.n; i++) {
+		for (size_t i = 0; i < l->in_ids.n; i++) {
 			layer* inl = l->in_layers[i];
-			int c = (int)inl->out_c;
+			size_t c = inl->out_c;
 			float* im = &inl->grads[s * w * h * c];
-			col2im(C, c, h, w, (int)l->ksize, (int)l->pad, (int)l->stride, im);
+			col2im(C, (int)c, (int)h, (int)w, (int)l->ksize, (int)l->pad, (int)l->stride, im);
 		}
 	}
 }

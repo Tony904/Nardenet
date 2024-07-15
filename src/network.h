@@ -159,6 +159,7 @@ extern "C" {
         LAYER_MAXPOOL,
         LAYER_FC,
         LAYER_CLASSIFY,
+        LAYER_RESIDUAL,
         LAYER_DETECT
     } LAYER_TYPE;
 
@@ -172,6 +173,7 @@ extern "C" {
         ACT_LEAKY,
         ACT_MISH,
         ACT_SIGMOID,
+        ACT_TANH,
         ACT_SOFTMAX
     } ACTIVATION;
 

@@ -4,22 +4,22 @@
 #include "xallocs.h"
 
 
-void print_test_matrix(int rows, int cols, int channels, float* matrix);
+void print_test_matrix(size_t rows, size_t cols, size_t channels, float* matrix);
 
 
-void gemm(int M, int N, int K, float* A, float* B, float* C) {
+void gemm(size_t M, size_t N, size_t K, float* A, float* B, float* C) {
 	/*M = # of filters
 	N = # of patches (# of dot products performed per filter)
 	K = # of weights per filter
 	A = filter matrix (M * K)
 	B = expanded input matrix (K * N)
 	C = output dot products (M * N)*/
-	int m;
+	size_t m;
 #pragma omp parallel for
 	for (m = 0; m < M; m++) {
-		for (int k = 0; k < K; k++) {
+		for (size_t k = 0; k < K; k++) {
 			float a = A[m * K + k];
-			for (int n = 0; n < N; n++) {
+			for (size_t n = 0; n < N; n++) {
 				C[m * N + n] += a * B[k * N + n];
 			}
 		}
@@ -27,7 +27,7 @@ void gemm(int M, int N, int K, float* A, float* B, float* C) {
 }
 
 /*A[M*K], B[N*K], BT[K*N], C[M*N]*/
-void gemm_atb(int M, int N, int K, float* A, float* B, float* C) {
+void gemm_atb(size_t M, size_t N, size_t K, float* A, float* B, float* C) {
 	// M = # of filters
 	// N = # of weights per filter
 	// K = # of patches
@@ -35,13 +35,13 @@ void gemm_atb(int M, int N, int K, float* A, float* B, float* C) {
 	// B = N * K -> transpose -> K * N
 	// C = M * N
 	//printf("gemm_atb...");
-	int m;
+	size_t m;
 #pragma omp parallel for
 	for (m = 0; m < M; m++) {
-		for (int k = 0; k < K; k++) {
+		for (size_t k = 0; k < K; k++) {
 			float a = A[m * K + k];
-			int mN = m * N;
-			for (int n = 0; n < N; n++) {
+			size_t mN = m * N;
+			for (size_t n = 0; n < N; n++) {
 				C[mN + n] += a * B[n * K + k];
 			}
 		}
@@ -50,32 +50,30 @@ void gemm_atb(int M, int N, int K, float* A, float* B, float* C) {
 }
 
 /*A[M*N], AT[N*M], B[M*K], C[N*K]*/
-void gemm_tab(int M, int N, int K, float* A, float* B, float* C) {
+void gemm_tab(size_t M, size_t N, size_t K, float* A, float* B, float* C) {
 	// M = # of filters
 	// N = # of weights per filter
 	// K = # of patches
 	// A = M * N -> transpose -> N * M
 	// B = M * K
 	// C = N * K
-	int m;
+	size_t m;
 #pragma omp parallel for
 	for (m = 0; m < M; m++) {
-		for (int n = 0; n < N; n++) {
+		for (size_t n = 0; n < N; n++) {
 			float a = A[m * N + n];
-			int nK = n * K;
-			int mK = m * K;
-			for (int k = 0; k < K; k++) {
+			size_t nK = n * K;
+			size_t mK = m * K;
+			for (size_t k = 0; k < K; k++) {
 				C[nK + k] += a * B[mK + k];
 			}
 		}
 	}
 }
 
-/*M = # of filters, N = out_w * out_h*/
+/*F = # of filters, S = out_w * out_h*/
 #pragma warning(suppress:4100) // temporary
-void add_biases(float* output, float* biases, int M, int N, int batch_size) {
-	size_t F = (size_t)M;
-	size_t S = (size_t)N;
+void add_biases(float* output, float* biases, size_t F, size_t S, size_t batch_size) {
 	size_t B = (size_t)batch_size;
 	size_t out_n = F * S;
 	size_t f;
@@ -91,10 +89,8 @@ void add_biases(float* output, float* biases, int M, int N, int batch_size) {
 }
 
 /*M = # of filters, K = out_w * out_h*/
-void get_bias_grads(float* bias_grads, float* grads, int M, int K, int batch_size) {
-	size_t F = (size_t)M;
-	size_t S = (size_t)K;
-	size_t B = (size_t)batch_size;
+void get_bias_grads(float* bias_grads, float* grads, size_t F, size_t S, size_t batch_size) {
+	size_t B = batch_size;
 	size_t out_n = F * S;
 	size_t f;
 #pragma omp parallel for firstprivate(out_n)
@@ -170,12 +166,12 @@ void test_gemm_tab(void) {
 	print_test_matrix(N, K, 1, C);
 }
 
-void print_test_matrix(int rows, int cols, int channels, float* matrix) {
-	for (int ch = 0; ch < channels; ch++) {
-		printf("Channel: %d\n", ch);
-		for (int r = 0; r < rows; r++) {
+void print_test_matrix(size_t rows, size_t cols, size_t channels, float* matrix) {
+	for (size_t ch = 0; ch < channels; ch++) {
+		printf("Channel: %zu\n", ch);
+		for (size_t r = 0; r < rows; r++) {
 			printf("%0.1f", matrix[ch * cols * rows + r * cols]);
-			for (int c = 1; c < cols; c++) {
+			for (size_t c = 1; c < cols; c++) {
 				printf(", %0.1f", matrix[ch * cols * rows + r * cols + c]);
 			}
 			printf("\n");
