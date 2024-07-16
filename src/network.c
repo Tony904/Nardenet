@@ -640,6 +640,25 @@ void free_layer_members(layer* l) {
 	}
 }
 
+size_t get_train_params_count(network* net) {
+	size_t n_layers = net->n_layers;
+	layer* ls = net->layers;
+	size_t sum = 0;
+	size_t i;
+#pragma omp parallel for reduction(+:sum)
+	for (i = 0; i < n_layers; i++) {
+		sum += get_layer_param_count(&ls[i]);
+	}
+	return sum;
+}
+
+size_t get_layer_param_count(layer* l) {
+	size_t N = l->weights.n;
+	N += l->n_filters;  // # of biases
+	if (l->batch_norm) N += l->out_c * 3;  // gammas, rolling means & variances
+	return N;
+}
+
 
 /*** PRINTS ***/
 
@@ -854,25 +873,6 @@ void print_network_summary(network* net, int print_training_params) {
 			net->batch_size, net->learning_rate, net->momentum, net->max_iterations, get_train_params_count(net));
 	}
 	printf("\n");
-}
-
-size_t get_train_params_count(network* net) {
-	size_t n_layers = net->n_layers;
-	layer* ls = net->layers;
-	size_t sum = 0;
-	size_t i;
-#pragma omp parallel for reduction(+:sum)
-	for (i = 0; i < n_layers; i++) {
-		sum += get_layer_param_count(&ls[i]);
-	}
-	return sum;
-}
-
-size_t get_layer_param_count(layer* l) {
-	size_t N = l->weights.n;
-	N += l->n_filters;  // # of biases
-	if (l->batch_norm) N += l->out_c * 3;  // gammas, rolling means & variances
-	return N;
 }
 
 void print_prediction_results(network* net, layer* prediction_layer) {
