@@ -178,9 +178,10 @@ extern "C" {
 
     typedef enum LOSS_TYPE {
         LOSS_NONE,
+        LOSS_MAE,  // mean absolute error
         LOSS_MSE,  // mean squared error
-        LOSS_BCE,  // binary cross-entropy, used for 2-class classification (i.e. good/bad, yes/no)
-        LOSS_CCE  // categorical cross-entropy, used for >2 class classification
+        LOSS_CCE,  // categorical cross-entropy
+        LOSS_HUBER
     } LOSS_TYPE;
 
     typedef enum REGULARIZATION {

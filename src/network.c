@@ -568,8 +568,8 @@ void set_activate(layer* l) {
 
 void set_loss(layer* l) {
 	switch (l->loss_type) {
-	case LOSS_BCE:
-		l->get_loss = loss_bce;
+	case LOSS_MAE:
+		l->get_loss = loss_mae;
 		break;
 	case LOSS_CCE:
 		if (l->activation == ACT_SIGMOID) {
@@ -579,7 +579,7 @@ void set_loss(layer* l) {
 			l->get_loss = loss_softmax_cce;
 		}
 		else {
-			printf("Error: Invalid loss and activation combination.\n Layer id = %d\n", l->id);
+			printf("Error: Invalid loss and activation combination.\n Layer %d\n", l->id);
 			wait_for_key_then_exit();
 		}
 		break;
@@ -807,7 +807,7 @@ void print_activation(ACTIVATION a) {
 
 void print_loss_type(LOSS_TYPE c) {
 	if (c == LOSS_MSE) printf("mse\n");
-	else if (c == LOSS_BCE) printf("bce\n");
+	else if (c == LOSS_MAE) printf("mae\n");
 	else if (c == LOSS_CCE) printf("cce\n");
 	else printf("NONE\n");
 }

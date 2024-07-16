@@ -2,6 +2,28 @@
 #include <math.h>
 
 
+void loss_mae(layer* l, network* net) {
+	size_t batch_size = net->batch_size;
+	float* errors = l->errors;
+	float* output = l->output;
+	float* grads = l->grads;
+	float* truth = l->truth;
+	size_t n = l->n_filters;
+	float loss = 0.0F;
+	size_t b;
+#pragma omp parallel for reduction(+:loss) firstprivate(n)
+	for (b = 0; b < batch_size; b++) {
+		size_t offset = b * n;
+		for (size_t i = 0; i < n; ++i) {
+			size_t index = offset + i;
+			float delta = output[index] - truth[index];
+			errors[index] = delta;
+			grads[index] = (delta > 0.0F) ? 1.0F : (delta < 0.0F) ? -1.0F : 0.0F;
+			loss += errors[index];
+		}
+	}
+}
+
 void loss_mse(layer* l, network* net) {
 	size_t batch_size = net->batch_size;
 	float* errors = l->errors;
@@ -18,7 +40,7 @@ void loss_mse(layer* l, network* net) {
 			size_t index = offset + i;
 			float delta = output[index] - truth[index];
 			errors[index] = delta * delta;
-			grads[index] = delta;  // is not 2 * delta because it doesn't matter apparently despite d/dx(x^2) == 2x
+			grads[index] = delta;  // is not 2 * delta because it doesn't matter despite d/dx(x^2) == 2x, just double the learning rate to match it
 			loss += errors[index];
 		}
 	}
@@ -44,7 +66,7 @@ void loss_softmax_cce(layer* l, network* net) {
 			float t = truth[index];
 			float p = output[index];
 			grads[index] = p - t;  // This is the dC/da * da/dz for softmax with cross entropy
-			errors[index] = (t) ? -log(p) : 0.0F;  // Only used for reporting performance, is not used for training
+			errors[index] = (t) ? -log(p) : 0.0F;  // Errors are only used for reporting performance, not for backprop
 			loss += errors[index];
 		}
 		/*print_top_class_name(&truth[offset], n, net->class_names, 0, 0);
@@ -55,6 +77,7 @@ void loss_softmax_cce(layer* l, network* net) {
 	printf("Avg class loss:      %f\n", l->loss);
 }
 
+// aka binary cross entropy, used for multi-label classification problems
 void loss_sigmoid_cce(layer* l, network* net) {
 	size_t batch_size = net->batch_size;
 	float* errors = l->errors;
@@ -71,17 +94,11 @@ void loss_sigmoid_cce(layer* l, network* net) {
 			size_t index = offset + i;
 			float t = truth[index];
 			float p = output[index];
-			errors[index] = -t * log(p) - (1 - t) * log(1 - p);
 			grads[index] = p - t;
+			errors[index] = -t * log(p) - (1.0F - t) * log(1.0F - p);
 			loss += errors[index];
 		}
 	}
-}
-
-#pragma warning(suppress:4100)  // unused param
-void loss_bce(layer* l, network* net) {
-	printf("BCE loss not implemented. (yet?)\n");
-	l;
 }
 
 void loss_l1(network* net) {

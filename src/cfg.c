@@ -366,7 +366,7 @@ int is_header(char* str, char* header, int* is_layer) {
 #pragma warning(suppress:4715)  // Visual Studio being stupid (4175 = not all control paths return a value)
 LOSS_TYPE str2loss(char* str) {
 	if (strcmp(str, "mse") == 0) return LOSS_MSE;
-	if (strcmp(str, "bce") == 0) return LOSS_BCE;
+	if (strcmp(str, "mae") == 0) return LOSS_MAE;
 	if (strcmp(str, "cce") == 0) return LOSS_CCE;
 	printf("Error: No valid loss function named %s.\n", str);
 	wait_for_key_then_exit();

@@ -30,7 +30,6 @@ PHASE 1:
  learning rate policies: step, adam, adagrad, rmsprop, cyclic rates maybe
  saving weights
  loading weights
- other loss functions?
  data augmentation:
 	saturation, exposure, hue, mosaic, rotation (classifier only), jitter
  decay (not entirely sure what this is yet)
@@ -38,6 +37,7 @@ PHASE 1:
 PHASE 2:
  training progress graph
  object detection
+ Huber loss (for object detection)
  group convolution (i.e. at group = 2, half of filters convolve over one half of the channels, the other
 	half of filters convolve over the other half of the filters. note: sometimes group convolutions
 	are followed up by a 1x1 convolution to maintain the same feature pooling as a normal 3x3 convolution.
