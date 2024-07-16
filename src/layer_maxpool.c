@@ -156,7 +156,7 @@ void forward_maxpool_general(layer* l, network* net) {
 void backward_maxpool(layer* l, network* net) {
 	float* grads = l->grads;
 	float** max_ptrs = l->maxpool_addresses;
-	size_t n = l->out_n * l->batch_size;
+	size_t n = l->out_n * net->batch_size;
 	size_t i;
 #pragma omp parallel for
 	for (i = 0; i < n; i++) {

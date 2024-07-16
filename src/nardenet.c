@@ -8,8 +8,9 @@ int main(void) {
 
 	srand(7777777);
 
-	char* cfgfile = "D:\\TonyDev\\Nardenet\\cfg\\nardenet.cfg";
+	char* cfgfile = "C:\\Users\\TNard\\OneDrive\\Desktop\\dev\\Nardenet-main\\cfg\\nardenet-residuals.cfg";
 	network* net = create_network_from_cfg(cfgfile);
+	print_network(net);
 	train(net);
 
 	/*free_network(net);

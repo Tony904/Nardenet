@@ -4,7 +4,7 @@
 
 
 void forward_residual(layer* l, network* net) {
-	size_t n = l->out_n * l->batch_size;
+	size_t n = l->out_n * net->batch_size;
 	float* l_Z = l->Z;
 	float* inl0_output = l->in_layers[0]->output;
 	size_t i;
@@ -19,7 +19,7 @@ void forward_residual(layer* l, network* net) {
 			l_Z[i] += inl_output[i];
 		}
 	}
-	if (l->activation) l->activate(l_Z, l->output, l->out_n, l->batch_size);
+	if (l->activation) l->activate(l_Z, l->output, l->out_n, net->batch_size);
 	if (net->training) zero_array(l->grads, n);
 }
 

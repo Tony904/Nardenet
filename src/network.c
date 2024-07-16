@@ -115,10 +115,13 @@ void build_conv_layer(int i, network* net) {
 		l->in_ids.a[0] = i - 1;
 		l->in_ids.n = 1;
 	}
-	if (l->out_ids.n == 0) {
-		l->out_ids.a = (int*)xcalloc(1, sizeof(int));
-		l->out_ids.a[0] = i + 1;
-		l->out_ids.n = 1;
+	else {
+		for (int j = 0; j < l->in_ids.n; j++) {
+			if (l->in_ids.a[j] < 0) l->in_ids.a[j] += i;
+			if (l->in_ids.a[j] > i || l->in_ids.a[j] < 0) {
+				printf("Invalid in_id of %d for layer %d\n", l->in_ids.a[j], i);
+			}
+		}
 	}
 
 	// Build array of input layer addresses.
@@ -193,6 +196,14 @@ void build_fc_layer(int i, network* net) {
 		l->in_ids.a = (int*)xcalloc(1, sizeof(int));
 		l->in_ids.a[0] = i - 1;
 		l->in_ids.n = 1;
+	}
+	else {
+		for (int j = 0; j < l->in_ids.n; j++) {
+			if (l->in_ids.a[j] < 0) l->in_ids.a[j] += i;
+			if (l->in_ids.a[j] > i || l->in_ids.a[j] < 0) {
+				printf("Invalid in_id of %d for layer %d\n", l->in_ids.a[j], i);
+			}
+		}
 	}
 
 	l->in_layers = (layer**)xcalloc(l->in_ids.n, sizeof(layer*));
@@ -270,6 +281,14 @@ void build_classify_layer(int i, network* net) {
 		l->in_ids.a[0] = i - 1;
 		l->in_ids.n = 1;
 	}
+	else {
+		for (int j = 0; j < l->in_ids.n; j++) {
+			if (l->in_ids.a[j] < 0) l->in_ids.a[j] += i;
+			if (l->in_ids.a[j] > i || l->in_ids.a[j] < 0) {
+				printf("Invalid in_id of %d for layer %d\n", l->in_ids.a[j], i);
+			}
+		}
+	}
 
 	l->in_layers = (layer**)xcalloc(l->in_ids.n, sizeof(layer*));
 	for (size_t j = 0; j < l->in_ids.n; j++) {
@@ -291,8 +310,6 @@ void build_classify_layer(int i, network* net) {
 	l->stride = 1;
 	assert(l->w == l->h);
 	l->ksize = l->w;
-
-	
 
 	// Calculate output dimensions.
 	l->out_w = ((l->w + (l->pad * 2) - l->ksize) / l->stride) + 1;
@@ -351,10 +368,13 @@ void build_maxpool_layer(int i, network* net) {
 		l->in_ids.a[0] = i - 1;
 		l->in_ids.n = 1;
 	}
-	if (l->out_ids.n == 0) {
-		l->out_ids.a = (int*)xcalloc(1, sizeof(int));
-		l->out_ids.a[0] = i + 1;
-		l->out_ids.n = 1;
+	else {
+		for (int j = 0; j < l->in_ids.n; j++) {
+			if (l->in_ids.a[j] < 0) l->in_ids.a[j] += i;
+			if (l->in_ids.a[j] > i || l->in_ids.a[j] < 0) {
+				printf("Invalid in_id of %d for layer %d\n", l->in_ids.a[j], i);
+			}
+		}
 	}
 
 	// Build array of input layer addresses.
@@ -406,10 +426,13 @@ void build_residual_layer(int i, network* net) {
 		l->in_ids.a[0] = i - 1;
 		l->in_ids.n = 1;
 	}
-	if (l->out_ids.n == 0) {
-		l->out_ids.a = (int*)xcalloc(1, sizeof(int));
-		l->out_ids.a[0] = i + 1;
-		l->out_ids.n = 1;
+	else {
+		for (int j = 0; j < l->in_ids.n; j++) {
+			if (l->in_ids.a[j] < 0) l->in_ids.a[j] += i;
+			if (l->in_ids.a[j] > i || l->in_ids.a[j] < 0) {
+				printf("Invalid in_id of %d for layer %d\n", l->in_ids.a[j], i);
+			}
+		}
 	}
 
 	// Build array of input layer addresses.
@@ -669,8 +692,6 @@ void print_layer_conv(layer* l) {
 	printf("train: %d\n", l->train);
 	printf("in_ids: ");
 	print_intarr(&(l->in_ids));
-	printf("out_ids: ");
-	print_intarr(&(l->out_ids));
 	printf("[END LAYER]\n");
 }
 
@@ -709,8 +730,6 @@ void print_layer_maxpool(layer* l) {
 	printf("train: %d\n", l->train);
 	printf("in_ids: ");
 	print_intarr(&(l->in_ids));
-	printf("out_ids: ");
-	print_intarr(&(l->out_ids));
 	printf("[END LAYER]\n");
 }
 
