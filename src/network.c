@@ -141,8 +141,9 @@ void build_conv_layer(int i, network* net) {
 	l->c = l->in_layers[0]->out_c;
 	for (size_t j = 1; j < l->in_ids.n; j++) {
 		layer* inl = l->in_layers[j];
-		assert(l->w == inl->out_w);
-		assert(l->h == inl->out_h);
+		if (l->w != inl->out_w || l->h != inl->out_h) {
+			printf("Invalid input layer dimensions. Width and height must match.\n Layer %d, Input layer %d.\n", i, inl->id);
+		}
 		l->c += inl->out_c;
 	}
 	l->n = l->w * l->h * l->c;
@@ -216,8 +217,9 @@ void build_fc_layer(int i, network* net) {
 	l->c = l->in_layers[0]->out_c;
 	for (size_t j = 1; j < l->in_ids.n; j++) {
 		layer* inl = l->in_layers[i];
-		assert(l->w == inl->out_w);
-		assert(l->h == inl->out_h);
+		if (l->w != inl->out_w || l->h != inl->out_h) {
+			printf("Invalid input layer dimensions. Width and height must match.\n Layer %d, Input layer %d.\n", i, inl->id);
+		}
 		l->c += inl->out_c;
 	}
 	l->n = l->w * l->h * l->c;
@@ -300,8 +302,9 @@ void build_classify_layer(int i, network* net) {
 	l->c = l->in_layers[0]->out_c;
 	for (size_t j = 1; j < l->in_ids.n; j++) {
 		layer* inl = l->in_layers[i];
-		assert(l->w == inl->out_w);
-		assert(l->h == inl->out_h);
+		if (l->w != inl->out_w || l->h != inl->out_h) {
+			printf("Invalid input layer dimensions. Width and height must match.\n Layer %d, Input layer %d.\n", i, inl->id);
+		}
 		l->c += inl->out_c;
 	}
 	l->n = l->w * l->h * l->c;
@@ -394,8 +397,9 @@ void build_maxpool_layer(int i, network* net) {
 	l->c = l->in_layers[0]->out_c;
 	for (size_t j = 1; j < l->in_ids.n; j++) {
 		layer* inl = l->in_layers[j];
-		assert(l->w == inl->out_w);
-		assert(l->h == inl->out_h);
+		if (l->w != inl->out_w || l->h != inl->out_h) {
+			printf("Invalid input layer dimensions. Width and height must match.\n Layer %d, Input layer %d.\n", i, inl->id);
+		}
 		l->c += inl->out_c;
 	}
 	l->n = l->w * l->h * l->c;
@@ -451,6 +455,14 @@ void build_residual_layer(int i, network* net) {
 	l->h = l->in_layers[0]->out_h;
 	l->c = l->in_layers[0]->out_c;
 	l->n = l->w * l->h * l->c;
+
+	for (size_t j = 1; j < l->in_ids.n; j++) {
+		if (!(l->in_layers[j]->w == l->w && l->in_layers[j]->h == l->h && l->in_layers[j]->c == l->c)) {
+			printf("Inputs to residual layers must have matching dimensions.\n"
+				"Residual layer %d, Input layer %d\n", i, l->in_layers[j]->id);
+			wait_for_key_then_exit();
+		}
+	}
 
 	// Calculate output dimensions.
 	l->out_w = l->w;
