@@ -47,9 +47,9 @@ void loss_softmax_cce(layer* l, network* net) {
 			errors[index] = (t) ? -log(p) : 0.0F;  // Only used for reporting performance, is not used for training
 			loss += errors[index];
 		}
-		/*print_top_class_name(&truth[s * n], n, net->class_names, 0, 0);
+		/*print_top_class_name(&truth[offset], n, net->class_names, 0, 0);
 		printf(" : ");
-		print_top_class_name(&output[s * n], n, net->class_names, 0, 1);*/
+		print_top_class_name(&output[offset], n, net->class_names, 0, 1);*/
 	}
 	l->loss = loss / (float)batch_size;
 	printf("Avg class loss:      %f\n", l->loss);
