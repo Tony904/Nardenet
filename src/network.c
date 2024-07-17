@@ -109,7 +109,7 @@ void build_conv_layer(int i, network* net) {
 	layer* ls = net->layers;
 	l->id = i;
 
-	// Set default in_ids and out_ids if none specified.
+	// Set default in_ids if none specified.
 	if (l->in_ids.n == 0) {
 		l->in_ids.a = (int*)xcalloc(1, sizeof(int));
 		l->in_ids.a[0] = i - 1;
@@ -365,7 +365,7 @@ void build_maxpool_layer(int i, network* net) {
 	layer* ls = net->layers;
 	l->id = i;
 
-	// Set default in_ids and out_ids if none specified.
+	// Set default in_ids if none specified.
 	if (l->in_ids.n == 0) {
 		l->in_ids.a = (int*)xcalloc(1, sizeof(int));
 		l->in_ids.a[0] = i - 1;
@@ -424,7 +424,7 @@ void build_residual_layer(int i, network* net) {
 	layer* ls = net->layers;
 	l->id = i;
 
-	// Set default in_ids and out_ids if none specified.
+	// Set default in_ids if none specified.
 	if (l->in_ids.n == 0) {
 		l->in_ids.a = (int*)xcalloc(1, sizeof(int));
 		l->in_ids.a[0] = i - 1;
@@ -485,60 +485,58 @@ void build_residual_layer(int i, network* net) {
 }
 
 void build_detect_layer(int i, network* net) {
-	// UNDER CONSTRUCTION - COPY/PASTED BUILD_CONV_LAYER FOR NOW
 	layer* l = &(net->layers[i]);
 	layer* ls = net->layers;
 	l->id = i;
 
-	// Set default in_ids and out_ids if none specified.
+	// Set default in_ids if none specified
 	if (l->in_ids.n == 0) {
 		l->in_ids.a = (int*)xcalloc(1, sizeof(int));
 		l->in_ids.a[0] = i - 1;
 		l->in_ids.n = 1;
 	}
-	if (l->out_ids.n == 0) {
-		l->out_ids.a = (int*)xcalloc(1, sizeof(int));
-		l->out_ids.a[0] = i + 1;
-		l->out_ids.n = 1;
+	else {
+		for (int j = 0; j < l->in_ids.n; j++) {
+			if (l->in_ids.a[j] < 0) l->in_ids.a[j] += i;
+			if (l->in_ids.a[j] > i || l->in_ids.a[j] < 0) {
+				printf("Invalid in_id of %d for layer %d\n", l->in_ids.a[j], i);
+			}
+		}
 	}
-	l->w = ls[l->in_ids.a[0]].w;
-	l->h = ls[l->in_ids.a[0]].h;
 
 	// Build array of input layer addresses.
 	l->in_layers = (layer**)xcalloc(l->in_ids.n, sizeof(layer*));
-	for (size_t j = 0; j < l->in_ids.n; j++) {
-		l->in_layers[j] = &ls[l->in_ids.a[j]];
+	if (i > 0) {
+		for (size_t j = 0; j < l->in_ids.n; j++) {
+			l->in_layers[j] = &ls[l->in_ids.a[j]];
+		}
+	}
+	else { // if first layer
+		l->in_layers[0] = net->input;
 	}
 
 	// Calculate input dimensions.
-	l->c = 0;
-	for (size_t j = 0; j < l->in_ids.n; j++) {
-		layer* in_layer = l->in_layers[j];
-		assert(l->w == in_layer->out_w);
-		assert(l->h == in_layer->out_h);
-		l->c += in_layer->out_c;
+	l->w = l->in_layers[0]->out_w;
+	l->h = l->in_layers[0]->out_h;
+	l->c = l->in_layers[0]->out_c;
+	for (size_t j = 1; j < l->in_ids.n; j++) {
+		layer* inl = l->in_layers[j];
+		if (l->w != inl->out_w || l->h != inl->out_h) {
+			printf("Invalid input layer dimensions. Width and height must match.\n Layer %d, Input layer %d.\n", i, inl->id);
+		}
+		l->c += inl->out_c;
+	}
+	size_t c = (l->n_classes + NUM_ANCHOR_PARAMS) * l->n_anchors;
+	if (l->c != c) {
+		printf("Depth mismatch between Detect layer and its input layers. (%zu =/= %zu)\n", l->c, c);
 	}
 	l->n = l->w * l->h * l->c;
 
-	// Calculate output dimensions.
-	l->out_w = ((l->w + (l->pad * 2) - l->ksize) / l->stride) + 1;
-	l->out_h = ((l->h + (l->pad * 2) - l->ksize) / l->stride) + 1;
-	l->out_c = l->n_filters;
-	l->out_n = l->out_w * l->out_h * l->out_c;
+	l->forward = forward_detect;
+	l->backward = backward_detect;
+	l->update = update_detect;
 
-	l->output = (float*)xcalloc(l->out_n, sizeof(float));
-	l->weights.n = l->n_filters * l->ksize * l->ksize * l->c;
-	l->weights.a = (float*)xcalloc(l->weights.n, sizeof(float));
-	l->biases = (float*)xcalloc(l->n_filters, sizeof(float));
-	l->Z = (float*)xcalloc(l->out_n, sizeof(float));
-	//(net->n_classes + NUM_ANCHOR_PARAMS)* l->n_anchors
-	l->truth = (float*)xcalloc((net->n_classes + NUM_ANCHOR_PARAMS) * l->n_anchors, sizeof(float));
-
-	l->forward = forward_conv;
-	l->backward = backward_conv;
-	l->update = update_conv;  // will probably need to change to predictor specific function
 	set_activate(l);
-	set_loss(l);
 }
 
 void set_activate(layer* l) {
@@ -587,7 +585,7 @@ void set_loss(layer* l) {
 		l->get_loss = loss_mse;
 		break;
 	default:
-		printf("No loss function set. Layer id = %d\n", l->id);
+		printf("No loss function set. Layer %d\n", l->id);
 	}
 }
 

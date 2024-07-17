@@ -26,6 +26,7 @@ BUGS:
 
 PHASE 1:
  residual layer - make sure it works
+ swish activation
  resize input images if needed
  learning rate policies: step, adam, adagrad, rmsprop, cyclic rates maybe
  saving weights
