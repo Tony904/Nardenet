@@ -3,7 +3,8 @@
 
 #include <stdlib.h>
 #include "xarrays.h"
-#include "data.h"
+#include "data_classify.h"
+#include "data_detect.h"
 
 #define NUM_ANCHOR_PARAMS 5  // probability contains any object, center_x, center_y, width, height
 

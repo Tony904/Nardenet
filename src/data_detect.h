@@ -11,6 +11,7 @@ extern "C" {
 
 	typedef struct bbox bbox;
 	typedef struct det_sample det_sample;
+	typedef struct detector_dataset detector_dataset;
 
 	det_sample* load_det_samples(char* directory, size_t* count_dst);
 	void free_det_sample(det_sample* samp);
@@ -26,10 +27,17 @@ extern "C" {
 	} bbox;
 
 	typedef struct det_sample {  // object detection sample
-		size_t nboxes;
+		size_t n;  // # of bboxes
 		bbox* bboxes;
 		char* imgpath;
 	} det_sample;
+
+	typedef struct detector_dataset {
+		det_sample* samples;
+		size_t n;  // # of samples
+		size_t* rands;  // array of non-repeating random numbers of size n
+		size_t ri;  // rands index
+	} detector_dataset;
 
 #ifdef __cplusplus
 }

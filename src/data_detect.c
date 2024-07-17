@@ -50,7 +50,7 @@ void load_det_sample(char* antfile, char* imgfile, det_sample* samp) {
 	if (!file_exists(imgfile)) wait_for_key_then_exit();
 	FILE* file = get_filestream(antfile, "r");
 	size_t n_lines = get_line_count(file);
-	samp->nboxes = n_lines;
+	samp->n = n_lines;  // # of bboxes
 	samp->imgpath = (char*)xcalloc(strlen(imgfile) + 1, sizeof(char));
 	strcpy(samp->imgpath, imgfile);
 	samp->bboxes = (bbox*)xcalloc(n_lines, sizeof(bbox));
@@ -98,8 +98,8 @@ void print_det_samples(det_sample* samples, size_t count, int print_annotations)
 
 void print_det_sample(det_sample s, int print_annotations) {
 	printf("File: %s\n", s.imgpath);
-	printf("# of bboxes: %zu\n", s.nboxes);
-	if (print_annotations) print_bboxes(s.bboxes, s.nboxes);
+	printf("# of bboxes: %zu\n", s.n);
+	if (print_annotations) print_bboxes(s.bboxes, s.n);
 }
 
 void print_bboxes(bbox* boxes, size_t count) {

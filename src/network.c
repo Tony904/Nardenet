@@ -8,6 +8,7 @@
 #include "layer_classify.h"
 #include "layer_maxpool.h"
 #include "layer_residual.h"
+#include "layer_detect.h"
 #include "activations.h"
 #include "loss.h"
 #include "derivatives.h"
@@ -534,7 +535,7 @@ void build_detect_layer(int i, network* net) {
 
 	l->forward = forward_detect;
 	l->backward = backward_detect;
-	l->update = update_detect;
+	l->update = update_none;
 
 	set_activate(l);
 }

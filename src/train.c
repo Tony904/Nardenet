@@ -49,7 +49,7 @@ void train_classifer(network* net) {
 		printf("\nIteration: %zu\n", iter);
 		update_current_learning_rate(net, iter, ease_in);
 		printf("Learning rate: %f\n", net->current_learning_rate * (float)batch_size);
-		get_next_batch(&net->data.clsr, batch_size, input, width, height, channels, truth, n_classes);
+		classifier_get_next_batch(&net->data.clsr, batch_size, input, width, height, channels, truth, n_classes);
 		for (size_t i = 0; i < n_layers; i++) {
 			layers[i].forward(&layers[i], net);
 		}
