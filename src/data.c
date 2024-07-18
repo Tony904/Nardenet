@@ -3,13 +3,15 @@
 #include "utils.h"
 #include "xallocs.h"
 #include "image.h"
+#include "data_classify.h"
+#include "data_detect.h"
 
 
 void classifier_dataset_get_next_image(classifier_dataset* dataset, image* dst, float* truth);
 
 
 void detector_dataset_get_next_image(detector_dataset* dataset, image* dst, float* truth) {
-	// get next class_set (based on array of random numbers)
+	// get next sample (based on array of random numbers)
 	size_t ri = dataset->ri;
 	size_t* rands = dataset->rands;
 	size_t n = dataset->n;  // # of samples
@@ -23,22 +25,9 @@ void detector_dataset_get_next_image(detector_dataset* dataset, image* dst, floa
 	}
 	dataset->ri = ri;
 
-	// set truth vector
-	for (size_t i = 0; i < ; i++) { truth[i] = 0.0F; }
-	truth[set->class_id] = 1.0F;
+	// get image from the selected sample
+	load_image_to_buffer(sample->imgpath, dst);
 
-	// get next image from the selected class_set (also based on array of random numbers)
-	ri = set->ri;
-	rands = set->rands;
-	n = set->n;  // # of files in class_set.files
-	load_image_to_buffer(set->files[rands[ri]], dst);
-	//printf("%s\n", set->files[rands[ri]]);
-	ri++;
-	if (!(ri < n)) {
-		ri = 0;
-		get_random_numbers_no_repeats(rands, n, 0, n - 1);
-	}
-	set->ri = ri;
 }
 
 float* generate_detect_layer_truth(network* net, layer* l, det_sample* samples, size_t batch_size) {
@@ -74,7 +63,10 @@ float* generate_detect_layer_truth(network* net, layer* l, det_sample* samples, 
 						if (cx < right) {
 							if (cy >= top) {
 								if (cy < bottom) {
-									// now decide which anchor to apply it to
+									// now decide which anchor to apply it to.
+									// do this by calculating IOU for each anchor box and picking the highest scorer.
+									
+									int index = get_best_anchor(cx, cy, w, h, l, left, top, cell_size);
 								}
 							}
 						}
@@ -93,7 +85,6 @@ void load_detector_dataset(detector_dataset* dataset, char* dir) {
 	dataset->ri = 0;
 	get_random_numbers_no_repeats(dataset->rands, count, 0, count - 1);
 }
-
 
 void classifier_get_next_batch(classifier_dataset* dataset, size_t batch_size, float* data, size_t w, size_t h, size_t c, float* truth, size_t n_classes) {
 	size_t n = w * h * c;

@@ -3,8 +3,6 @@
 
 #include <stdlib.h>
 #include "xarrays.h"
-#include "data_classify.h"
-#include "data_detect.h"
 
 #define NUM_ANCHOR_PARAMS 5  // probability contains any object, center_x, center_y, width, height
 
@@ -14,12 +12,18 @@ extern "C" {
 
     typedef struct network network;
     typedef struct layer layer;
+    typedef struct class_set class_set;
+    typedef struct classifier_dataset classifier_dataset;
+    typedef struct bbox bbox;
+    typedef struct det_sample det_sample;
+    typedef struct detector_dataset detector_dataset;
     typedef enum LR_POLICY LR_POLICY;
     typedef enum LAYER_TYPE LAYER_TYPE;
     typedef enum ACTIVATION ACTIVATION;
     typedef enum LOSS_TYPE LOSS_TYPE;
     typedef enum REGULARIZATION REGULARIZATION;
     typedef enum NET_TYPE NET_TYPE;
+
 
     network* new_network(size_t num_of_layers);
     void build_network(network* net);
@@ -190,6 +194,47 @@ extern "C" {
         REG_L1,  // sum of absolute values of weights
         REG_L2  // sum of squared values of weights (much preferred over L1)
     } REGULARIZATION;
+
+    typedef struct bbox {
+        int lbl;
+        // values are relative (may change idk)
+        float cx;
+        float cy;
+        float w;
+        float h;
+        float left;
+        float right;
+        float top;
+        float bottom;
+    } bbox;
+
+    typedef struct det_sample {  // object detection sample
+        size_t n;  // # of bboxes
+        bbox* bboxes;
+        char* imgpath;
+    } det_sample;
+
+    typedef struct detector_dataset {
+        det_sample* samples;
+        size_t n;  // # of samples
+        size_t* rands;  // array of non-repeating random numbers of size n
+        size_t ri;  // rands index
+    } detector_dataset;
+
+    typedef struct class_set {  // classifier class dataset
+        char** files;
+        size_t class_id;
+        size_t n;  // # of files
+        size_t* rands;  // array of non-repeating random numbers of size n
+        size_t ri;  // rands index
+    } class_set;
+
+    typedef struct classifier_dataset {
+        class_set* sets;
+        size_t n;  // # of sets/classes
+        size_t* rands;  // array of non-repeating random numbers of size n
+        size_t ri;  // rands index
+    } classifier_dataset;
 
 #ifdef __cplusplus
 }
