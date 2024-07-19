@@ -206,6 +206,7 @@ extern "C" {
         float right;
         float top;
         float bottom;
+        float area;
     } bbox;
 
     typedef struct det_sample {  // object detection sample

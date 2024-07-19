@@ -553,10 +553,11 @@ void build_detect_layer(int i, network* net) {
 				float x_offset = (float)col / (float)l->out_w;
 				l->anchors[j].left = x_offset + s - l->anchors[j].w * 0.5F;
 				l->anchors[j].right = x_offset + s + l->anchors[j].w * 0.5F;
-				l->anchors[j].top = y_offset + s + l->anchors[j].h * 0.5F;
+				l->anchors[j].top = y_offset + s - l->anchors[j].h * 0.5F;
 				l->anchors[j].bottom = y_offset + s + l->anchors[j].h * 0.5F;
 				l->anchors[j].cx = x_offset + s;
 				l->anchors[j].cy = y_offset + s;
+				l->anchors[j].area = l->anchors[j].w * l->anchors[j].h;
 			}
 		}
 	}

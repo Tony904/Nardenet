@@ -5,6 +5,7 @@
 #include "image.h"
 #include "data_classify.h"
 #include "data_detect.h"
+#include "iou.h"
 
 
 void classifier_dataset_get_next_image(classifier_dataset* dataset, image* dst, float* truth);
@@ -48,25 +49,24 @@ float* generate_detect_layer_truth(network* net, layer* l, det_sample* samples, 
 	for (size_t b = 0; b < batch_size; b++) {
 		det_sample* sample = &samples[b];
 		for (size_t x = 0; x < sample->n; x++) {
-			bbox* box = &sample->bboxes[x];
-			float cx = box->cx;
-			float cy = box->cy;
-			float w = box->w;
-			float h = box->h;
+			bbox box = sample->bboxes[x];
 			for (size_t row = 0; row < out_h; row++) {
 				float top = row * cell_size;
 				float bottom = top + cell_size;
 				for (size_t col = 0; col < out_w; col++) {
+					size_t cell = row * out_h + col;
 					float left = col * cell_size;
 					float right = left + cell_size;
-					if (cx >= left) {
-						if (cx < right) {
-							if (cy >= top) {
-								if (cy < bottom) {
+					if (box.cx >= left) {
+						if (box.cx < right) {
+							if (box.cy >= top) {
+								if (box.cy < bottom) {
 									// now decide which anchor to apply it to.
 									// do this by calculating IOU for each anchor box and picking the highest scorer.
-									
-									int index = get_best_anchor(cx, cy, w, h, l, left, top, cell_size);
+									for (size_t i = 0; i < l->n_anchors; i++) {
+										bbox* anchor = &l->anchors[cell];
+										float iou = get_iou(box, *anchor);
+									}
 								}
 							}
 						}
