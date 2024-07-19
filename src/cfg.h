@@ -63,6 +63,7 @@ extern "C" {
 		// [classify] or [detect]
 		size_t n_classes;
 		LOSS_TYPE loss_type;
+		floatarr anchors;
 	} cfg_layer;
 
 #ifdef __cplusplus

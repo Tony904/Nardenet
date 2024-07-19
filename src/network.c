@@ -538,6 +538,29 @@ void build_detect_layer(int i, network* net) {
 	l->update = update_none;
 
 	set_activate(l);
+
+	// calculate anchor params
+	if (net->w != net->h || l->out_w != l->out_h) {
+		printf("Network input and output width & height must be square.\n");
+		wait_for_key_then_exit();
+	}
+	float s = ((float)l->out_w / (float)net->w) * 0.5;
+	bbox* anchors = (bbox*)xcalloc(l->n_anchors * l->out_w * l->out_h, sizeof(bbox));
+	for (size_t j = 0; j < l->n_anchors; j++) {
+		for (size_t row = 0; row < l->out_h; row++) {
+			float y_offset = (float)row / (float)l->out_h;
+			for (size_t col = 0; col < l->out_w; col++) {
+				float x_offset = (float)col / (float)l->out_w;
+				l->anchors[j].left = x_offset + s - l->anchors[j].w * 0.5F;
+				l->anchors[j].right = x_offset + s + l->anchors[j].w * 0.5F;
+				l->anchors[j].top = y_offset + s + l->anchors[j].h * 0.5F;
+				l->anchors[j].bottom = y_offset + s + l->anchors[j].h * 0.5F;
+				l->anchors[j].cx = x_offset + s;
+				l->anchors[j].cy = y_offset + s;
+			}
+		}
+	}
+	xfree(l->anchors);
 }
 
 void set_activate(layer* l) {

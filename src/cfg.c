@@ -217,6 +217,9 @@ void copy_to_cfg_layer(cfg_layer* l, char** tokens) {
 	else if (strcmp(k, "loss") == 0) {
 		l->loss_type = str2loss(tokens[1]);
 	}
+	else if (strcmp(k, "anchors") == 0) {
+		l->anchors = tokens2floatarr(tokens, 1);
+	}
 }
 
 void copy_cfg_to_network(cfg* cfig, network* net) {
@@ -267,6 +270,19 @@ void copy_cfg_to_network(cfg* cfig, network* net) {
 		l->train = cl->train;
 		l->loss_type = cl->loss_type;
 		l->n_classes = cl->n_classes;
+		if (l->type == LAYER_DETECT) {
+			if (cl->anchors.n % 2 != 0 || cl->anchors.n == 0) {
+				printf("Invalid input for anchors in layer %d. Each anchor must have two values.\n", i);
+				wait_for_key_then_exit();
+			}
+			l->n_anchors = cl->anchors.n / 2;
+			l->anchors = (bbox*)xcalloc(l->n_anchors, sizeof(bbox));
+			for (size_t j = 0; j < l->n_anchors; j++) {
+				l->anchors[j].w = cl->anchors.a[j * 2];
+				l->anchors[j].h = cl->anchors.a[j * 2 + 1];
+			}
+			xfree(cl->anchors.a);
+		}
 		noed = noed->next;
 	}
 }

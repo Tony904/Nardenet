@@ -145,7 +145,7 @@ extern "C" {
 
         size_t n_classes;
         size_t n_anchors;
-        size_t* anchors;
+        bbox* anchors;
         float* truth;
 
         float** maxpool_addresses;  // addresses of input layer outputs that were max values (for backprop)

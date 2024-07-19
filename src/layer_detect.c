@@ -16,7 +16,7 @@ void backward_detect(layer* l, network* net) {
 
 }
 
-void get_best_anchor(float cx, float cy, float w, float h, layer* l, float cell_left, float cell_top, float cell_size) {
+void get_best_anchor(bbox box, layer* l, float cell_left, float cell_top, float cell_size) {
 	float iou = 0.0F;
 	cx -= cell_left;
 	cy -= cell_top;
