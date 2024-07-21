@@ -7,7 +7,8 @@
 extern "C" {
 #endif
 
-	float get_iou(bbox box1, bbox box2)
+	float get_iou(bbox box1, bbox box2);
+	float get_ciou(bbox box1, bbox box2);
 
 #ifdef __cplusplus
 }
