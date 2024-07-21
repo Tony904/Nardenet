@@ -15,6 +15,7 @@ extern "C" {
     typedef struct class_set class_set;
     typedef struct classifier_dataset classifier_dataset;
     typedef struct bbox bbox;
+    typedef struct det_cell det_cell;
     typedef struct det_sample det_sample;
     typedef struct detector_dataset detector_dataset;
     typedef enum LR_POLICY LR_POLICY;
@@ -208,6 +209,10 @@ extern "C" {
         float bottom;
         float area;
     } bbox;
+
+    typedef struct det_cell {  // cell of a detection layer
+        bbox* anchors;
+    } det_cell;
 
     typedef struct det_sample {  // object detection sample
         size_t n;  // # of bboxes

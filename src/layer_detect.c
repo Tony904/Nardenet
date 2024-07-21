@@ -7,8 +7,8 @@ void forward_detect(layer* l, network* net) {
 	size_t h = l->h;
 	size_t wh = w * h;
 	size_t n = l->n;
-	size_t A = NUM_ANCHOR_PARAMS * wh;  // array offset between anchors
 	size_t n_classes = l->n_classes;
+	size_t A = (NUM_ANCHOR_PARAMS + n_classes) * wh;  // array offset between anchors
 	for (size_t b = 0; b < net->batch_size; b++) {
 		float* b_pred = &l->in_layers[0]->output[b * n];
 		for (size_t row = 0; row < w; row++) {
@@ -19,7 +19,6 @@ void forward_detect(layer* l, network* net) {
 				for (size_t a = 0; a < l->n_anchors; a++) {
 					size_t anchor_offset = cell + a * A;
 					float* p = &b_pred[anchor_offset];
-					// prediction
 					float anyobj = p[0];
 					float px = p[wh];
 					float py = p[wh * 2];

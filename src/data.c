@@ -34,6 +34,7 @@ void detector_dataset_get_next_image(detector_dataset* dataset, image* dst, floa
 
 float* generate_detect_layer_truth(network* net, layer* l, det_sample* samples, size_t batch_size) {
 	float* l_truth = l->truth;
+	LOSS_TYPE loss = l->loss_type;
 	bbox* anchors = l->anchors;
 	size_t net_w = net->w;
 	size_t net_h = net->h;
@@ -41,6 +42,7 @@ float* generate_detect_layer_truth(network* net, layer* l, det_sample* samples, 
 	size_t l_h = l->h;
 	size_t l_wh = l_w * l_h;
 	size_t n_classes = l->n_classes;
+	zero_array(l_truth, l->n);
 	// output format PER ANCHOR: {any_object, cx, cy, w, h, class1, class2, class3, etc...}
 	// output format general: {batch1_cell1_any_obj, batch1_cell1_cx,... batch1_cell2... batch2_cell1... etc...}
 	// note: bbox coordinates are offsets from top-left (0, 0) of grid cell
@@ -71,29 +73,32 @@ float* generate_detect_layer_truth(network* net, layer* l, det_sample* samples, 
 									// do this by calculating IOU for each anchor box and picking the highest scorer.
 									size_t best_i = 0;
 									float best_iou = 0.0F;
-									bbox anchor;
+									bbox* anchor;
 									for (size_t i = 0; i < l->n_anchors; i++) {
-										anchor = anchors[i];
-										float iou = get_ciou(box, anchor);
+										anchor = &anchors[cell + i * l_wh];
+										float iou = get_ciou(box, *anchor);
 										if (iou > best_iou) {
 											best_iou = iou;
 											best_i = i;
 										}
 									}
 									// p = prediction, b = actual box coords
-									// bx = sigmoid(px) + anchor_cx
-									// by = sigmoid(py) + anchor_cy
+									// bx = sigmoid(px) + cell_offset
+									// by = sigmoid(py) + cell_offset
 									// bw = anchor_w * pw * pw
 									// bh = anchor_h * ph * ph
 									// sigmoid: 1.0F / (1.0F + expf(-x))
 									// px = -ln(1/(bx - anchor_cx) - 1)
-									truth[0] = best_iou;
-									anchor = anchors[best_i];
-									truth[l_wh] = -logf(1.0F / (box.cx - anchor.cx) - 1.0F);
-									truth[l_wh * 2] = -logf(1.0F / (box.cy - anchor.cy) - 1.0F);
-									truth[l_wh * 3] = sqrtf(box.w / anchor.w);
-									truth[l_wh * 4] = sqrtf(box.h / anchor.h);
-									truth[l_wh * (size_t)(5 + box.lbl)] = 1.0F;
+									truth = &truth[cell + best_i * l_wh * (NUM_ANCHOR_PARAMS + n_classes)];
+									*truth = 1.0F;
+									truth[l_wh * (NUM_ANCHOR_PARAMS + box.lbl)] = 1.0F;
+									if (loss == LOSS_MSE || loss == LOSS_MAE || loss == LOSS_CCE) {
+										anchor = &anchors[best_i];
+										truth[l_wh] = -logf(1.0F / (box.cx - anchor->cx) - 1.0F);
+										truth[l_wh * 2] = -logf(1.0F / (box.cy - anchor->cy) - 1.0F);
+										truth[l_wh * 3] = sqrtf(box.w / anchor->w);
+										truth[l_wh * 4] = sqrtf(box.h / anchor->h);
+									}
 								}
 							}
 						}

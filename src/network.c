@@ -544,24 +544,28 @@ void build_detect_layer(int i, network* net) {
 		printf("Network input and output width & height must be square.\n");
 		wait_for_key_then_exit();
 	}
-	float s = ((float)l->out_w / (float)net->w) * 0.5;
+	l->truth = (float*)xcalloc(l->n, sizeof(float));
+	float cell_size = (float)l->out_w / (float)net->w;
 	bbox* anchors = (bbox*)xcalloc(l->n_anchors * l->out_w * l->out_h, sizeof(bbox));
-	for (size_t j = 0; j < l->n_anchors; j++) {
-		for (size_t row = 0; row < l->out_h; row++) {
-			float y_offset = (float)row / (float)l->out_h;
-			for (size_t col = 0; col < l->out_w; col++) {
-				float x_offset = (float)col / (float)l->out_w;
-				l->anchors[j].left = x_offset + s - l->anchors[j].w * 0.5F;
-				l->anchors[j].right = x_offset + s + l->anchors[j].w * 0.5F;
-				l->anchors[j].top = y_offset + s - l->anchors[j].h * 0.5F;
-				l->anchors[j].bottom = y_offset + s + l->anchors[j].h * 0.5F;
-				l->anchors[j].cx = x_offset + s;
-				l->anchors[j].cy = y_offset + s;
-				l->anchors[j].area = l->anchors[j].w * l->anchors[j].h;
+	for (size_t row = 0; row < l->out_h; row++) {
+		float cell_cy = cell_size * ((float)row + 0.5F);
+		for (size_t col = 0; col < l->out_w; col++) {
+			float cell_cx = cell_size * ((float)col + 0.5F);
+			size_t cell = row * l->out_h + col;
+			for (size_t j = 0; j < l->n_anchors; j++) {
+				bbox* anchor = &anchors[cell + j * l->out_w * l->out_h];
+				anchor->left = cell_cx - l->anchors[j].w * 0.5F;
+				anchor->right = l->anchors[j].left + l->anchors[j].w;
+				anchor->top = cell_cy - l->anchors[j].h * 0.5F;
+				anchor->bottom = l->anchors[j].top + l->anchors[j].h;
+				anchor->cx = cell_cx;
+				anchor->cy = cell_cy;
+				anchor->area = l->anchors[j].w * l->anchors[j].h;
 			}
 		}
 	}
 	xfree(l->anchors);
+	l->anchors = anchors;
 }
 
 void set_activate(layer* l) {
