@@ -146,7 +146,8 @@ extern "C" {
 
         size_t n_classes;
         size_t n_anchors;
-        bbox* anchors;
+        bbox* anchors;  // base anchors that will get copied to each cell
+        det_cell* cells;  // ground truths and adjusted anchors for each cell
         float* truth;
 
         float** maxpool_addresses;  // addresses of input layer outputs that were max values (for backprop)
@@ -184,16 +185,16 @@ extern "C" {
 
     typedef enum LOSS_TYPE {
         LOSS_NONE,
-        LOSS_MAE,  // mean absolute error
-        LOSS_MSE,  // mean squared error
-        LOSS_CCE,  // categorical cross-entropy
+        LOSS_MAE,   // mean absolute error
+        LOSS_MSE,   // mean squared error
+        LOSS_CCE,   // categorical cross-entropy
         LOSS_HUBER
     } LOSS_TYPE;
 
     typedef enum REGULARIZATION {
         REG_NONE,
-        REG_L1,  // sum of absolute values of weights
-        REG_L2  // sum of squared values of weights (much preferred over L1)
+        REG_L1,     // sum of absolute values of weights
+        REG_L2      // sum of squared values of weights (much preferred over L1)
     } REGULARIZATION;
 
     typedef struct bbox {
@@ -210,36 +211,43 @@ extern "C" {
         float area;
     } bbox;
 
-    typedef struct det_cell {  // cell of a detection layer
-        bbox* anchors;
+    typedef struct det_truth {
+        float anyobj;   // probability of any object being in anchor box
+        float cls;      // class inside anchor box
+    } det_truth;
+
+    typedef struct det_cell {   // cell of a detection layer
+        float left;             // percentage of image width
+        float top;              // percentage of image height
+        det_truth* truths;      // one truth per anchor
     } det_cell;
 
-    typedef struct det_sample {  // object detection sample
-        size_t n;  // # of bboxes
+    typedef struct det_sample { // object detection sample
+        size_t n;               // # of bboxes
         bbox* bboxes;
         char* imgpath;
     } det_sample;
 
     typedef struct detector_dataset {
         det_sample* samples;
-        size_t n;  // # of samples
+        size_t n;       // # of samples
         size_t* rands;  // array of non-repeating random numbers of size n
-        size_t ri;  // rands index
+        size_t ri;      // rands index
     } detector_dataset;
 
     typedef struct class_set {  // classifier class dataset
         char** files;
         size_t class_id;
-        size_t n;  // # of files
+        size_t n;       // # of files
         size_t* rands;  // array of non-repeating random numbers of size n
-        size_t ri;  // rands index
+        size_t ri;      // rands index
     } class_set;
 
     typedef struct classifier_dataset {
         class_set* sets;
-        size_t n;  // # of sets/classes
+        size_t n;       // # of sets/classes
         size_t* rands;  // array of non-repeating random numbers of size n
-        size_t ri;  // rands index
+        size_t ri;      // rands index
     } classifier_dataset;
 
 #ifdef __cplusplus

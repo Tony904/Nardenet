@@ -92,12 +92,6 @@ float* generate_detect_layer_truth(network* net, layer* l, det_sample* samples, 
 									truth = &truth[cell + best_i * l_wh * (NUM_ANCHOR_PARAMS + n_classes)];
 									*truth = 1.0F;
 									truth[l_wh * (NUM_ANCHOR_PARAMS + box.lbl)] = 1.0F;
-									if (loss == LOSS_MSE || loss == LOSS_MAE || loss == LOSS_CCE) {
-										anchor = &anchors[best_i];
-										truth[l_wh] = -logf(1.0F / (box.cx - anchor->cx) - 1.0F);
-										truth[l_wh * 2] = -logf(1.0F / (box.cy - anchor->cy) - 1.0F);
-										truth[l_wh * 3] = sqrtf(box.w / anchor->w);
-										truth[l_wh * 4] = sqrtf(box.h / anchor->h);
 									}
 								}
 							}

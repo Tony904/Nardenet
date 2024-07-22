@@ -537,22 +537,34 @@ void build_detect_layer(int i, network* net) {
 	l->backward = backward_detect;
 	l->update = update_none;
 
-	set_activate(l);
-
-	// calculate anchor params
+	// set anchors
 	if (net->w != net->h || l->out_w != l->out_h) {
 		printf("Network input and output width & height must be square.\n");
 		wait_for_key_then_exit();
 	}
-	l->truth = (float*)xcalloc(l->n, sizeof(float));
-	float cell_size = (float)l->out_w / (float)net->w;
-	bbox* anchors = (bbox*)xcalloc(l->n_anchors * l->out_w * l->out_h, sizeof(bbox));
+	float cell_size = (float)l->out_w / (float)net->w;  // percentage of image width
+	for (size_t j = 0; j < l->n_anchors; j++) {
+		float w = l->anchors[j].w;  // percentage of image width
+		float h = l->anchors[j].h;  // percentage of image height
+		l->anchors[j].area = w * h;
+		l->anchors[j].cx = 0.5F;  // percentage of cell size
+		l->anchors[j].cy = 0.5F;
+		// edges are offsets from top-left of cell (same as if top-left of cell was at (0, 0) of image)
+		l->anchors[j].left = 0.5 * (cell_size - w);
+		l->anchors[j].right = l->anchors[j].left + w;
+		l->anchors[j].top = 0.5 * (cell_size - h);
+		l->anchors[j].bottom = l->anchors[j].top + h;
+	}
+	
+	det_cell* cells = (det_cell*)xcalloc(l->out_w * l->out_h, sizeof(det_cell));
 	for (size_t row = 0; row < l->out_h; row++) {
-		float cell_cy = cell_size * ((float)row + 0.5F);
+		float cell_top = cell_size * (float)row;
 		for (size_t col = 0; col < l->out_w; col++) {
-			float cell_cx = cell_size * ((float)col + 0.5F);
-			size_t cell = row * l->out_h + col;
+			float cell_bottom = cell_size * (float)col;
+			size_t cell_index = row * l->out_h + col;
 			for (size_t j = 0; j < l->n_anchors; j++) {
+				cells->anchors = (bbox*)xcalloc(l->n_anchors, sizeof(bbox));
+
 				bbox* anchor = &anchors[cell + j * l->out_w * l->out_h];
 				anchor->left = cell_cx - l->anchors[j].w * 0.5F;
 				anchor->right = l->anchors[j].left + l->anchors[j].w;
@@ -564,8 +576,6 @@ void build_detect_layer(int i, network* net) {
 			}
 		}
 	}
-	xfree(l->anchors);
-	l->anchors = anchors;
 }
 
 void set_activate(layer* l) {
