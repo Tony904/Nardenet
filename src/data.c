@@ -33,16 +33,23 @@ void detector_dataset_get_next_image(detector_dataset* dataset, image* dst, floa
 }
 
 float* generate_detect_layer_truth(network* net, layer* l, det_sample* samples, size_t batch_size) {
-	float* l_truth = l->truth;
+	det_cell* cells = l->cells;
 	LOSS_TYPE loss = l->loss_type;
 	bbox* anchors = l->anchors;
+	size_t n_anchors = l->n_anchors;
 	size_t net_w = net->w;
 	size_t net_h = net->h;
 	size_t l_w = l->w;
 	size_t l_h = l->h;
 	size_t l_wh = l_w * l_h;
 	size_t n_classes = l->n_classes;
-	zero_array(l_truth, l->n);
+#pragma omp parallel for firstprivate(n_anchors)
+	for (size_t i = 0; i < l_wh; i++) {
+		for (size_t j = 0; j < n_anchors; j++) {
+			cells[j].obj = 0;
+			cells[j].cls = 0;
+		}
+	}
 	// output format PER ANCHOR: {any_object, cx, cy, w, h, class1, class2, class3, etc...}
 	// output format general: {batch1_cell1_any_obj, batch1_cell1_cx,... batch1_cell2... batch2_cell1... etc...}
 	// note: bbox coordinates are offsets from top-left (0, 0) of grid cell
@@ -51,53 +58,34 @@ float* generate_detect_layer_truth(network* net, layer* l, det_sample* samples, 
 		wait_for_key_then_exit();
 	}
 	float cell_size = (float)l_w / (float)net_w;
-	// assume l->truth has already been allocated the appropriate size
-	for (size_t b = 0; b < batch_size; b++) {
-		det_sample* sample = &samples[b];
-		for (size_t x = 0; x < sample->n; x++) {
-			bbox box = sample->bboxes[x];
-			for (size_t row = 0; row < l_h; row++) {
-				float top = row * cell_size;
-				float bottom = top + cell_size;
-				float row_offset = row * l_w;
-				for (size_t col = 0; col < l_w; col++) {
-					size_t cell = row_offset + col;
-					float* truth = &l_truth[cell];
-					float left = col * cell_size;
-					float right = left + cell_size;
-					if (box.cx >= left) {
-						if (box.cx < right) {
-							if (box.cy >= top) {
-								if (box.cy < bottom) {
-									// now decide which anchor to apply it to.
-									// do this by calculating IOU for each anchor box and picking the highest scorer.
-									size_t best_i = 0;
-									float best_iou = 0.0F;
-									bbox* anchor;
-									for (size_t i = 0; i < l->n_anchors; i++) {
-										anchor = &anchors[cell + i * l_wh];
-										float iou = get_ciou(box, *anchor);
-										if (iou > best_iou) {
-											best_iou = iou;
-											best_i = i;
-										}
-									}
-									// p = prediction, b = actual box coords
-									// bx = sigmoid(px) + cell_offset
-									// by = sigmoid(py) + cell_offset
-									// bw = anchor_w * pw * pw
-									// bh = anchor_h * ph * ph
-									// sigmoid: 1.0F / (1.0F + expf(-x))
-									// px = -ln(1/(bx - anchor_cx) - 1)
-									truth = &truth[cell + best_i * l_wh * (NUM_ANCHOR_PARAMS + n_classes)];
-									*truth = 1.0F;
-									truth[l_wh * (NUM_ANCHOR_PARAMS + box.lbl)] = 1.0F;
-									}
-								}
-							}
-						}
+	for (size_t i = 0; i < l_wh; i++) {
+		float top = cells[i].top;
+		float left = cells[i].left;
+		float bottom = cells[i].bottom;
+		float right = cells[i].right;
+#pragma omp parallel for firstprivate(top, left, bottom, right, i, n_anchors)
+		for (size_t b = 0; b < batch_size; b++) {
+			det_sample* sample = &samples[b];
+			int bn = b * n_anchors;
+			for (size_t x = 0; x < sample->n; x++) {
+				bbox box = sample->bboxes[x];
+				if (box.cx < left) continue;
+				if (box.cx >= right) continue;
+				if (box.cy < top) continue;
+				if (box.cy >= bottom) continue;
+				int best_i = -1;
+				float best_iou = 0.0F;
+				for (size_t j = 0; j < n_anchors; j++) {
+					float iou = get_ciou(box, anchors[j]);
+					if (iou > best_iou) {
+						if (cells[i].obj[j]) continue;
+						best_iou = iou;
+						best_i = j;
 					}
 				}
+				if (best_i < 0) continue;
+				cells[i].obj[bn + best_i] = 1;
+				cells[i].cls[bn + best_i] = box.lbl;
 			}
 		}
 	}

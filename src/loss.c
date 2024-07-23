@@ -66,7 +66,7 @@ void loss_softmax_cce(layer* l, network* net) {
 			float t = truth[index];
 			float p = output[index];
 			grads[index] = p - t;  // This is the dC/da * da/dz for softmax with cross entropy
-			errors[index] = (t) ? -log(p) : 0.0F;  // Errors are only used for reporting performance, not for backprop
+			errors[index] = (t) ? -logf(p) : 0.0F;  // Errors are only used for reporting performance, not for backprop
 			loss += errors[index];
 		}
 		/*print_top_class_name(&truth[offset], n, net->class_names, 0, 0);
@@ -77,7 +77,7 @@ void loss_softmax_cce(layer* l, network* net) {
 	printf("Avg class loss:      %f\n", l->loss);
 }
 
-// aka binary cross entropy, used for multi-label classification problems
+// aka binary cross entropy
 void loss_sigmoid_cce(layer* l, network* net) {
 	size_t batch_size = net->batch_size;
 	float* errors = l->errors;
@@ -95,7 +95,7 @@ void loss_sigmoid_cce(layer* l, network* net) {
 			float t = truth[index];
 			float p = output[index];
 			grads[index] = p - t;
-			errors[index] = -t * log(p) - (1.0F - t) * log(1.0F - p);
+			errors[index] = -t * logf(p) - (1.0F - t) * logf(1.0F - p);
 			loss += errors[index];
 		}
 	}

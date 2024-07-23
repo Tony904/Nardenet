@@ -527,11 +527,13 @@ void build_detect_layer(int i, network* net) {
 		}
 		l->c += inl->out_c;
 	}
-	size_t c = (l->n_classes + NUM_ANCHOR_PARAMS) * l->n_anchors;
+	size_t c = (NUM_ANCHOR_PARAMS + l->n_classes) * l->n_anchors;
 	if (l->c != c) {
 		printf("Depth mismatch between Detect layer and its input layers. (%zu =/= %zu)\n", l->c, c);
 	}
 	l->n = l->w * l->h * l->c;
+
+	l->grads = (float*)xcalloc(l->n * net->batch_size, sizeof(float));
 
 	l->forward = forward_detect;
 	l->backward = backward_detect;
@@ -555,24 +557,19 @@ void build_detect_layer(int i, network* net) {
 		l->anchors[j].top = 0.5 * (cell_size - h);
 		l->anchors[j].bottom = l->anchors[j].top + h;
 	}
-	
 	det_cell* cells = (det_cell*)xcalloc(l->out_w * l->out_h, sizeof(det_cell));
 	for (size_t row = 0; row < l->out_h; row++) {
 		float cell_top = cell_size * (float)row;
 		for (size_t col = 0; col < l->out_w; col++) {
-			float cell_bottom = cell_size * (float)col;
+			float cell_left = cell_size * (float)col;
 			size_t cell_index = row * l->out_h + col;
 			for (size_t j = 0; j < l->n_anchors; j++) {
-				cells->anchors = (bbox*)xcalloc(l->n_anchors, sizeof(bbox));
-
-				bbox* anchor = &anchors[cell + j * l->out_w * l->out_h];
-				anchor->left = cell_cx - l->anchors[j].w * 0.5F;
-				anchor->right = l->anchors[j].left + l->anchors[j].w;
-				anchor->top = cell_cy - l->anchors[j].h * 0.5F;
-				anchor->bottom = l->anchors[j].top + l->anchors[j].h;
-				anchor->cx = cell_cx;
-				anchor->cy = cell_cy;
-				anchor->area = l->anchors[j].w * l->anchors[j].h;
+				cells[cell_index].cls = (int*)xcalloc(l->n_anchors * net->batch_size, sizeof(int));
+				cells[cell_index].obj = (int*)xcalloc(l->n_anchors * net->batch_size, sizeof(int));
+				cells[cell_index].top = cell_top;
+				cells[cell_index].left = cell_left;
+				cells[cell_index].bottom = cell_top + cell_size;
+				cells[cell_index].right = cell_left + cell_size;
 			}
 		}
 	}

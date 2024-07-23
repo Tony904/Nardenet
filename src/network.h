@@ -211,15 +211,13 @@ extern "C" {
         float area;
     } bbox;
 
-    typedef struct det_truth {
-        float anyobj;   // probability of any object being in anchor box
-        float cls;      // class inside anchor box
-    } det_truth;
-
-    typedef struct det_cell {   // cell of a detection layer
-        float left;             // percentage of image width
-        float top;              // percentage of image height
-        det_truth* truths;      // one truth per anchor
+    typedef struct det_cell {   // cell of a detection layer used for training
+        float top;             // percentage of image width
+        float left;
+        float bottom;
+        float right;
+        int* obj;               // ground truth objectness in anchors
+        int* cls;               // ground truth class id in anchors
     } det_cell;
 
     typedef struct det_sample { // object detection sample
