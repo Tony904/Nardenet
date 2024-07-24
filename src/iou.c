@@ -27,6 +27,18 @@ float get_iou(bbox box1, bbox box2) {
 	return area / (box1.area + box2.area - area);  // intersection area / union area
 }
 
+float get_diou(bbox box1, bbox box2) {
+	float iou = get_iou(box1, box2);
+	float delta = distance_between_points(box1.cx, box1.cy, box2.cx, box2.cy);
+	// calculate diagonal of smallest enclosing box
+	float left = minfloat(box1.left, box2.left);
+	float top = minfloat(box1.top, box2.top);
+	float right = maxfloat(box1.right, box2.right);
+	float bottom = maxfloat(box1.bottom, box2.bottom);
+	float diag = distance_between_points(left, top, right, bottom);
+	return iou - (delta * delta) / (diag * diag);
+}
+
 float get_ciou(bbox box1, bbox box2) {
 	float iou = get_iou(box1, box2);
 	float delta = distance_between_points(box1.cx, box1.cy, box2.cx, box2.cy);
@@ -40,6 +52,23 @@ float get_ciou(bbox box1, bbox box2) {
 	float t = atanf(box2.w / box2.h) - atanf(box1.w / box1.h);
 	float v = V_CONST * t * t;
 	// calculate trade-off parameter for balancing the aspect ratio term
-	float alpha = v / (1.0F - iou + v);
-	return iou - ((delta * delta) / (diag * diag) + alpha * v);
+	float alpha = (iou < 0.5F) ? 0.0F : v / (1.0F - iou + v);
+	return iou - (delta * delta) / (diag * diag) - alpha * v;
+}
+
+float loss_ciou(bbox box1, bbox box2) {
+	float iou = get_iou(box1, box2);
+	float delta = distance_between_points(box1.cx, box1.cy, box2.cx, box2.cy);
+	// calculate diagonal of smallest enclosing box
+	float left = minfloat(box1.left, box2.left);
+	float top = minfloat(box1.top, box2.top);
+	float right = maxfloat(box1.right, box2.right);
+	float bottom = maxfloat(box1.bottom, box2.bottom);
+	float diag = distance_between_points(left, top, right, bottom);
+	// calculate aspect ratio consistency (v)
+	float t = atanf(box2.w / box2.h) - atanf(box1.w / box1.h);
+	float v = V_CONST * t * t;
+	// calculate trade-off parameter for balancing the aspect ratio term
+	float alpha = (iou < 0.5F) ? 0.0F : v / (1.0F - iou + v);
+	return 1.0F - iou + (delta * delta) / (diag * diag) - alpha * v;
 }

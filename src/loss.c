@@ -1,5 +1,6 @@
 #include "loss.h"
 #include <math.h>
+#include "iou.h"
 
 
 void loss_mae(layer* l, network* net) {

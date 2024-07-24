@@ -59,14 +59,17 @@ float* generate_detect_layer_truth(network* net, layer* l, det_sample* samples, 
 	}
 	float cell_size = (float)l_w / (float)net_w;
 	for (size_t i = 0; i < l_wh; i++) {
-		float top = cells[i].top;
+		float top = cells[i].top;  // values are relative to % of image dimensions
 		float left = cells[i].left;
 		float bottom = cells[i].bottom;
 		float right = cells[i].right;
-#pragma omp parallel for firstprivate(top, left, bottom, right, i, n_anchors)
+		int* cell_obj = cells[i].obj;
+		int* cell_cls = cells[i].cls;
+		bbox* cell_tboxes = cells[i].tboxes;
+#pragma omp parallel for firstprivate(top, left, bottom, right, i, n_anchors, cell_obj, cell_cls, cell_tboxes)
 		for (size_t b = 0; b < batch_size; b++) {
 			det_sample* sample = &samples[b];
-			int bn = b * n_anchors;
+			int bn = (int)(b * n_anchors);
 			for (size_t x = 0; x < sample->n; x++) {
 				bbox box = sample->bboxes[x];
 				if (box.cx < left) continue;
@@ -84,8 +87,18 @@ float* generate_detect_layer_truth(network* net, layer* l, det_sample* samples, 
 					}
 				}
 				if (best_i < 0) continue;
-				cells[i].obj[bn + best_i] = 1;
-				cells[i].cls[bn + best_i] = box.lbl;
+				size_t index = (size_t)(bn * best_i);
+				cell_obj[index] = 1;
+				cell_cls[index] = box.lbl;
+				cell_tboxes[index].cx = box.cx;
+				cell_tboxes[index].cy = box.cy;
+				cell_tboxes[index].w = box.w;
+				cell_tboxes[index].h = box.h;
+				cell_tboxes[index].area = box.area;
+				cell_tboxes[index].left = box.left;
+				cell_tboxes[index].right = box.right;
+				cell_tboxes[index].top = box.top;
+				cell_tboxes[index].bottom = box.bottom;
 			}
 		}
 	}

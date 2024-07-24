@@ -212,10 +212,11 @@ extern "C" {
     } bbox;
 
     typedef struct det_cell {   // cell of a detection layer used for training
-        float top;             // percentage of image width
+        float top;              // percentage of image width
         float left;
         float bottom;
         float right;
+        bbox* tboxes;           // ground truth bounding boxes
         int* obj;               // ground truth objectness in anchors
         int* cls;               // ground truth class id in anchors
     } det_cell;

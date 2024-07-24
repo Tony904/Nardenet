@@ -563,14 +563,13 @@ void build_detect_layer(int i, network* net) {
 		for (size_t col = 0; col < l->out_w; col++) {
 			float cell_left = cell_size * (float)col;
 			size_t cell_index = row * l->out_h + col;
-			for (size_t j = 0; j < l->n_anchors; j++) {
-				cells[cell_index].cls = (int*)xcalloc(l->n_anchors * net->batch_size, sizeof(int));
-				cells[cell_index].obj = (int*)xcalloc(l->n_anchors * net->batch_size, sizeof(int));
-				cells[cell_index].top = cell_top;
-				cells[cell_index].left = cell_left;
-				cells[cell_index].bottom = cell_top + cell_size;
-				cells[cell_index].right = cell_left + cell_size;
-			}
+			cells[cell_index].cls = (int*)xcalloc(l->n_anchors * net->batch_size, sizeof(int));
+			cells[cell_index].obj = (int*)xcalloc(l->n_anchors * net->batch_size, sizeof(int));
+			cells[cell_index].tboxes = (bbox*)xcalloc(l->n_anchors * net->batch_size, sizeof(bbox));
+			cells[cell_index].top = cell_top;
+			cells[cell_index].left = cell_left;
+			cells[cell_index].bottom = cell_top + cell_size;
+			cells[cell_index].right = cell_left + cell_size;
 		}
 	}
 }
