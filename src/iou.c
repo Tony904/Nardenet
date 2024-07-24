@@ -70,5 +70,29 @@ float loss_ciou(bbox box1, bbox box2) {
 	float v = V_CONST * t * t;
 	// calculate trade-off parameter for balancing the aspect ratio term
 	float alpha = (iou < 0.5F) ? 0.0F : v / (1.0F - iou + v);
-	return 1.0F - iou + (delta * delta) / (diag * diag) - alpha * v;
+	return 1.0F - iou + (delta * delta) / (diag * diag) + alpha * v;
+}
+
+void get_gradients_ciou(bbox box1, bbox box2) {
+	// intersection
+	float I_left = maxfloat(box1.left, box2.left);
+	float I_top = maxfloat(box1.top, box2.top);
+	float I_right = minfloat(box1.right, box2.right);
+	float I_bottom = minfloat(box1.bottom, box2.bottom);
+	float I_w = absfloat(I_right - I_left);
+	float I_h = absfloat(I_bottom - I_top);
+	float I_area = I_w * I_h;
+	// union
+	float U_area = box1.area + box2.area - I_area;
+	// iou
+	float iou = I_area / U_area;
+	// intersection derivative
+	float dIw_dx = (box1.left <= box2.left && box2.left < box1.right) ?  1.0F :
+				  (box2.left <= box1.left && box1.left < box2.right) ? -1.0F : 0.0F;
+	float dI_dx = dIw_dx * I_h;
+	float dIh_dy = (box1.top <= box2.top && box2.top < box1.bottom) ?  1.0F :
+				  (box2.top <= box1.top && box1.top < box2.bottom) ? -1.0F : 0.0F;
+	float dI_dy = dIh_dy * I_w;
+
+	float dIw_dw = 
 }
