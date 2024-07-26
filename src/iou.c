@@ -2,8 +2,8 @@
 #include <math.h>
 
 
-#define V_CONST 0.40528473F  // (4/pi^2) used for calculating aspect ratio consistency for ciou
-
+#define V_CONST 4.0F / powf(acosf(-1.0F), 2.0F)  // used for calculating aspect ratio consistency for ciou
+#define V2_CONST 8.0F / powf(acosf(-1.0F), 2.0F)
 
 static inline float maxfloat(float x, float y) { return (x < y) ? y : x; }
 static inline float minfloat(float x, float y) { return (x > y) ? y : x; }
@@ -73,7 +73,7 @@ float loss_ciou(bbox box1, bbox box2) {
 	return 1.0F - iou + (delta * delta) / (diag * diag) + alpha * v;
 }
 
-void get_gradients_ciou(bbox box1, bbox box2) {
+void get_grads_ciou(bbox box1, bbox box2, float* dL_dx, float* dL_dy, float* dL_dw, float* dL_dh) {
 	// intersection
 	float I_left = maxfloat(box1.left, box2.left);
 	float I_top = maxfloat(box1.top, box2.top);
@@ -86,13 +86,82 @@ void get_gradients_ciou(bbox box1, bbox box2) {
 	float U_area = box1.area + box2.area - I_area;
 	// iou
 	float iou = I_area / U_area;
-	// intersection derivative
-	float dIw_dx = (box1.left <= box2.left && box2.left < box1.right) ?  1.0F :
-				  (box2.left <= box1.left && box1.left < box2.right) ? -1.0F : 0.0F;
-	float dI_dx = dIw_dx * I_h;
-	float dIh_dy = (box1.top <= box2.top && box2.top < box1.bottom) ?  1.0F :
-				  (box2.top <= box1.top && box1.top < box2.bottom) ? -1.0F : 0.0F;
-	float dI_dy = dIh_dy * I_w;
 
-	float dIw_dw = 
+	// derivatives
+	
+	// dCIoU/dp = dIoU/dp - d(s^2/c^2)/dp - d(alpha * v)/dp
+	// p = any given param (i.e. w, h, x, y)
+	
+	// intersection derivative
+	// assume iou > 0 since the box should be filtered out before this point
+
+	float dI_dL = box1.left < box2.left ? 0.0F : 1.0F;
+	float dI_dR = box1.right < box2.right ? 1.0F : 0.0F;
+	float dI_dT = box1.top < box2.top ? 0.0F : 1.0F;
+	float dI_dB = box1.bottom < box2.bottom ? 1.0F : 0.0F;
+
+	float dU_dL = box1.top - box1.bottom - dI_dL;
+	float dU_dR = box1.bottom - box1.top - dI_dR;
+	float dU_dT = box1.left - box1.right - dI_dT;
+	float dU_dB = box1.right - box1.left - dI_dB;
+
+	float dIoU_dL = (dI_dL * U_area - I_area * dU_dL) / (U_area * U_area);
+	float dIoU_dR = (dI_dR * U_area - I_area * dU_dR) / (U_area * U_area);
+	float dIoU_dT = (dI_dT * U_area - I_area * dU_dT) / (U_area * U_area);
+	float dIoU_dB = (dI_dB * U_area - I_area * dU_dB) / (U_area * U_area);
+
+	float dIoU_dw = dIoU_dR - dIoU_dL;
+	float dIoU_dh = dIoU_dB - dIoU_dT;
+	float dIoU_dx = dIoU_dL + dIoU_dR;
+	float dIoU_dy = dIoU_dL + dIoU_dR;
+
+	// smallest enclosing box that covers box1 and box2
+	float C_left = minfloat(box1.left, box2.left);
+	float C_top = minfloat(box1.top, box2.top);
+	float C_right = maxfloat(box1.right, box2.right);
+	float C_bottom = maxfloat(box1.bottom, box2.bottom);
+	float C = distance_between_points(C_left, C_top, C_right, C_bottom);
+
+	float dCL_dL = box1.left < box2.left ? 1.0F : 0.0F;
+	float dC_dL = ((C_right - C_left) / C) * (-dCL_dL);
+	float dCR_dR = box1.right > box2.right ? 1.0F : 0.0F;
+	float dC_dR = ((C_right - C_left) / C) * dCR_dR;
+	float dCT_dT = box1.top < box2.top ? 1.0F : 0.0F;
+	float dC_dT = ((C_bottom - C_top) / C) * (-dCT_dT);
+	float dCB_dB = box1.bottom > box2.bottom ? 1.0F : 0.0F;
+	float dC_dB = ((C_bottom - C_top) / C) * dCB_dB;
+
+	float dC_dw = dC_dR - dC_dL;
+	float dC_dh = dC_dB - dC_dT;
+	float dC_dx = dC_dL + dC_dR;
+	float dC_dy = dC_dT + dC_dB;
+
+	// distance between box1 and box2 centers
+	float S = distance_between_points(box1.cx, box1.cy, box2.cx, box2.cy);
+	float dS_dx = (box1.cx - box2.cx) / S;
+	float dS_dy = (box1.cy - box2.cy) / S;
+	float dS_dw = 0;
+	float dS_dh = 0;
+
+	float diou_term = (2.0F * S) / (C * C * C);
+	float dDIoU_dx = diou_term * (C * dS_dx - S * dC_dx);
+	float dDIoU_dy = diou_term * (C * dS_dy - S * dC_dy);
+	float dDIoU_dw = diou_term * (C * dS_dw - S * dC_dw);
+	float dDIoU_dh = diou_term * (C * dS_dh - S * dC_dh);
+
+	// aspect ratio term
+	float theta = atanf(box2.w / box2.h) - atanf(box1.w / box1.h);
+	float V = V_CONST * theta * theta;
+	float alpha = (iou < 0.5F) ? 0.0F : V / (1.0F - iou + V);
+
+	float dV_dw = V2_CONST * theta * box1.h;
+	float dV_dh = V2_CONST * theta * (-box2.w);
+	// Note:
+	// float dV_dx = 0;
+	// float dV_dy = 0;
+
+	*dL_dx = -dIoU_dx + dDIoU_dx;
+	*dL_dy = -dIoU_dy + dDIoU_dy;
+	*dL_dw = -dIoU_dw + dDIoU_dw + dV_dw * alpha;
+	*dL_dh = -dIoU_dh + dDIoU_dh + dV_dh * alpha;
 }
