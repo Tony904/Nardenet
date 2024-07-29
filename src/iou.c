@@ -56,6 +56,7 @@ float get_ciou(bbox box1, bbox box2) {
 	return iou - (delta * delta) / (diag * diag) - alpha * v;
 }
 
+// Only calculates ciou loss, does not calculate any gradients
 float loss_ciou(bbox box1, bbox box2) {
 	float iou = get_iou(box1, box2);
 	float delta = distance_between_points(box1.cx, box1.cy, box2.cx, box2.cy);
@@ -73,7 +74,8 @@ float loss_ciou(bbox box1, bbox box2) {
 	return 1.0F - iou + (delta * delta) / (diag * diag) + alpha * v;
 }
 
-void get_grads_ciou(bbox box1, bbox box2, float* dL_dx, float* dL_dy, float* dL_dw, float* dL_dh) {
+// Returns ciou loss as well as calculate gradients
+float get_grads_ciou(bbox box1, bbox box2, float* dL_dx, float* dL_dy, float* dL_dw, float* dL_dh) {
 	// intersection
 	float I_left = maxfloat(box1.left, box2.left);
 	float I_top = maxfloat(box1.top, box2.top);
@@ -164,4 +166,6 @@ void get_grads_ciou(bbox box1, bbox box2, float* dL_dx, float* dL_dy, float* dL_
 	*dL_dy = -dIoU_dy + dDIoU_dy;
 	*dL_dw = -dIoU_dw + dDIoU_dw + dV_dw * alpha;
 	*dL_dh = -dIoU_dh + dDIoU_dh + dV_dh * alpha;
+
+	return 1.0F - iou + S + V * alpha;
 }

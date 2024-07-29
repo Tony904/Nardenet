@@ -534,6 +534,7 @@ void build_detect_layer(int i, network* net) {
 	l->n = l->w * l->h * l->c;
 
 	l->grads = (float*)xcalloc(l->n * net->batch_size, sizeof(float));
+	l->errors = (float*)xcalloc(l->n * net->batch_size, sizeof(float));
 
 	l->forward = forward_detect;
 	l->backward = backward_detect;

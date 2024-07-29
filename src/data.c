@@ -79,9 +79,9 @@ float* generate_detect_layer_truth(network* net, layer* l, det_sample* samples, 
 				int best_i = -1;
 				float best_iou = 0.0F;
 				for (size_t j = 0; j < n_anchors; j++) {
-					float iou = get_ciou(box, anchors[j]);
+					float iou = get_diou(box, anchors[j]);
 					if (iou > best_iou) {
-						if (cells[i].obj[j]) continue;
+						if (cells[i].obj[j]) continue;  // if anchor already has a truth box assigned to it, skip
 						best_iou = iou;
 						best_i = j;
 					}
