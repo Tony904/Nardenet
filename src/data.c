@@ -9,10 +9,30 @@
 #include "math.h"
 
 
+
 void classifier_dataset_get_next_image(classifier_dataset* dataset, image* dst, float* truth);
 
 
-void detector_dataset_get_next_image(detector_dataset* dataset, image* dst, float* truth) {
+
+void detector_get_next_batch(network* net) {
+	size_t batch_size = net->batch_size;
+	detector_dataset* dataset = &net->data.detr;
+	size_t w = net->w;
+	size_t h = net->h;
+	size_t c = net->c;
+	size_t n = w * h * c;
+	det_sample** samples = net->data.detr.current_batch;
+	for (size_t b = 0; b < batch_size; b++) {
+		image img = { 0 };
+		img.w = w;
+		img.h = h;
+		img.c = c;
+		float* data = &net->input->output[b * n];
+		samples[b] = detector_dataset_get_next_sample(dataset, &img);
+	}
+}
+
+det_sample* detector_dataset_get_next_sample(detector_dataset* dataset, image* dst) {
 	// get next sample (based on array of random numbers)
 	size_t ri = dataset->ri;
 	size_t* rands = dataset->rands;
@@ -29,10 +49,10 @@ void detector_dataset_get_next_image(detector_dataset* dataset, image* dst, floa
 
 	// get image from the selected sample
 	load_image_to_buffer(sample->imgpath, dst);
-
+	return sample;
 }
 
-float* generate_detect_layer_truth(network* net, layer* l, det_sample* samples, size_t batch_size) {
+float* generate_detect_layer_truth(network* net, layer* l, det_sample** samples, size_t batch_size) {
 	det_cell* cells = l->cells;
 	LOSS_TYPE loss = l->loss_type;
 	bbox* anchors = l->anchors;
@@ -68,7 +88,7 @@ float* generate_detect_layer_truth(network* net, layer* l, det_sample* samples, 
 		bbox* cell_tboxes = cells[i].tboxes;
 #pragma omp parallel for firstprivate(top, left, bottom, right, i, n_anchors, cell_obj, cell_cls, cell_tboxes)
 		for (size_t b = 0; b < batch_size; b++) {
-			det_sample* sample = &samples[b];
+			det_sample* sample = samples[b];
 			int bn = (int)(b * n_anchors);
 			for (size_t x = 0; x < sample->n; x++) {
 				bbox box = sample->bboxes[x];

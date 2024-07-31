@@ -3,6 +3,7 @@
 
 #include "lib_api.h"
 #include "stdlib.h"
+#include "network.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -14,6 +15,7 @@ extern "C" {
     void load_image_to_buffer(char* filename, image* dst);
     void show_image(image* img);
     void write_image(image* img, char* filename);
+    void draw_detections(image* img, bbox* detections, size_t n_detections);
     void write_image_test(void);
     image* new_image(size_t width, size_t height, size_t channels);
     void free_image(image* img);

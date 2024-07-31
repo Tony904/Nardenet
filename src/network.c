@@ -71,6 +71,9 @@ void build_network(network* net) {
 	else {
 		net->regularize_weights = regularize_none;
 	}
+	if (net->type == NET_DETECT) {
+		net->data.detr.current_batch = (det_sample**)xcalloc(net->batch_size, sizeof(det_sample*));
+	}
 }
 
 void build_layer(int i, network* net) {
@@ -573,6 +576,12 @@ void build_detect_layer(int i, network* net) {
 			cells[cell_index].right = cell_left + cell_size;
 		}
 	}
+	l->detections = (bbox*)xcalloc(l->w * l->h * l->n_anchors, sizeof(bbox));
+	l->sorted = (bbox**)xcalloc(l->w * l->h * l->n_anchors, sizeof(bbox*));
+	// TODO: Make these cfg parameters
+	l->nms_obj_thresh = 0.3F;
+	l->nms_cls_thresh = 0.3F;
+	l->nms_iou_thresh = 0.5F;
 }
 
 void set_activate(layer* l) {

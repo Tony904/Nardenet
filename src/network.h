@@ -56,6 +56,7 @@ extern "C" {
         size_t batch_size;  // number of images per batch
         size_t subbatch_size;  // number of images per sub-batch, must divide evenly into batch_size
         size_t max_iterations;  // maximum number of training iterations before automatically ending training
+
         float learning_rate;
         float current_learning_rate;
         LR_POLICY lr_policy;
@@ -63,6 +64,7 @@ extern "C" {
         floatarr step_scaling;
         size_t ease_in;
         float momentum;
+
         REGULARIZATION regularization;
         void(*reg_loss)             (network*);
         void(*regularize_weights)   (float*, float*, size_t, float);
@@ -71,12 +73,15 @@ extern "C" {
         float decay;
         size_t iteration;  // current iteration, one iteration = one batch processed
         size_t epoch_size;  // number of batches to complete one epoch
+
         float saturation[2];
         float exposure[2];
         float hue[2];
+
         layer* input;
         layer* layers;
         floatarr workspace;
+
         char* cfg_file;
         char* dataset_dir;
         char* weights_file;
@@ -148,6 +153,11 @@ extern "C" {
         size_t n_anchors;
         bbox* anchors;  // base anchors that will get copied to each cell
         det_cell* cells;  // ground truths and adjusted anchors for each cell
+        bbox* detections;
+        bbox** sorted;
+        float nms_obj_thresh;
+        float nms_cls_thresh;
+        float nms_iou_thresh;
         float* truth;
 
         float** maxpool_addresses;  // addresses of input layer outputs that were max values (for backprop)
@@ -199,6 +209,7 @@ extern "C" {
 
     typedef struct bbox {
         int lbl;
+        float prob;  // probability
         // values are relative (may change idk)
         float cx;
         float cy;
@@ -232,6 +243,7 @@ extern "C" {
         size_t n;       // # of samples
         size_t* rands;  // array of non-repeating random numbers of size n
         size_t ri;      // rands index
+        det_sample** current_batch;
     } detector_dataset;
 
     typedef struct class_set {  // classifier class dataset
