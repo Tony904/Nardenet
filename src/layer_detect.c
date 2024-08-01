@@ -172,12 +172,15 @@ void cull_predictions_and_do_nms(layer* l, network* net) {
 			}
 		}
 		// draw boxes on input image
-		// TODO: Need to store copy of input images for drawing. Can't just use data copied to input layer.
-		draw_detections(sorted, &net->input->output[b * net_input_size], net_w, net_h, net_c);
+		// TODO: Load image from disk to draw on.
+		image* img = load_image(samples[b].imgpath);
+		draw_detections(sorted, img);
+		show_image(img);
+		xfree(img);
 	}
 }
 
-void draw_detections(bbox** sorted, float* img_data, size_t w, size_t h, size_t c) {
+void draw_detections(bbox** sorted, image* img) {
 
 }
 
