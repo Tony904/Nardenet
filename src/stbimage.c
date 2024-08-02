@@ -51,6 +51,7 @@ void load_image_stbi_to_buffer(char* filename, size_t* w, size_t* h, size_t* c, 
 	stbi_image_free(data);
 }
 
+// Returned dimensions are absolute
 float* load_image_stbi(char* filename, size_t* w, size_t* h, size_t* c) {
 	int x;
 	int y;

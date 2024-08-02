@@ -24,6 +24,7 @@ void load_image_to_buffer(char* filename, image* dst) {
     load_image_stbi_to_buffer(filename, &dst->w, &dst->h, &dst->c, dst->data);
 }
 
+// returned img dimensions are absolute
 image* load_image(char* filename) {
     image* img = (image*)xcalloc(1, sizeof(image));
     img->data = load_image_stbi(filename, &img->w, &img->h, &img->c);

@@ -98,12 +98,12 @@ void cull_predictions_and_do_nms(layer* l, network* net) {
 	size_t n_classes = l->n_classes;
 	size_t n_anchors = l->n_anchors;
 	size_t net_w = net->w;
-	det_sample* samples = net->data.detr.samples;
+	det_sample** samples = net->data.detr.current_batch;
 	float cell_size = (float)l_w / (float)net_w;
 	size_t A = (NUM_ANCHOR_PARAMS + n_classes) * l_wh;
 	float* p = l->in_layers[0]->output;
-	bbox* dets = l->detections;
 	for (size_t b = 0; b < batch_size; b++) {
+		bbox* dets = l->detections;
 		bbox** sorted = l->sorted;
 		size_t n_dets = 0;
 		// cull predictions below thresholds
@@ -128,16 +128,26 @@ void cull_predictions_and_do_nms(layer* l, network* net) {
 				float cy = p[obj_index + l_wh * 2] * cell_size + cell.top;
 				float w = p[obj_index + l_wh * 3];  // predicted value for w, h is % of img size
 				float h = p[obj_index + l_wh * 4];
-				dets->cx = cx;
-				dets->cy = cy;
-				dets->w = w;
-				dets->h = h;
+				float left = cx - w / 2.0F;
+				if (left >= 1.0F) continue;
+				float right = left + w;
+				if (right <= 0.0F) continue;
+				float top = cy - w / 2.0F;
+				if (top >= 1.0F) continue;
+				float bottom = top + h;
+				if (bottom <= 0.0F) continue;
 				dets->prob = best_cls_score;
 				dets->lbl = best_cls;
-				dets->left = cx - w / 2.0F;
-				dets->right = cx + w / 2.0F;
-				dets->top = cy - w / 2.0F;
-				dets->bottom = cy + w / 2.0F;
+				if (left < 0.0F) left = 0.0F;
+				if (right > 1.0F) right = 1.0F;
+				if (top < 0.0F) top = 0.0F;
+				if (bottom > 1.0F) bottom = 1.0F;
+				dets->cx = (left + right) / 2.0F;
+				dets->cy = (top + bottom) / 2.0F;
+				w = right - left;
+				h = bottom - top;
+				dets->w = w;
+				dets->h = h;
 				dets->area = w * h;
 				*sorted = dets;
 				sorted++;
@@ -172,16 +182,60 @@ void cull_predictions_and_do_nms(layer* l, network* net) {
 			}
 		}
 		// draw boxes on input image
-		// TODO: Load image from disk to draw on.
-		image* img = load_image(samples[b].imgpath);
-		draw_detections(sorted, img);
+		image* img = load_image(samples[b]->imgpath);
+		draw_detections(sorted, n_dets, img, net->draw_thresh);
 		show_image(img);
 		xfree(img);
 	}
 }
 
-void draw_detections(bbox** sorted, image* img) {
-
+void draw_detections(bbox** dets, size_t n_dets, image* img, float thresh) {
+	float* data = img->data;
+	size_t img_w = img->w;
+	size_t img_h = img->h;
+	size_t img_c = img->c;
+	size_t ch_size = img_w * img_h;
+	float red = 255.0F;
+	float green = 0.0F;
+	float blue = 0.0F;
+	size_t red_offset = 0 * img_w * img_h;
+	size_t green_offset = 1 * img_w * img_h;
+	size_t blue_offset = 2 * img_w * img_h;
+	for (size_t i = 0; i < n_dets; i++) {
+		if (dets[i]->prob < thresh) continue;
+		bbox* det = dets[i];
+		size_t box_left = det->left * img_w;
+		size_t box_top = det->top * img_h;
+		size_t box_right = det->right * img_w;
+		size_t box_bottom = det->bottom * img_h;
+		// draw horizontal lines
+		size_t row_offset_top =  box_top * img_w;
+		size_t row_offset_bottom = box_bottom * img_w;
+		size_t col = box_left;
+		while (col < box_right) {
+			size_t offset_top = row_offset_top + col;
+			size_t offset_bottom = row_offset_bottom + col;
+			data[red_offset + offset_top] = red;
+			data[red_offset + offset_bottom] = red;
+			data[green_offset + offset_top] = green;
+			data[green_offset + offset_bottom] = green;
+			data[blue_offset + offset_top] = blue;
+			data[blue_offset + offset_bottom] = blue;
+		}
+		// draw vertical lines
+		size_t row = box_top;
+		while (row < box_bottom) {
+			size_t row_offset = row * img_w;
+			size_t offset_left = row_offset + box_left;
+			size_t offset_right = row_offset + box_right;
+			data[red_offset + offset_left] = red;
+			data[red_offset + offset_right] = red;
+			data[green_offset + offset_left] = green;
+			data[green_offset + offset_right] = green;
+			data[blue_offset + offset_left] = blue;
+			data[blue_offset + offset_right] = blue;
+		}
+	}
 }
 
 inline static void loss_cce_x(float x, float truth, float* error, float* grad) {

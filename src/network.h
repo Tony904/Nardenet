@@ -91,6 +91,8 @@ extern "C" {
             classifier_dataset clsr;
             detector_dataset detr;
         } data;
+
+        float draw_thresh;  // threshold for drawing detections (if p >= draw_thresh then draw)
     } network;
 
     typedef struct layer {
