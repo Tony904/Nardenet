@@ -1,5 +1,6 @@
 #include "data.h"
 #include <string.h>
+#include <assert.h>
 #include "utils.h"
 #include "xallocs.h"
 #include "image.h"
@@ -10,6 +11,8 @@
 
 
 
+void generate_detect_layer_truth(network* net, layer* l, det_sample** samples, size_t batch_size);
+det_sample* detector_dataset_get_next_sample(detector_dataset* dataset, image* dst);
 void classifier_dataset_get_next_image(classifier_dataset* dataset, image* dst, float* truth);
 
 
@@ -21,15 +24,18 @@ void detector_get_next_batch(network* net) {
 	size_t h = net->h;
 	size_t c = net->c;
 	size_t n = w * h * c;
-	det_sample** samples = net->data.detr.current_batch;
+	det_sample** batch_samples = net->data.detr.current_batch;
 	for (size_t b = 0; b < batch_size; b++) {
 		image img = { 0 };
 		img.w = w;
 		img.h = h;
 		img.c = c;
-		float* data = &net->input->output[b * n];
-		samples[b] = detector_dataset_get_next_sample(dataset, &img);
+		img.data = &net->input->output[b * n];
+		batch_samples[b] = detector_dataset_get_next_sample(dataset, &img);
 	}
+	layer* detect_layer = &net->layers[net->n_layers - 1];
+	assert(detect_layer->type == LAYER_DETECT);
+	generate_detect_layer_truth(net, detect_layer, batch_samples, batch_size);
 }
 
 det_sample* detector_dataset_get_next_sample(detector_dataset* dataset, image* dst) {
@@ -52,9 +58,8 @@ det_sample* detector_dataset_get_next_sample(detector_dataset* dataset, image* d
 	return sample;
 }
 
-float* generate_detect_layer_truth(network* net, layer* l, det_sample** samples, size_t batch_size) {
+void generate_detect_layer_truth(network* net, layer* l, det_sample** samples, size_t batch_size) {
 	det_cell* cells = l->cells;
-	LOSS_TYPE loss = l->loss_type;
 	bbox* anchors = l->anchors;
 	size_t n_anchors = l->n_anchors;
 	size_t net_w = net->w;
@@ -62,9 +67,9 @@ float* generate_detect_layer_truth(network* net, layer* l, det_sample** samples,
 	size_t l_w = l->w;
 	size_t l_h = l->h;
 	size_t l_wh = l_w * l_h;
-	size_t n_classes = l->n_classes;
+	size_t i;
 #pragma omp parallel for firstprivate(n_anchors)
-	for (size_t i = 0; i < l_wh; i++) {
+	for (i = 0; i < l_wh; i++) {
 		for (size_t j = 0; j < n_anchors; j++) {
 			cells[j].obj = 0;
 			cells[j].cls = 0;
@@ -77,8 +82,7 @@ float* generate_detect_layer_truth(network* net, layer* l, det_sample** samples,
 		printf("Network input and output width & height must be square.\n");
 		wait_for_key_then_exit();
 	}
-	float cell_size = (float)l_w / (float)net_w;
-	for (size_t i = 0; i < l_wh; i++) {
+	for (i = 0; i < l_wh; i++) {
 		float top = cells[i].top;  // values are relative to % of image dimensions
 		float left = cells[i].left;
 		float bottom = cells[i].bottom;
@@ -86,8 +90,9 @@ float* generate_detect_layer_truth(network* net, layer* l, det_sample** samples,
 		int* cell_obj = cells[i].obj;
 		int* cell_cls = cells[i].cls;
 		bbox* cell_tboxes = cells[i].tboxes;
+		size_t b;
 #pragma omp parallel for firstprivate(top, left, bottom, right, i, n_anchors, cell_obj, cell_cls, cell_tboxes)
-		for (size_t b = 0; b < batch_size; b++) {
+		for (b = 0; b < batch_size; b++) {
 			det_sample* sample = samples[b];
 			int bn = (int)(b * n_anchors);
 			for (size_t x = 0; x < sample->n; x++) {
@@ -98,7 +103,7 @@ float* generate_detect_layer_truth(network* net, layer* l, det_sample** samples,
 				if (box.cy >= bottom) continue;
 				int best_i = -1;
 				float best_iou = 0.0F;
-				for (size_t j = 0; j < n_anchors; j++) {
+				for (int j = 0; j < (int)n_anchors; j++) {
 					float iou = get_diou(box, anchors[j]);
 					if (iou > best_iou) {
 						if (cells[i].obj[j]) continue;  // if anchor already has a truth box assigned to it, skip

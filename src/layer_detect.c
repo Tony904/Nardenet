@@ -8,6 +8,7 @@
 
 inline static void loss_cce_x(float x, float truth, float* error, float* grad);
 void cull_predictions_and_do_nms(layer* l, network* net);
+void draw_detections(bbox** dets, size_t n_dets, image* img, float thresh);
 
 
 void forward_detect(layer* l, network* net) {
@@ -20,20 +21,18 @@ void forward_detect(layer* l, network* net) {
 	size_t n_classes = l->n_classes;
 	size_t n_anchors = l->n_anchors;
 	size_t net_w = net->w;
-	det_sample* samples = net->data.detr.samples;
 	float cell_size = (float)l_w / (float)net_w;
 	size_t A = (NUM_ANCHOR_PARAMS + n_classes) * l_wh;
 	float* p = l->in_layers[0]->output;
-	float* errors = &l->errors;
+	float* errors = l->errors;
 	zero_array(errors, l_n * batch_size);
-	float* grads = &l->grads;
+	float* grads = l->grads;
 	zero_array(grads, l_n * batch_size);
 	float loss = l->loss;
 	loss = 0.0F;
 	for (size_t s = 0; s < l_wh; s++) {
 		det_cell cell = cells[s];
 		for (size_t b = 0; b < batch_size; b++) {
-			det_sample sample = samples[b];
 			size_t bn = b * n_anchors;
 			for (size_t a = 0; a < n_anchors; a++) {
 				size_t bna = bn + a;
@@ -73,7 +72,7 @@ void forward_detect(layer* l, network* net) {
 		}
 	}
 	l->loss = loss;
-	draw_detections(l, net);  // for debugging
+	cull_predictions_and_do_nms(l, net);  // for debugging
 }
 
 #pragma warning(suppress:4100)
@@ -83,9 +82,6 @@ void backward_detect(layer* l, network* net) {
 
 void cull_predictions_and_do_nms(layer* l, network* net) {
 	size_t net_w = net->w;
-	size_t net_h = net->h;
-	size_t net_c = net->c;
-	size_t net_input_size = net_w * net_h * net_c;
 	float obj_thresh = l->nms_obj_thresh;
 	float cls_thresh = l->nms_cls_thresh;
 	float iou_thresh = l->nms_iou_thresh;
@@ -97,7 +93,6 @@ void cull_predictions_and_do_nms(layer* l, network* net) {
 	size_t l_n = l->n;
 	size_t n_classes = l->n_classes;
 	size_t n_anchors = l->n_anchors;
-	size_t net_w = net->w;
 	det_sample** samples = net->data.detr.current_batch;
 	float cell_size = (float)l_w / (float)net_w;
 	size_t A = (NUM_ANCHOR_PARAMS + n_classes) * l_wh;
@@ -193,8 +188,6 @@ void draw_detections(bbox** dets, size_t n_dets, image* img, float thresh) {
 	float* data = img->data;
 	size_t img_w = img->w;
 	size_t img_h = img->h;
-	size_t img_c = img->c;
-	size_t ch_size = img_w * img_h;
 	float red = 255.0F;
 	float green = 0.0F;
 	float blue = 0.0F;

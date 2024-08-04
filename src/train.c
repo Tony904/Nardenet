@@ -69,25 +69,32 @@ void train_classifer(network* net) {
 }
 
 void train_detector(network* net) {
-	detector_dataset* data = &net->data.detr;
-	data->samples = load_det_samples(net->dataset_dir, &data->n);
-	size_t n = data->n;
-	for (size_t s = 0; s < n; s++) {
-		image* img = load_image(data->samples[s].imgpath);
-		if (net->w != img->w || net->h != img->h || net->c != img->c) {
-			printf("Input image does not match network dimensions.\n"
-				"img w,h,c = %zu,%zu,%zu\nnet w,h,c = %zu,%zu,%zu\n",
-				 img->w, img->h, img->c,  net->w, net->h, net->c);
-			wait_for_key_then_exit();
+	load_detector_dataset(&net->data.detr, net->dataset_dir);
+	size_t ease_in = net->ease_in;
+	size_t batch_size = net->batch_size;
+	//net->max_iterations = 300;  // testing
+	layer* layers = net->layers;
+	size_t n_layers = net->n_layers;
+	print_network_summary(net, 1);
+	for (size_t iter = 0; iter < net->max_iterations; iter++) {
+		printf("\nIteration: %zu\n", iter);
+		update_current_learning_rate(net, iter, ease_in);
+		printf("Learning rate: %f\n", net->current_learning_rate * (float)batch_size);
+		detector_get_next_batch(net);
+		for (size_t i = 0; i < n_layers; i++) {
+			layers[i].forward(&layers[i], net);
 		}
-		for (size_t i = 0; i < net->n_layers; i++) {
-			printf("Forwarding layer index %zu...\n", i);
-			assert(net->layers[i].forward);
-			net->layers[i].forward(&net->layers[i], net);
-			printf("Forward done.\n");
+		if (net->regularization != REG_NONE) {
+			net->reg_loss(net);
+			printf("Regularization loss: %f\n", net->loss);
 		}
-		printf("All layers forwarded.\n");
-		// float* prediction = network_get_prediction;
+		for (size_t ii = n_layers; ii; ii--) {
+			size_t i = ii - 1;
+			layers[i].backward(&layers[i], net);
+		}
+		for (size_t i = 0; i < n_layers; i++) {
+			layers[i].update(&layers[i], net);
+		}
 	}
 }
 

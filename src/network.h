@@ -45,6 +45,21 @@ extern "C" {
     void print_network_summary(network* net, int print_training_params);
     void print_prediction_results(network* net, layer* prediction_layer);
 
+    typedef struct classifier_dataset {
+        class_set* sets;
+        size_t n;       // # of sets/classes
+        size_t* rands;  // array of non-repeating random numbers of size n
+        size_t ri;      // rands index
+    } classifier_dataset;
+
+    typedef struct detector_dataset {
+        det_sample* samples;
+        size_t n;       // # of samples
+        size_t* rands;  // array of non-repeating random numbers of size n
+        size_t ri;      // rands index
+        det_sample** current_batch;
+    } detector_dataset;
+
     typedef struct network {
         size_t n_layers;
         size_t w;
@@ -166,6 +181,7 @@ extern "C" {
     } layer;
 
     typedef enum NET_TYPE {
+        NET_NONE,
         NET_CLASSIFY,
         NET_DETECT
     } NET_TYPE;
@@ -240,14 +256,6 @@ extern "C" {
         char* imgpath;
     } det_sample;
 
-    typedef struct detector_dataset {
-        det_sample* samples;
-        size_t n;       // # of samples
-        size_t* rands;  // array of non-repeating random numbers of size n
-        size_t ri;      // rands index
-        det_sample** current_batch;
-    } detector_dataset;
-
     typedef struct class_set {  // classifier class dataset
         char** files;
         size_t class_id;
@@ -255,13 +263,6 @@ extern "C" {
         size_t* rands;  // array of non-repeating random numbers of size n
         size_t ri;      // rands index
     } class_set;
-
-    typedef struct classifier_dataset {
-        class_set* sets;
-        size_t n;       // # of sets/classes
-        size_t* rands;  // array of non-repeating random numbers of size n
-        size_t ri;      // rands index
-    } classifier_dataset;
 
 #ifdef __cplusplus
 }

@@ -15,7 +15,8 @@ void show_image(image* img) {
     show_image_opencv(img->data, (int)img->w, (int)img->h, (int)img->c, 0);
 #else
     printf("Cannot display image. Nardenet must be compiled with OpenCV installed "
-           "and the preprocessor symbol OPENCV defined.\n");
+           "and the preprocessor symbol OPENCV defined.\nPress any key to continue.\n");
+    (void)getchar();
 #endif
 }
 

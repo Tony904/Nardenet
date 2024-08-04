@@ -12,6 +12,7 @@
 #include "activations.h"
 #include "loss.h"
 #include "derivatives.h"
+#include "data.h"
 
 
 void build_input_layer(network* net);
@@ -275,6 +276,12 @@ void build_fc_layer(int i, network* net) {
 
 // i = layer index in net->layers
 void build_classify_layer(int i, network* net) {
+	if (net->type == NET_NONE) net->type = NET_CLASSIFY;
+	else {
+		printf("Invalid network cfg: Cannot have a classify layer in a non-classifier network.\n");
+		wait_for_key_then_exit();
+	}
+
 	layer* l = &(net->layers[i]);
 	layer* ls = net->layers;
 	l->id = i;
@@ -461,7 +468,7 @@ void build_residual_layer(int i, network* net) {
 	l->n = l->w * l->h * l->c;
 
 	for (size_t j = 1; j < l->in_ids.n; j++) {
-		if (!(l->in_layers[j]->w == l->w && l->in_layers[j]->h == l->h && l->in_layers[j]->c == l->c)) {
+		if (!(l->in_layers[j]->out_w == l->w && l->in_layers[j]->out_h == l->h && l->in_layers[j]->out_c == l->c)) {
 			printf("Inputs to residual layers must have matching dimensions.\n"
 				"Residual layer %d, Input layer %d\n", i, l->in_layers[j]->id);
 			wait_for_key_then_exit();
@@ -489,6 +496,12 @@ void build_residual_layer(int i, network* net) {
 }
 
 void build_detect_layer(int i, network* net) {
+	if (net->type == NET_NONE) net->type = NET_DETECT;
+	else {
+		printf("Invalid network cfg: Cannot have a detect layer in a non-detector network.\n");
+		wait_for_key_then_exit();
+	}
+
 	layer* l = &(net->layers[i]);
 	layer* ls = net->layers;
 	l->id = i;
@@ -527,12 +540,14 @@ void build_detect_layer(int i, network* net) {
 		layer* inl = l->in_layers[j];
 		if (l->w != inl->out_w || l->h != inl->out_h) {
 			printf("Invalid input layer dimensions. Width and height must match.\n Layer %d, Input layer %d.\n", i, inl->id);
+			wait_for_key_then_exit();
 		}
 		l->c += inl->out_c;
 	}
 	size_t c = (NUM_ANCHOR_PARAMS + l->n_classes) * l->n_anchors;
 	if (l->c != c) {
-		printf("Depth mismatch between Detect layer and its input layers. (%zu =/= %zu)\n", l->c, c);
+		printf("Depth mismatch between Detect layer and its input layers. (%zu =/= %zu)\n", c, l->c);
+		wait_for_key_then_exit();
 	}
 	l->n = l->w * l->h * l->c;
 
