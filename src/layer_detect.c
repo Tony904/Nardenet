@@ -38,7 +38,7 @@ void forward_detect(layer* l, network* net) {
 				size_t bna = bn + a;
 				// objectness
 				size_t obj_index = s + b * l_n + a * A;
-				loss_cce_x(p[obj_index], (float)cell.obj[bna], &errors[obj_index], &grads[obj_index]);
+				loss_cce_x(p[obj_index], (float)(cell.obj[bna]), &errors[obj_index], &grads[obj_index]);
 				l->loss += errors[obj_index];
 				// class
 				for (size_t i = 0; i < n_classes; i++) {

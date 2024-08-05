@@ -69,7 +69,10 @@ void train_classifer(network* net) {
 }
 
 void train_detector(network* net) {
-	load_detector_dataset(&net->data.detr, net->dataset_dir);
+	char train_dir[MAX_DIR_PATH + MIN_FILENAME_LENGTH] = { 0 };
+	memcpy(train_dir, net->dataset_dir, strlen(net->dataset_dir));
+	memcpy(&train_dir[strlen(train_dir)], "\\train\\", 7);
+	load_detector_dataset(&net->data.detr, train_dir);
 	size_t ease_in = net->ease_in;
 	size_t batch_size = net->batch_size;
 	//net->max_iterations = 300;  // testing

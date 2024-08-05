@@ -169,7 +169,7 @@ extern "C" {
         size_t n_classes;
         size_t n_anchors;
         bbox* anchors;  // base anchors that will get copied to each cell
-        det_cell* cells;  // ground truths and adjusted anchors for each cell
+        det_cell* cells;  // prediction cells of detect layer
         bbox* detections;
         bbox** sorted;
         float nms_obj_thresh;

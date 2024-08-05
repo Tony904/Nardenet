@@ -554,6 +554,10 @@ void build_detect_layer(int i, network* net) {
 	l->grads = (float*)xcalloc(l->n * net->batch_size, sizeof(float));
 	l->errors = (float*)xcalloc(l->n * net->batch_size, sizeof(float));
 
+	l->out_w = l->w;
+	l->out_h = l->h;
+	l->out_c = l->c;
+
 	l->forward = forward_detect;
 	l->backward = backward_detect;
 	l->update = update_none;
@@ -591,6 +595,7 @@ void build_detect_layer(int i, network* net) {
 			cells[cell_index].right = cell_left + cell_size;
 		}
 	}
+	l->cells = cells;
 	l->detections = (bbox*)xcalloc(l->w * l->h * l->n_anchors, sizeof(bbox));
 	l->sorted = (bbox**)xcalloc(l->w * l->h * l->n_anchors, sizeof(bbox*));
 	// TODO: Make these cfg parameters

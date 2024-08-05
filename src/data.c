@@ -70,9 +70,13 @@ void generate_detect_layer_truth(network* net, layer* l, det_sample** samples, s
 	size_t i;
 #pragma omp parallel for firstprivate(n_anchors)
 	for (i = 0; i < l_wh; i++) {
-		for (size_t j = 0; j < n_anchors; j++) {
-			cells[j].obj = 0;
-			cells[j].cls = 0;
+		for (size_t k = 0; k < batch_size; k++) {
+			size_t kn = k * n_anchors;
+			for (size_t j = 0; j < n_anchors; j++) {
+				size_t knj = kn + j;
+				cells[i].obj[knj] = 0;
+				cells[i].cls[knj] = 0;
+			}
 		}
 	}
 	// output format PER ANCHOR: {any_object, cx, cy, w, h, class1, class2, class3, etc...}

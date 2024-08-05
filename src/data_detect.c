@@ -38,7 +38,7 @@ det_sample* load_det_samples(char* directory, size_t* count_dst) {
 		char antfile[MAX_DIR_PATH + MIN_FILENAME_LENGTH] = { 0 };
 		char* dot = strrchr(imgfile, '.');
 		memcpy(antfile, imgfile, strlen(imgfile) - strlen(dot));
-		memcpy(&antfile[strlen(antfile)], ".txt", 4U);
+		memcpy(&antfile[strlen(antfile)], ".txt", 4);
 		load_det_sample(antfile, imgfile, &samples[i]);
 	}
 	*count_dst = n_samps;
