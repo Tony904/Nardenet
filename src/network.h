@@ -157,12 +157,15 @@ extern "C" {
         float* weights_velocity;  // momentum adjustment for weights
         float* biases_velocity;  // momentum adjustment for biases
 
-        float loss;
-        LOSS_TYPE loss_type;
-
         intarr in_ids;
         intarr out_ids;
         layer** in_layers;
+
+        LOSS_TYPE loss_type;
+        float loss;
+        float obj_loss;
+        float cls_loss;
+        float iou_loss;
 
         int train;
 

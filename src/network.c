@@ -506,6 +506,8 @@ void build_detect_layer(int i, network* net) {
 	layer* ls = net->layers;
 	l->id = i;
 
+	if (l->n_classes == 0) l->n_classes = net->n_classes;
+
 	// Set default in_ids if none specified
 	if (l->in_ids.n == 0) {
 		l->in_ids.a = (int*)xcalloc(1, sizeof(int));
@@ -530,6 +532,10 @@ void build_detect_layer(int i, network* net) {
 	}
 	else { // if first layer
 		l->in_layers[0] = net->input;
+	}
+	if (l->in_layers[0]->activation != ACT_SIGMOID) {
+		printf("Invalid cfg: The input layer to a detect layer must have sigmoid activation.\n");
+		wait_for_key_then_exit();
 	}
 
 	// Calculate input dimensions.

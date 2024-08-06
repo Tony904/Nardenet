@@ -29,7 +29,13 @@ void forward_detect(layer* l, network* net) {
 	float* grads = l->grads;
 	zero_array(grads, l_n * batch_size);
 	float loss = l->loss;
+	float obj_loss = l->obj_loss;
+	float cls_loss = l->cls_loss;
+	float iou_loss = l->iou_loss;
 	loss = 0.0F;
+	obj_loss = 0.0F;
+	cls_loss = 0.0F;
+	iou_loss = 0.0F;
 	for (size_t s = 0; s < l_wh; s++) {
 		det_cell cell = cells[s];
 		for (size_t b = 0; b < batch_size; b++) {
@@ -39,14 +45,14 @@ void forward_detect(layer* l, network* net) {
 				// objectness
 				size_t obj_index = s + b * l_n + a * A;
 				loss_cce_x(p[obj_index], (float)(cell.obj[bna]), &errors[obj_index], &grads[obj_index]);
-				l->loss += errors[obj_index];
+				obj_loss += errors[obj_index];
 				// class
 				for (size_t i = 0; i < n_classes; i++) {
 					size_t cls_index = obj_index + (NUM_ANCHOR_PARAMS + i) * l_wh;
 					float x = p[cls_index];
 					float t = (cell.cls[bna] == (int)i) ? 1.0F : 0.0F;
 					loss_cce_x(x, t, &errors[cls_index], &grads[cls_index]);
-					l->loss += errors[cls_index];
+					cls_loss += errors[cls_index];
 				}
 				// iou
 				bbox pbox = { 0 };
@@ -67,11 +73,17 @@ void forward_detect(layer* l, network* net) {
 				float* dL_dy = &grads[obj_index + l_wh * 2];
 				float* dL_dw = &grads[obj_index + l_wh * 3];
 				float* dL_dh = &grads[obj_index + l_wh * 4];
-				loss += get_grads_ciou(pbox, cell.tboxes[bna], dL_dx, dL_dy, dL_dw, dL_dh);
+				float iouloss = get_grads_ciou(pbox, cell.tboxes[bna], dL_dx, dL_dy, dL_dw, dL_dh);
+				printf("iouloss: %f\n", iouloss);
+				iou_loss += iouloss;
 			}
 		}
 	}
-	l->loss = loss;
+	l->loss = obj_loss + cls_loss + iou_loss;
+	l->obj_loss = obj_loss;
+	l->cls_loss = cls_loss;
+	l->iou_loss = iou_loss;
+	printf("detect loss: %f\nobj loss: %f\nclass loss: %f\niou loss: %f\n", l->loss, obj_loss, cls_loss, iou_loss);
 	cull_predictions_and_do_nms(l, net);  // for debugging
 }
 
@@ -150,6 +162,7 @@ void cull_predictions_and_do_nms(layer* l, network* net) {
 				n_dets++;
 			}
 		}
+		if (n_dets == 0) continue;
 		// sort remaining detections
 		dets = l->detections;
 		sorted = l->sorted;
