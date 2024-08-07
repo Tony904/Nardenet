@@ -45,8 +45,14 @@ void load_image_stbi_to_buffer(char* filename, size_t* w, size_t* h, size_t* c, 
 		printf("Expected image size (%zu,%zu,%zu) does not equal actual image size (%zu,%zu,%zu).\n", *w, *h, *c, X, Y, N);
 		wait_for_key_then_exit();
 	}
-	for (size_t i = 0; i < size; i++) {
-		dst[i] = (float)data[i];
+	for (size_t ch = 0; ch < N; ch++) {
+		for (size_t row = 0; row < Y; row++) {
+			for (size_t col = 0; col < X; col++) {
+				int dint = (int)data[row * N * X + col * N + ch];
+				*dst = (float)dint;
+				dst++;
+			}
+		}
 	}
 	stbi_image_free(data);
 }
@@ -71,11 +77,18 @@ float* load_image_stbi(char* filename, size_t* w, size_t* h, size_t* c) {
 	*c = N;
 	size_t size = X * Y * N;
 	float* dataf = (float*)xcalloc(size, sizeof(float));
-	for (size_t i = 0; i < size; i++) {
-		dataf[i] = (float)data[i];
+	float* start = dataf;
+	for (size_t ch = 0; ch < N; ch++) {
+		for (size_t row = 0; row < Y; row++) {
+			for (size_t col = 0; col < X; col++) {
+				int dint = (int)data[row * N * X + col * N + ch];
+				*dataf = (float)dint;
+				dataf++;
+			}
+		}
 	}
 	stbi_image_free(data);
-	return dataf;
+	return start;
 }
 
 
@@ -88,8 +101,8 @@ void write_image_stbi(char* filename, float* data, int w, int h, int c) {
 	for (int row = 0; row < h; row++) {
 		for (int col = 0; col < w; col++) {
 			for (int ch = 0; ch < c; ch++) {
-				int x = (int)data[row * w * c + col * c + ch];  // need to convert to int first before converting to unsigned char to get correct value
-				*(ucdata++) = (unsigned char)x;
+				int dint = (int)data[ch * w * h + row * w + col];  // need to convert to int first before converting to unsigned char to get correct value
+				*(ucdata++) = (unsigned char)dint;
 			}
 		}
 	}
@@ -101,4 +114,5 @@ void write_image_stbi(char* filename, float* data, int w, int h, int c) {
 		printf("Unsupported image format: %s\nPress enter to continue.", ext);
 		(void)getchar();
 	}
+	xfree(ucdata);
 }

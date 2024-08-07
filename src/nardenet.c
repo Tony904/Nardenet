@@ -2,6 +2,9 @@
 #include "network.h"
 #include "cfg.h"
 #include "train.h"
+#include "image.h"
+#include "xopencv.h"
+#include "xallocs.h"
 
 
 int main(void) {

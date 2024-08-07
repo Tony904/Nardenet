@@ -19,11 +19,12 @@ extern "C" {
         for (int ch = 0; ch < c ; ch++) {
             for (int row = 0; row < h; row++) {
                 for (int col = 0; col < w; col++) {
-                    float val = data[ch * h * w + row * w + col];
+                    int val = (int)data[ch * h * w + row * w + col];
                     mat.data[row * step + col * c + ch] = (unsigned char)val;
                 }
             }
         }
+        cv::cvtColor(mat, mat, cv::COLOR_BGR2RGB);
         std::string window_name = "Display";
         cv::namedWindow(window_name);
         cv::moveWindow(window_name, 40, 30);
@@ -57,7 +58,7 @@ extern "C" {
         cv::Mat mat2;
         mat2 = mat;
         unsigned char* mat_data = (unsigned char*)mat2.data;
-        size_t stride = mat2.step;
+        size_t step = mat2.step;
         float* dst = (float*)calloc(cols * rows * chs, sizeof(float));
         if (!dst) {
             std::cout << "Calloc error. Returning NULL.\n";
@@ -66,7 +67,8 @@ extern "C" {
         for (size_t z = 0; z < chs; ++z) {
             for (size_t y = 0; y < rows; ++y) {
                 for (size_t x = 0; x < cols; ++x) {
-                    dst[z * cols * rows + y * cols + x] = mat_data[y * stride + x * chs + z] / 255.0F;
+                    int dint = (int)mat_data[y * step + x * chs + z];
+                    dst[z * cols * rows + y * cols + x] = (float)dint;
                 }
             }
         }

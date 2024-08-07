@@ -25,7 +25,6 @@ void load_image_to_buffer(char* filename, image* dst) {
     load_image_stbi_to_buffer(filename, &dst->w, &dst->h, &dst->c, dst->data);
 }
 
-// returned img dimensions are absolute
 image* load_image(char* filename) {
     image* img = (image*)xcalloc(1, sizeof(image));
     img->data = load_image_stbi(filename, &img->w, &img->h, &img->c);
@@ -43,9 +42,15 @@ void write_image_test(void) {
     char* filename = "D:\\TonyDev\\NardeNet\\data\\testimg.png";
     //float* data = (float*)xcalloc((size_t)(w * h * c), sizeof(float));
     //fill_array_increment(data, (size_t)(w * h * c), 0.0F, 21.0F);
-    float data[12] = { 255, 0, 0, 255, 0, 0, 255, 0, 0, 255, 0, 0 };
+    float data[12] = { 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0 };  // should create img with the red channel filled with 255
     pprint_mat(data, w, h, c);
     write_image_stbi(filename, data, w, h, c);
+}
+
+void load_image_test(void) {
+    char* filename = "D:\\TonyDev\\NardeNet\\data\\testimg.png";
+    image* img = load_image(filename);
+    pprint_mat(img->data, (int)img->w, (int)img->h, (int)img->c);
 }
 
 image* new_image(size_t w, size_t h, size_t c) {

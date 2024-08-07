@@ -76,6 +76,7 @@ void load_det_sample(char* antfile, char* imgfile, det_sample* samp) {
 		box->cy = str2float(tokens[2]);
 		box->w = str2float(tokens[3]);
 		box->h = str2float(tokens[4]);
+		box->area = box->w * box->h;
 		box->left = box->cx - (box->w * 0.5F);
 		box->top = box->cy - (box->h * 0.5F);
 		box->right = box->cx + (box->w * 0.5F);

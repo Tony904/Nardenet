@@ -16,6 +16,7 @@ extern "C" {
     void show_image(image* img);
     void write_image(image* img, char* filename);
     void write_image_test(void);
+    void load_image_test(void);
     image* new_image(size_t width, size_t height, size_t channels);
     void free_image(image* img);
     void print_image_matrix(image* im);

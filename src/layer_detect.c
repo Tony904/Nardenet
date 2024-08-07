@@ -44,7 +44,8 @@ void forward_detect(layer* l, network* net) {
 				size_t bna = bn + a;
 				// objectness
 				size_t obj_index = s + b * l_n + a * A;
-				loss_cce_x(p[obj_index], (float)(cell.obj[bna]), &errors[obj_index], &grads[obj_index]);
+				float obj_truth = cell.obj[bna];
+				loss_cce_x(p[obj_index], obj_truth, &errors[obj_index], &grads[obj_index]);
 				obj_loss += errors[obj_index];
 				// class
 				for (size_t i = 0; i < n_classes; i++) {
@@ -54,12 +55,13 @@ void forward_detect(layer* l, network* net) {
 					loss_cce_x(x, t, &errors[cls_index], &grads[cls_index]);
 					cls_loss += errors[cls_index];
 				}
+				if (obj_truth < 1.0F) continue;
 				// iou
-				bbox pbox = { 0 };
 				float cx = p[obj_index + l_wh] * cell_size + cell.left;  // predicted value for cx, cy is % of cell size
 				float cy = p[obj_index + l_wh * 2] * cell_size + cell.top;
 				float w = p[obj_index + l_wh * 3];  // predicted value for w, h is % of img size
 				float h = p[obj_index + l_wh * 4];
+				bbox pbox = { 0 };
 				pbox.cx = cx;
 				pbox.cy = cy;
 				pbox.w = w;
@@ -74,7 +76,6 @@ void forward_detect(layer* l, network* net) {
 				float* dL_dw = &grads[obj_index + l_wh * 3];
 				float* dL_dh = &grads[obj_index + l_wh * 4];
 				float iouloss = get_grads_ciou(pbox, cell.tboxes[bna], dL_dx, dL_dy, dL_dw, dL_dh);
-				printf("iouloss: %f\n", iouloss);
 				iou_loss += iouloss;
 			}
 		}
@@ -105,7 +106,7 @@ void cull_predictions_and_do_nms(layer* l, network* net) {
 	size_t l_n = l->n;
 	size_t n_classes = l->n_classes;
 	size_t n_anchors = l->n_anchors;
-	det_sample** samples = net->data.detr.current_batch;
+	//det_sample** samples = net->data.detr.current_batch;
 	float cell_size = (float)l_w / (float)net_w;
 	size_t A = (NUM_ANCHOR_PARAMS + n_classes) * l_wh;
 	float* p = l->in_layers[0]->output;
@@ -156,6 +157,10 @@ void cull_predictions_and_do_nms(layer* l, network* net) {
 				dets->w = w;
 				dets->h = h;
 				dets->area = w * h;
+				dets->left = left;
+				dets->right = right;
+				dets->top = top;
+				dets->bottom = bottom;
 				*sorted = dets;
 				sorted++;
 				dets++;
@@ -190,10 +195,12 @@ void cull_predictions_and_do_nms(layer* l, network* net) {
 			}
 		}
 		// draw boxes on input image
-		image* img = load_image(samples[b]->imgpath);
-		draw_detections(sorted, n_dets, img, net->draw_thresh);
-		show_image(img);
-		xfree(img);
+		//image* img = load_image(samples[b]->imgpath);
+		//net->draw_thresh = 0.5F;  // TODO: Make a cfg parameter
+		//draw_detections(sorted, n_dets, img, net->draw_thresh);
+		////write_image(img, "D:\\TonyDev\\Nardenet\\data\\detector\\test.png");
+		//show_image(img);
+		//xfree(img);
 	}
 }
 
@@ -227,6 +234,7 @@ void draw_detections(bbox** dets, size_t n_dets, image* img, float thresh) {
 			data[green_offset + offset_bottom] = green;
 			data[blue_offset + offset_top] = blue;
 			data[blue_offset + offset_bottom] = blue;
+			col++;
 		}
 		// draw vertical lines
 		size_t row = box_top;
@@ -240,6 +248,7 @@ void draw_detections(bbox** dets, size_t n_dets, image* img, float thresh) {
 			data[green_offset + offset_right] = green;
 			data[blue_offset + offset_left] = blue;
 			data[blue_offset + offset_right] = blue;
+			row++;
 		}
 	}
 }
