@@ -88,7 +88,7 @@ void backward_conv(layer* l, network* net) {
 		for (size_t i = 0; i < l->in_ids.n; i++) {
 			layer* inl = l->in_layers[i];
 			size_t c = inl->out_c;
-			float* im = inl->output;
+			float* im = &inl->output[s * inl->out_n];
 			im2col(im, (int)c, (int)h, (int)w, (int)l->ksize, (int)l->pad, (int)l->stride, B);
 			B += N * l->ksize * l->ksize * c;
 		}

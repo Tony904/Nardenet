@@ -52,7 +52,7 @@ det_sample* detector_dataset_get_next_sample(detector_dataset* dataset, image* d
 		get_random_numbers_no_repeats(rands, n, 0, n - 1);
 	}
 	dataset->ri = ri;
-
+	printf("Loading sample: %s\n", sample->imgpath);
 	// get image from the selected sample
 	load_image_to_buffer(sample->imgpath, dst);
 	return sample;

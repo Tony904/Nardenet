@@ -37,15 +37,13 @@ void backward_residual(layer* l, network* net) {
 			exit(EXIT_FAILURE);
 		}
 	}
-	size_t n = batch_size * l->out_n;
-	for (size_t b = 0; b < batch_size; b++) {
-		for (size_t a = 0; a < l->in_ids.n; a++) {
-			float* inl_grads = l->in_layers[a]->grads;
-			size_t i;
+	size_t N = batch_size * l->out_n;
+	for (size_t a = 0; a < l->in_ids.n; a++) {
+		float* inl_grads = l->in_layers[a]->grads;
+		size_t i;
 #pragma omp parallel for
-			for (i = 0; i < n; i++) {
-				inl_grads[i] += grads[i];
-			}
+		for (i = 0; i < N; i++) {
+			inl_grads[i] += grads[i];
 		}
 	}
 }

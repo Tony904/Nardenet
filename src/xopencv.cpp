@@ -13,6 +13,7 @@
 
 extern "C" {
 
+#pragma warning (suppress:4100)
     void show_image_opencv(float* data, int w, int h, int c, int waitkey) {
         cv::Mat mat = cv::Mat(h, w, CV_8UC(c));
         int step = (int)mat.step;
@@ -24,13 +25,15 @@ extern "C" {
                 }
             }
         }
+        cv::destroyAllWindows();
         cv::cvtColor(mat, mat, cv::COLOR_BGR2RGB);
         std::string window_name = "Display";
         cv::namedWindow(window_name);
-        cv::moveWindow(window_name, 40, 30);
+        cv::moveWindow(window_name, 400, 300);
         cv::imshow(window_name, mat);
-        cv::waitKey(waitkey);
-        cv::destroyWindow(window_name);
+        //cv::waitKey(waitkey);
+        cv::waitKey(1);
+        //cv::destroyWindow(window_name);
     }
 
     float* load_image_opencv(char* filename, size_t* w, size_t* h, size_t* c) {

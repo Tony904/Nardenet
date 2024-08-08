@@ -9,6 +9,7 @@
 inline static void loss_cce_x(float x, float truth, float* error, float* grad);
 void cull_predictions_and_do_nms(layer* l, network* net);
 void draw_detections(bbox** dets, size_t n_dets, image* img, float thresh);
+void pprint_detect_array(float* data, size_t rows, size_t cols, size_t n_classes, size_t n_anchors);
 
 
 void forward_detect(layer* l, network* net) {
@@ -85,19 +86,38 @@ void forward_detect(layer* l, network* net) {
 	l->cls_loss = cls_loss;
 	l->iou_loss = iou_loss;
 	printf("detect loss: %f\nobj loss: %f\nclass loss: %f\niou loss: %f\n", l->loss, obj_loss, cls_loss, iou_loss);
+	//pprint_detect_array(l->grads, l->h, l->w, n_classes, n_anchors);
 	cull_predictions_and_do_nms(l, net);  // for debugging
 }
 
-#pragma warning(suppress:4100)
 void backward_detect(layer* l, network* net) {
-	l;
+	size_t batch_size = net->batch_size;
+	float* l_grads = l->grads;
+	size_t l_out_n = l->out_n;
+	layer** inls = l->in_layers;
+	size_t b;
+#pragma omp parallel for firstprivate(l_grads, l_out_n, inls)
+	for (b = 0; b < batch_size; b++) {
+		float* b_grads = &l_grads[b * l_out_n];
+		for (size_t i = 0; i < l->in_ids.n; i++) {
+			layer* inl = inls[i];
+			size_t inl_out_n = inl->out_n;
+			float* inl_grads = &inl->grads[b * inl_out_n];
+			for (size_t g = 0; g < inl_out_n; g++) {
+				inl_grads[g] = b_grads[g];
+			}
+			b_grads += inl_out_n;
+		}
+	}
 }
 
 void cull_predictions_and_do_nms(layer* l, network* net) {
 	size_t net_w = net->w;
-	float obj_thresh = l->nms_obj_thresh;
-	float cls_thresh = l->nms_cls_thresh;
+	/*float obj_thresh = l->nms_obj_thresh;
+	float cls_thresh = l->nms_cls_thresh;*/
 	float iou_thresh = l->nms_iou_thresh;
+	float obj_thresh = 0.0F;
+	float cls_thresh = 0.0F;
 	det_cell* cells = l->cells;
 	size_t batch_size = net->batch_size;
 	size_t l_w = l->w;
@@ -106,10 +126,10 @@ void cull_predictions_and_do_nms(layer* l, network* net) {
 	size_t l_n = l->n;
 	size_t n_classes = l->n_classes;
 	size_t n_anchors = l->n_anchors;
-	//det_sample** samples = net->data.detr.current_batch;
 	float cell_size = (float)l_w / (float)net_w;
 	size_t A = (NUM_ANCHOR_PARAMS + n_classes) * l_wh;
 	float* p = l->in_layers[0]->output;
+	size_t ndets = 0;  // debugging
 	for (size_t b = 0; b < batch_size; b++) {
 		bbox* dets = l->detections;
 		bbox** sorted = l->sorted;
@@ -194,14 +214,16 @@ void cull_predictions_and_do_nms(layer* l, network* net) {
 				}
 			}
 		}
-		// draw boxes on input image
-		//image* img = load_image(samples[b]->imgpath);
-		//net->draw_thresh = 0.5F;  // TODO: Make a cfg parameter
-		//draw_detections(sorted, n_dets, img, net->draw_thresh);
-		////write_image(img, "D:\\TonyDev\\Nardenet\\data\\detector\\test.png");
-		//show_image(img);
-		//xfree(img);
+		if (b == 0) ndets = n_dets;
 	}
+	// draw boxes on input image
+	det_sample** samples = net->data.detr.current_batch;
+	image* img = load_image(samples[0]->imgpath);
+	net->draw_thresh = 0.5F;  // TODO: Make a cfg parameter
+	draw_detections(l->sorted, ndets, img, net->draw_thresh);
+	////write_image(img, "D:\\TonyDev\\Nardenet\\data\\detector\\test.png");
+	show_image(img);
+	xfree(img);
 }
 
 void draw_detections(bbox** dets, size_t n_dets, image* img, float thresh) {
@@ -251,6 +273,32 @@ void draw_detections(bbox** dets, size_t n_dets, image* img, float thresh) {
 			row++;
 		}
 	}
+}
+
+void pprint_detect_array(float* data, size_t rows, size_t cols, size_t n_classes, size_t n_anchors) {
+	size_t S = rows * cols;
+	size_t A = (NUM_ANCHOR_PARAMS + n_classes) * S;
+	for (size_t row = 0; row < rows; row++) {
+		for (size_t col = 0; col < cols; col++) {
+			for (size_t a = 0; a < n_anchors; a++) {
+				size_t s = row * rows + col;
+				size_t obji = s + A * a;
+				size_t cxi = obji + S;
+				size_t cyi = cxi + S;
+				size_t wi = cyi + S;
+				size_t hi = wi + S;
+				printf("\nobj: %0.3f, cx: %0.3f, cy: %0.3f, w: %0.3f, h: %0.3f\n", data[obji], data[cxi], data[cyi], data[wi], data[hi]);
+				printf("Classes: ");
+				for (size_t n = 0; n < n_classes; n++) {
+					size_t clsi = hi + S + (S * n);
+					printf("[%zu]:%0.3f ", n, data[clsi]);
+				}
+				printf("\n");
+			}
+		}
+	}
+	printf("Press enter to continue.\n");
+	(void)getchar();
 }
 
 inline static void loss_cce_x(float x, float truth, float* error, float* grad) {
