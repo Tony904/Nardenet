@@ -25,12 +25,12 @@ extern "C" {
                 }
             }
         }
-        cv::destroyAllWindows();
+        //cv::destroyAllWindows();
         cv::cvtColor(mat, mat, cv::COLOR_BGR2RGB);
-        std::string window_name = "Display";
-        cv::namedWindow(window_name);
-        cv::moveWindow(window_name, 400, 300);
-        cv::imshow(window_name, mat);
+        //std::string window_name = "Display";
+        //cv::namedWindow(window_name);
+        cv::imshow("image", mat);
+        cv::moveWindow("image", 400, 300);
         //cv::waitKey(waitkey);
         cv::waitKey(1);
         //cv::destroyWindow(window_name);

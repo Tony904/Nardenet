@@ -13,8 +13,10 @@ void pprint_detect_array(float* data, size_t rows, size_t cols, size_t n_classes
 
 
 void forward_detect(layer* l, network* net) {
-	det_cell* cells = l->cells;
 	size_t batch_size = net->batch_size;
+	float* p = l->in_layers[0]->output;
+	l->activate(l->in_layers[0]->act_inputs, p, l->n, batch_size);
+	det_cell* cells = l->cells;
 	size_t l_w = l->w;
 	size_t l_h = l->h;
 	size_t l_wh = l_w * l_h;
@@ -24,7 +26,6 @@ void forward_detect(layer* l, network* net) {
 	size_t net_w = net->w;
 	float cell_size = (float)l_w / (float)net_w;
 	size_t A = (NUM_ANCHOR_PARAMS + n_classes) * l_wh;
-	float* p = l->in_layers[0]->output;
 	float* errors = l->errors;
 	zero_array(errors, l_n * batch_size);
 	float* grads = l->grads;
@@ -37,6 +38,7 @@ void forward_detect(layer* l, network* net) {
 	obj_loss = 0.0F;
 	cls_loss = 0.0F;
 	iou_loss = 0.0F;
+	size_t n_iou_loss = 0;
 	for (size_t s = 0; s < l_wh; s++) {
 		det_cell cell = cells[s];
 		for (size_t b = 0; b < batch_size; b++) {
@@ -46,17 +48,30 @@ void forward_detect(layer* l, network* net) {
 				// objectness
 				size_t obj_index = s + b * l_n + a * A;
 				float obj_truth = cell.obj[bna];
+				if (!obj_truth && p[obj_index] < 0.5F) continue;
 				loss_cce_x(p[obj_index], obj_truth, &errors[obj_index], &grads[obj_index]);
 				obj_loss += errors[obj_index];
+				if (obj_truth < 1.0F) continue;
+				printf("b[%zu] Cell[%zu] Anchor[%zu]\n", b, s, a);
+				printf("obj conf: %.3f, obj grad: %.3f\n", p[obj_index], grads[obj_index]);
 				// class
+				float pt = 0.0F;
+				float ptgrad = 0.0F;
+				if (p[obj_index] < 0.7F) continue;
 				for (size_t i = 0; i < n_classes; i++) {
 					size_t cls_index = obj_index + (NUM_ANCHOR_PARAMS + i) * l_wh;
 					float x = p[cls_index];
 					float t = (cell.cls[bna] == (int)i) ? 1.0F : 0.0F;
 					loss_cce_x(x, t, &errors[cls_index], &grads[cls_index]);
+					if (t) {
+						pt = x;
+						ptgrad = grads[cls_index];
+					}
 					cls_loss += errors[cls_index];
 				}
-				if (obj_truth < 1.0F) continue;
+				//if (obj_truth < 1.0F) continue;
+				printf("cls conf: %.3f, cls grad: %.3f\n", pt, ptgrad);
+				if (pt < 0.3F) continue;
 				// iou
 				float cx = p[obj_index + l_wh] * cell_size + cell.left;  // predicted value for cx, cy is % of cell size
 				float cy = p[obj_index + l_wh * 2] * cell_size + cell.top;
@@ -77,16 +92,20 @@ void forward_detect(layer* l, network* net) {
 				float* dL_dw = &grads[obj_index + l_wh * 3];
 				float* dL_dh = &grads[obj_index + l_wh * 4];
 				float iouloss = get_grads_ciou(pbox, cell.tboxes[bna], dL_dx, dL_dy, dL_dw, dL_dh);
-				//printf("Cell[%zu] Anchor[%zu] iou loss: %f\n", s, a, iouloss);
+				*dL_dx *= cell_size;
+				*dL_dy *= cell_size;
+				printf("iouloss: %.3f, dx: %.3f, dy: %.3f, dw: %.3f, dh: %.3f\n", iouloss, *dL_dx, *dL_dy, *dL_dw, *dL_dh);
 				iou_loss += iouloss;
+				n_iou_loss++;
 			}
 		}
 	}
 	l->loss = obj_loss + cls_loss + iou_loss;
-	l->obj_loss = obj_loss;
-	l->cls_loss = cls_loss;
-	l->iou_loss = iou_loss;
-	printf("detect loss: %f\nobj loss: %f\nclass loss: %f\niou loss: %f\n", l->loss, obj_loss, cls_loss, iou_loss);
+	l->obj_loss = obj_loss / (l_wh * n_anchors);
+	l->cls_loss = cls_loss / (l_wh * n_anchors * n_classes);
+	if (n_iou_loss) l->iou_loss = iou_loss / (float)n_iou_loss;
+	else l->iou_loss = 0.0F;
+	printf("total detect loss: %f\navg obj loss: %f\navg class loss: %f\navg iou loss: %f\n", l->loss, l->obj_loss, l->cls_loss, l->iou_loss);
 	//pprint_detect_array(l->grads, l->h, l->w, n_classes, n_anchors);
 	cull_predictions_and_do_nms(l, net);  // for debugging
 }
@@ -114,13 +133,14 @@ void backward_detect(layer* l, network* net) {
 
 void cull_predictions_and_do_nms(layer* l, network* net) {
 	size_t net_w = net->w;
-	/*float obj_thresh = l->nms_obj_thresh;
-	float cls_thresh = l->nms_cls_thresh;*/
+	float obj_thresh = l->nms_obj_thresh;
+	float cls_thresh = l->nms_cls_thresh;
 	float iou_thresh = l->nms_iou_thresh;
-	float obj_thresh = 0.0F;
-	float cls_thresh = 0.0F;
+	//float obj_thresh = 0.0F;
+	//float cls_thresh = 0.0F;
 	det_cell* cells = l->cells;
-	size_t batch_size = net->batch_size;
+	//size_t batch_size = net->batch_size;
+	size_t batch_size = 1;
 	size_t l_w = l->w;
 	size_t l_h = l->h;
 	size_t l_wh = l_w * l_h;

@@ -533,8 +533,8 @@ void build_detect_layer(int i, network* net) {
 	else { // if first layer
 		l->in_layers[0] = net->input;
 	}
-	if (l->in_layers[0]->activation != ACT_SIGMOID) {
-		printf("Invalid cfg: The input layer to a detect layer must have sigmoid activation.\n");
+	if (l->in_layers[0]->activation != ACT_NONE) {
+		printf("Invalid cfg: The input layer to a detect layer must have an activation of \"none\".\n");
 		wait_for_key_then_exit();
 	}
 
@@ -567,6 +567,9 @@ void build_detect_layer(int i, network* net) {
 	l->forward = forward_detect;
 	l->backward = backward_detect;
 	l->update = update_none;
+
+	l->activation = ACT_SIGMOID;
+	set_activate(l);
 
 	// set anchors
 	if (net->w != net->h || l->out_w != l->out_h) {
@@ -605,7 +608,7 @@ void build_detect_layer(int i, network* net) {
 	l->detections = (bbox*)xcalloc(l->w * l->h * l->n_anchors, sizeof(bbox));
 	l->sorted = (bbox**)xcalloc(l->w * l->h * l->n_anchors, sizeof(bbox*));
 	// TODO: Make these cfg parameters
-	l->nms_obj_thresh = 0.3F;
+	l->nms_obj_thresh = 0.6F;
 	l->nms_cls_thresh = 0.3F;
 	l->nms_iou_thresh = 0.5F;
 }
