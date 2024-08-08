@@ -45,12 +45,17 @@ void load_image_stbi_to_buffer(char* filename, size_t* w, size_t* h, size_t* c, 
 		printf("Expected image size (%zu,%zu,%zu) does not equal actual image size (%zu,%zu,%zu).\n", *w, *h, *c, X, Y, N);
 		wait_for_key_then_exit();
 	}
-	for (size_t ch = 0; ch < N; ch++) {
+	size_t S = X * Y;
+	size_t ch;
+#pragma omp parallel for firstprivate(S, X, Y, N)
+	for (ch = 0; ch < N; ch++) {
+		size_t chS = ch * S;
 		for (size_t row = 0; row < Y; row++) {
+			size_t chSrowX = chS + row * X;
+			size_t rowNXch = row * N * X + ch;
 			for (size_t col = 0; col < X; col++) {
-				int dint = (int)data[row * N * X + col * N + ch];
-				*dst = (float)dint;
-				dst++;
+				int dint = (int)data[rowNXch + col * N];
+				dst[chSrowX + col] = (float)dint;
 			}
 		}
 	}
@@ -77,18 +82,22 @@ float* load_image_stbi(char* filename, size_t* w, size_t* h, size_t* c) {
 	*c = N;
 	size_t size = X * Y * N;
 	float* dataf = (float*)xcalloc(size, sizeof(float));
-	float* start = dataf;
-	for (size_t ch = 0; ch < N; ch++) {
+	size_t S = X * Y;
+	size_t ch;
+#pragma omp parallel for firstprivate(S, X, Y, N)
+	for (ch = 0; ch < N; ch++) {
+		size_t chS = ch * S;
 		for (size_t row = 0; row < Y; row++) {
+			size_t chSrowX = chS + row * X;
+			size_t rowNXch = row * N * X + ch;
 			for (size_t col = 0; col < X; col++) {
-				int dint = (int)data[row * N * X + col * N + ch];
-				*dataf = (float)dint;
-				dataf++;
+				int dint = (int)data[rowNXch + col * N];
+				dataf[chSrowX + col] = (float)dint;
 			}
 		}
 	}
 	stbi_image_free(data);
-	return start;
+	return dataf;
 }
 
 

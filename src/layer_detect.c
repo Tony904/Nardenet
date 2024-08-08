@@ -77,6 +77,7 @@ void forward_detect(layer* l, network* net) {
 				float* dL_dw = &grads[obj_index + l_wh * 3];
 				float* dL_dh = &grads[obj_index + l_wh * 4];
 				float iouloss = get_grads_ciou(pbox, cell.tboxes[bna], dL_dx, dL_dy, dL_dw, dL_dh);
+				//printf("Cell[%zu] Anchor[%zu] iou loss: %f\n", s, a, iouloss);
 				iou_loss += iouloss;
 			}
 		}
@@ -218,12 +219,18 @@ void cull_predictions_and_do_nms(layer* l, network* net) {
 	}
 	// draw boxes on input image
 	det_sample** samples = net->data.detr.current_batch;
-	image* img = load_image(samples[0]->imgpath);
+	image img = { 0 };
+	float buffer[3072] = { 0 };
+	img.w = 32;
+	img.h = 32;
+	img.c = 3;
+	img.data = buffer;
+	load_image_to_buffer(samples[0]->imgpath, &img);
 	net->draw_thresh = 0.5F;  // TODO: Make a cfg parameter
-	draw_detections(l->sorted, ndets, img, net->draw_thresh);
+	draw_detections(l->sorted, ndets, &img, net->draw_thresh);
 	////write_image(img, "D:\\TonyDev\\Nardenet\\data\\detector\\test.png");
-	show_image(img);
-	xfree(img);
+	show_image(&img);
+	//xfree(img);
 }
 
 void draw_detections(bbox** dets, size_t n_dets, image* img, float thresh) {
@@ -241,8 +248,8 @@ void draw_detections(bbox** dets, size_t n_dets, image* img, float thresh) {
 		bbox* det = dets[i];
 		size_t box_left = det->left * img_w;
 		size_t box_top = det->top * img_h;
-		size_t box_right = det->right * img_w;
-		size_t box_bottom = det->bottom * img_h;
+		size_t box_right = (det->right * img_w) - 1;
+		size_t box_bottom = (det->bottom * img_h) - 1;
 		// draw horizontal lines
 		size_t row_offset_top =  box_top * img_w;
 		size_t row_offset_bottom = box_bottom * img_w;
@@ -256,6 +263,7 @@ void draw_detections(bbox** dets, size_t n_dets, image* img, float thresh) {
 			data[green_offset + offset_bottom] = green;
 			data[blue_offset + offset_top] = blue;
 			data[blue_offset + offset_bottom] = blue;
+			if (blue_offset + offset_bottom >= 3072) printf("offset: %zu\n", blue_offset + offset_bottom);
 			col++;
 		}
 		// draw vertical lines
