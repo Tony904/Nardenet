@@ -48,7 +48,6 @@ void forward_detect(layer* l, network* net) {
 				// objectness
 				size_t obj_index = s + b * l_n + a * A;
 				float obj_truth = cell.obj[bna];
-				if (!obj_truth && p[obj_index] < 0.5F) continue;
 				loss_cce_x(p[obj_index], obj_truth, &errors[obj_index], &grads[obj_index]);
 				obj_loss += errors[obj_index];
 				if (obj_truth < 1.0F) continue;
@@ -57,7 +56,6 @@ void forward_detect(layer* l, network* net) {
 				// class
 				float pt = 0.0F;
 				float ptgrad = 0.0F;
-				if (p[obj_index] < 0.7F) continue;
 				for (size_t i = 0; i < n_classes; i++) {
 					size_t cls_index = obj_index + (NUM_ANCHOR_PARAMS + i) * l_wh;
 					float x = p[cls_index];
@@ -69,9 +67,7 @@ void forward_detect(layer* l, network* net) {
 					}
 					cls_loss += errors[cls_index];
 				}
-				//if (obj_truth < 1.0F) continue;
 				printf("cls conf: %.3f, cls grad: %.3f\n", pt, ptgrad);
-				if (pt < 0.3F) continue;
 				// iou
 				float cx = p[obj_index + l_wh] * cell_size + cell.left;  // predicted value for cx, cy is % of cell size
 				float cy = p[obj_index + l_wh * 2] * cell_size + cell.top;
@@ -92,8 +88,8 @@ void forward_detect(layer* l, network* net) {
 				float* dL_dw = &grads[obj_index + l_wh * 3];
 				float* dL_dh = &grads[obj_index + l_wh * 4];
 				float iouloss = get_grads_ciou(pbox, cell.tboxes[bna], dL_dx, dL_dy, dL_dw, dL_dh);
-				*dL_dx *= cell_size;
-				*dL_dy *= cell_size;
+				//*dL_dx *= cell_size;  // not sure if needed
+				//*dL_dy *= cell_size;
 				printf("iouloss: %.3f, dx: %.3f, dy: %.3f, dw: %.3f, dh: %.3f\n", iouloss, *dL_dx, *dL_dy, *dL_dw, *dL_dh);
 				iou_loss += iouloss;
 				n_iou_loss++;
