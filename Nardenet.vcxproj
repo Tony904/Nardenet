@@ -45,9 +45,12 @@
     <ClCompile Include="src\gemm.c" />
     <ClCompile Include="src\im2col.c" />
     <ClCompile Include="src\image.c" />
+    <ClCompile Include="src\iou.c" />
     <ClCompile Include="src\layer_classify.c" />
     <ClCompile Include="src\layer_conv.c" />
+    <ClCompile Include="src\layer_detect.c" />
     <ClCompile Include="src\layer_maxpool.c" />
+    <ClCompile Include="src\layer_residual.c" />
     <ClCompile Include="src\list.c" />
     <ClCompile Include="src\locmacro.c" />
     <ClCompile Include="src\loss.c" />
@@ -71,9 +74,12 @@
     <ClInclude Include="src\gemm.h" />
     <ClInclude Include="src\im2col.h" />
     <ClInclude Include="src\image.h" />
+    <ClInclude Include="src\iou.h" />
     <ClInclude Include="src\layer_classify.h" />
     <ClInclude Include="src\layer_conv.h" />
+    <ClInclude Include="src\layer_detect.h" />
     <ClInclude Include="src\layer_maxpool.h" />
+    <ClInclude Include="src\layer_residual.h" />
     <ClInclude Include="src\lib_api.h" />
     <ClInclude Include="src\list.h" />
     <ClInclude Include="src\locmacro.h" />
