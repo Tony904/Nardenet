@@ -4,9 +4,14 @@
 #include "utils.h"
 #include "xallocs.h"
 #include "image.h"
+#include "activations.h"
 
 
-inline static void loss_cce_x(float x, float truth, float* error, float* grad);
+#define COORD_MULTI 5.0F
+#define NO_OBJ_MULTI 0.1F
+
+
+inline static void loss_bce_x(float x, float truth, float* error, float* grad);
 void cull_predictions_and_do_nms(layer* l, network* net);
 void draw_detections(bbox** dets, size_t n_dets, image* img, float thresh);
 void pprint_detect_array(float* data, size_t rows, size_t cols, size_t n_classes, size_t n_anchors);
@@ -14,9 +19,9 @@ void pprint_detect_array(float* data, size_t rows, size_t cols, size_t n_classes
 
 void forward_detect(layer* l, network* net) {
 	size_t batch_size = net->batch_size;
-	float* p = l->in_layers[0]->output;
+	float* p = l->in_layers[0]->output;  // predictions
 	l->activate(l->in_layers[0]->act_inputs, p, l->n, batch_size);
-	det_cell* cells = l->cells;
+	det_cell* cells = l->cells;  // truths
 	size_t l_w = l->w;
 	size_t l_h = l->h;
 	size_t l_wh = l_w * l_h;
@@ -46,33 +51,42 @@ void forward_detect(layer* l, network* net) {
 			for (size_t a = 0; a < n_anchors; a++) {
 				size_t bna = bn + a;
 				// objectness
-				size_t obj_index = s + b * l_n + a * A;
-				float obj_truth = cell.obj[bna];
-				loss_cce_x(p[obj_index], obj_truth, &errors[obj_index], &grads[obj_index]);
+				size_t p_index = s + b * l_n + a * A;
+				size_t obj_index = p_index + l_wh * 4;
+				float p_obj = p[obj_index];  // prediction
+				float t_obj = cell.obj[bn];   // truth
+				loss_bce_x(p_obj, t_obj, &errors[obj_index], &grads[obj_index]);
 				obj_loss += errors[obj_index];
-				if (obj_truth < 1.0F) continue;
+				/*if (t_obj < 1.0F) {
+					grads[obj_index] *= NO_OBJ_MULTI;
+					continue;
+				}*/
+				if (!cell.tboxes[bna].w) {
+					grads[obj_index] *= NO_OBJ_MULTI;
+					continue;
+				}
 				printf("b[%zu] Cell[%zu] Anchor[%zu]\n", b, s, a);
-				printf("obj conf: %.3f, obj grad: %.3f\n", p[obj_index], grads[obj_index]);
+				printf("obj conf: %.3f, obj grad: %.3f\n", p_obj, grads[obj_index]);
 				// class
-				float pt = 0.0F;
-				float ptgrad = 0.0F;
+				float pcls = 0.0F;
+				float pgrad = 0.0F;
 				for (size_t i = 0; i < n_classes; i++) {
-					size_t cls_index = obj_index + (NUM_ANCHOR_PARAMS + i) * l_wh;
-					float x = p[cls_index];
-					float t = (cell.cls[bna] == (int)i) ? 1.0F : 0.0F;
-					loss_cce_x(x, t, &errors[cls_index], &grads[cls_index]);
-					if (t) {
-						pt = x;
-						ptgrad = grads[cls_index];
+					size_t cls_index = obj_index + (i + 1) * l_wh;
+					float p_cls = p[cls_index];
+					float t_cls = (cell.cls[bna] == (int)i) ? 1.0F : 0.0F;
+					loss_bce_x(p_cls, t_cls, &errors[cls_index], &grads[cls_index]);
+					if (t_cls) {
+						pcls = p_cls;
+						pgrad = grads[cls_index];
 					}
 					cls_loss += errors[cls_index];
 				}
-				printf("cls conf: %.3f, cls grad: %.3f\n", pt, ptgrad);
+				printf("cls conf: %.3f, cls grad: %.3f\n", pcls, pgrad);
 				// iou
-				float cx = p[obj_index + l_wh] * cell_size + cell.left;  // predicted value for cx, cy is % of cell size
-				float cy = p[obj_index + l_wh * 2] * cell_size + cell.top;
-				float w = p[obj_index + l_wh * 3];  // predicted value for w, h is % of img size
-				float h = p[obj_index + l_wh * 4];
+				float w = p[p_index];  // predicted value for w, h is % of img size
+				float h = p[p_index + l_wh];
+				float cx = p[p_index + l_wh * 2] * cell_size + cell.left;  // predicted value for cx, cy is % of cell size
+				float cy = p[p_index + l_wh * 3] * cell_size + cell.top;
 				bbox pbox = { 0 };
 				pbox.cx = cx;
 				pbox.cy = cy;
@@ -83,11 +97,15 @@ void forward_detect(layer* l, network* net) {
 				pbox.right = pbox.left + w;
 				pbox.top = cy - (h / 2.0F);
 				pbox.bottom = cell.top + h;
-				float* dL_dx = &grads[obj_index + l_wh];
-				float* dL_dy = &grads[obj_index + l_wh * 2];
-				float* dL_dw = &grads[obj_index + l_wh * 3];
-				float* dL_dh = &grads[obj_index + l_wh * 4];
+				float* dL_dw = &grads[p_index];
+				float* dL_dh = &grads[p_index + l_wh];
+				float* dL_dx = &grads[p_index + l_wh * 2];
+				float* dL_dy = &grads[p_index + l_wh * 3];
 				float iouloss = get_grads_ciou(pbox, cell.tboxes[bna], dL_dx, dL_dy, dL_dw, dL_dh);
+				*dL_dw *= COORD_MULTI;
+				*dL_dh *= COORD_MULTI;
+				*dL_dx *= COORD_MULTI * cell_size;
+				*dL_dy *= COORD_MULTI * cell_size;
 				//*dL_dx *= cell_size;  // not sure if needed
 				//*dL_dy *= cell_size;
 				printf("iouloss: %.3f, dx: %.3f, dy: %.3f, dw: %.3f, dh: %.3f\n", iouloss, *dL_dx, *dL_dy, *dL_dw, *dL_dh);
@@ -127,6 +145,24 @@ void backward_detect(layer* l, network* net) {
 	}
 }
 
+//void sigmoid_detect_inputs(layer* l, network* net) {
+//	size_t batch_size = net->batch_size;
+//	float* act_outputs = l->in_layers[0]->output;
+//	size_t n = l->n;
+//	float* act_inputs = l->in_layers[0]->act_inputs;
+//	size_t S = l->w * l->h;
+//	size_t n_classes = l->n_classes;
+//	for (size_t b = 0; b < batch_size; b++) {
+//		for (size_t s = 0; s < S * 3; s++) {  // objness, cx, cy
+//			act_outputs[s] = sigmoid_x(act_inputs[s]);
+//		}
+//		size_t offset = S * 5;
+//		for (size_t s = 0; s < S * n_classes; s++) {  // class scores
+//			act_outputs[offset + s] = sigmoid_x(act_outputs[offset + s]);
+//		}
+//	}
+//}
+
 void cull_predictions_and_do_nms(layer* l, network* net) {
 	size_t net_w = net->w;
 	float obj_thresh = l->nms_obj_thresh;
@@ -155,12 +191,13 @@ void cull_predictions_and_do_nms(layer* l, network* net) {
 		for (size_t s = 0; s < l_wh; s++) {
 			det_cell cell = cells[s];
 			for (size_t a = 0; a < n_anchors; a++) {
-				size_t obj_index = s + b * l_n + a * A;
+				size_t p_index = s + b * l_n + a * A;
+				size_t obj_index = p_index + l_wh * 4;
 				if (p[obj_index] < obj_thresh) continue;  // objectness thresh
 				int best_cls = -1;
 				float best_cls_score = 0.0F;
 				for (size_t i = 0; i < n_classes; i++) {
-					size_t cls_index = obj_index + (NUM_ANCHOR_PARAMS + i) * l_wh;
+					size_t cls_index = obj_index + (i + 1) * l_wh;
 					if (p[cls_index] > cls_thresh) {  // class confidence thresh
 						if (p[cls_index] > best_cls_score) {
 							best_cls_score = p[cls_index];
@@ -169,10 +206,10 @@ void cull_predictions_and_do_nms(layer* l, network* net) {
 					}
 				}
 				if (best_cls < 0) continue;
-				float cx = p[obj_index + l_wh] * cell_size + cell.left;  // predicted value for cx, cy is % of cell size
-				float cy = p[obj_index + l_wh * 2] * cell_size + cell.top;
-				float w = p[obj_index + l_wh * 3];  // predicted value for w, h is % of img size
-				float h = p[obj_index + l_wh * 4];
+				float w = p[p_index];  // predicted value for w, h is % of img size
+				float h = p[p_index + l_wh];
+				float cx = p[p_index + l_wh * 2] * cell_size + cell.left;  // predicted value for cx, cy is % of cell size
+				float cy = p[p_index + l_wh * 3] * cell_size + cell.top;
 				float left = cx - w / 2.0F;
 				if (left >= 1.0F) continue;
 				float right = left + w;
@@ -325,7 +362,7 @@ void pprint_detect_array(float* data, size_t rows, size_t cols, size_t n_classes
 	(void)getchar();
 }
 
-inline static void loss_cce_x(float x, float truth, float* error, float* grad) {
+inline static void loss_bce_x(float x, float truth, float* error, float* grad) {
 	*grad = x - truth;
 	*error = -truth * logf(x) - (1.0F - truth) * logf(1.0F - x);
 }

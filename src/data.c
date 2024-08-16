@@ -79,8 +79,8 @@ void generate_detect_layer_truth(network* net, layer* l, det_sample** samples, s
 			}
 		}
 	}
-	// output format PER ANCHOR: {any_object, cx, cy, w, h, class1, class2, class3, etc...}
-	// output format general: {batch1_cell1_any_obj, batch1_cell1_cx,... batch1_cell2... batch2_cell1... etc...}
+	// output format PER ANCHOR: {w, h, cx, cy, any_object, class1, class2, class3, etc...}
+	// output format general: {batch1_cell1_w, batch1_cell1_h,... batch1_cell2... batch2_cell1... etc...}
 	// note: bbox coordinates are offsets from top-left (0, 0) of grid cell
 	if (net_w != net_h || l_w != l_h) {
 		printf("Network input and output width & height must be square.\n");
@@ -117,7 +117,8 @@ void generate_detect_layer_truth(network* net, layer* l, det_sample** samples, s
 				}
 				if (best_a < 0) continue;
 				size_t index = (size_t)(bn + best_a);
-				cell_obj[index] = 1;
+				//cell_obj[index] = 1;
+				cell_obj[bn] = 1;  // i think all anchors in a cell are supposed to have the same objness truth if even just 1 gets assigned a truth...
 				cell_cls[index] = box.lbl;
 				cell_tboxes[index].cx = box.cx;
 				cell_tboxes[index].cy = box.cy;
