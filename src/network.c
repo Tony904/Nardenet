@@ -568,7 +568,7 @@ void build_detect_layer(int i, network* net) {
 	l->backward = backward_detect;
 	l->update = update_none;
 
-	l->activation = ACT_SIGMOID;
+	l->activation = ACT_NONE;
 	set_activate(l);
 
 	// set anchors
@@ -589,28 +589,14 @@ void build_detect_layer(int i, network* net) {
 		l->anchors[j].top = 0.5 * (cell_size - h);
 		l->anchors[j].bottom = l->anchors[j].top + h;
 	}
-	det_cell* cells = (det_cell*)xcalloc(l->out_w * l->out_h, sizeof(det_cell));
-	for (size_t row = 0; row < l->out_h; row++) {
-		float cell_top = cell_size * (float)row;
-		for (size_t col = 0; col < l->out_w; col++) {
-			float cell_left = cell_size * (float)col;
-			size_t cell_index = row * l->out_h + col;
-			cells[cell_index].cls = (int*)xcalloc(l->n_anchors * net->batch_size, sizeof(int));
-			cells[cell_index].obj = (int*)xcalloc(l->n_anchors * net->batch_size, sizeof(int));
-			cells[cell_index].tboxes = (bbox*)xcalloc(l->n_anchors * net->batch_size, sizeof(bbox));
-			cells[cell_index].top = cell_top;
-			cells[cell_index].left = cell_left;
-			cells[cell_index].bottom = cell_top + cell_size;
-			cells[cell_index].right = cell_left + cell_size;
-		}
-	}
-	l->cells = cells;
 	l->detections = (bbox*)xcalloc(l->w * l->h * l->n_anchors, sizeof(bbox));
 	l->sorted = (bbox**)xcalloc(l->w * l->h * l->n_anchors, sizeof(bbox*));
 	// TODO: Make these cfg parameters
 	l->nms_obj_thresh = 0.6F;
 	l->nms_cls_thresh = 0.3F;
 	l->nms_iou_thresh = 0.5F;
+	l->ignore_thresh = 0.7F;
+	l->obj_normalizer = 0.4F;
 }
 
 void set_activate(layer* l) {

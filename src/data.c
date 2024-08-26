@@ -11,7 +11,6 @@
 
 
 
-void generate_detect_layer_truth(network* net, layer* l, det_sample** samples, size_t batch_size);
 det_sample* detector_dataset_get_next_sample(detector_dataset* dataset, image* dst);
 void classifier_dataset_get_next_image(classifier_dataset* dataset, image* dst, float* truth);
 
@@ -33,9 +32,6 @@ void detector_get_next_batch(network* net) {
 		img.data = &net->input->output[b * n];
 		batch_samples[b] = detector_dataset_get_next_sample(dataset, &img);
 	}
-	layer* detect_layer = &net->layers[net->n_layers - 1];
-	assert(detect_layer->type == LAYER_DETECT);
-	generate_detect_layer_truth(net, detect_layer, batch_samples, batch_size);
 }
 
 det_sample* detector_dataset_get_next_sample(detector_dataset* dataset, image* dst) {
@@ -56,82 +52,6 @@ det_sample* detector_dataset_get_next_sample(detector_dataset* dataset, image* d
 	// get image from the selected sample
 	load_image_to_buffer(sample->imgpath, dst);
 	return sample;
-}
-
-void generate_detect_layer_truth(network* net, layer* l, det_sample** samples, size_t batch_size) {
-	det_cell* cells = l->cells;
-	bbox* anchors = l->anchors;
-	size_t n_anchors = l->n_anchors;
-	size_t net_w = net->w;
-	size_t net_h = net->h;
-	size_t l_w = l->w;
-	size_t l_h = l->h;
-	size_t l_wh = l_w * l_h;
-	size_t i;
-#pragma omp parallel for firstprivate(n_anchors)
-	for (i = 0; i < l_wh; i++) {
-		for (size_t k = 0; k < batch_size; k++) {
-			size_t kn = k * n_anchors;
-			for (size_t j = 0; j < n_anchors; j++) {
-				size_t knj = kn + j;
-				cells[i].obj[knj] = 0;
-				cells[i].cls[knj] = 0;
-			}
-		}
-	}
-	// output format PER ANCHOR: {w, h, cx, cy, any_object, class1, class2, class3, etc...}
-	// output format general: {batch1_cell1_w, batch1_cell1_h,... batch1_cell2... batch2_cell1... etc...}
-	// note: bbox coordinates are offsets from top-left (0, 0) of grid cell
-	if (net_w != net_h || l_w != l_h) {
-		printf("Network input and output width & height must be square.\n");
-		wait_for_key_then_exit();
-	}
-	for (i = 0; i < l_wh; i++) {
-		float top = cells[i].top;  // values are relative to % of image dimensions
-		float left = cells[i].left;
-		float bottom = cells[i].bottom;
-		float right = cells[i].right;
-		int* cell_obj = cells[i].obj;
-		int* cell_cls = cells[i].cls;
-		bbox* cell_tboxes = cells[i].tboxes;
-		size_t b;
-#pragma omp parallel for firstprivate(top, left, bottom, right, i, n_anchors, cell_obj, cell_cls, cell_tboxes)
-		for (b = 0; b < batch_size; b++) {
-			det_sample* sample = samples[b];
-			int bn = (int)(b * n_anchors);
-			for (size_t x = 0; x < sample->n; x++) {
-				bbox box = sample->bboxes[x];
-				if (box.cx < left) continue;
-				if (box.cx >= right) continue;
-				if (box.cy < top) continue;
-				if (box.cy >= bottom) continue;
-				int best_a = -1;
-				float best_iou = 0.0F;
-				for (int a = 0; a < (int)n_anchors; a++) {
-					float iou = get_diou(box, anchors[a]);
-					if (iou > best_iou) {
-						if (cells[i].obj[bn + a]) continue;  // if anchor already has a truth box assigned to it, skip
-						best_iou = iou;
-						best_a = a;
-					}
-				}
-				if (best_a < 0) continue;
-				size_t index = (size_t)(bn + best_a);
-				//cell_obj[index] = 1;
-				cell_obj[bn] = 1;  // i think all anchors in a cell are supposed to have the same objness truth if even just 1 gets assigned a truth...
-				cell_cls[index] = box.lbl;
-				cell_tboxes[index].cx = box.cx;
-				cell_tboxes[index].cy = box.cy;
-				cell_tboxes[index].w = box.w;
-				cell_tboxes[index].h = box.h;
-				cell_tboxes[index].area = box.area;
-				cell_tboxes[index].left = box.left;
-				cell_tboxes[index].right = box.right;
-				cell_tboxes[index].top = box.top;
-				cell_tboxes[index].bottom = box.bottom;
-			}
-		}
-	}
 }
 
 void load_detector_dataset(detector_dataset* dataset, char* dir) {

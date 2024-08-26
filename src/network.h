@@ -172,13 +172,15 @@ extern "C" {
         size_t n_classes;
         size_t n_anchors;
         bbox* anchors;  // base anchors that will get copied to each cell
-        det_cell* cells;  // prediction cells of detect layer
         bbox* detections;
         bbox** sorted;
         float nms_obj_thresh;
         float nms_cls_thresh;
         float nms_iou_thresh;
-        float* truth;
+        float* truth;  // truths for classifier
+
+        float ignore_thresh;
+        float obj_normalizer;
 
         float** maxpool_addresses;  // addresses of input layer outputs that were max values (for backprop)
     } layer;

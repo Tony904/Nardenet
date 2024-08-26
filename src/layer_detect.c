@@ -20,8 +20,7 @@ void pprint_detect_array(float* data, size_t rows, size_t cols, size_t n_classes
 void forward_detect(layer* l, network* net) {
 	size_t batch_size = net->batch_size;
 	float* p = l->in_layers[0]->output;  // predictions
-	l->activate(l->in_layers[0]->act_inputs, p, l->n, batch_size);
-	det_cell* cells = l->cells;  // truths
+	det_sample** samples = net->data.detr.current_batch;
 	size_t l_w = l->w;
 	size_t l_h = l->h;
 	size_t l_wh = l_w * l_h;
@@ -39,55 +38,34 @@ void forward_detect(layer* l, network* net) {
 	float obj_loss = l->obj_loss;
 	float cls_loss = l->cls_loss;
 	float iou_loss = l->iou_loss;
+	float ignore_thresh = l->ignore_thresh;
+	float obj_normalizer = l->obj_normalizer;
 	loss = 0.0F;
 	obj_loss = 0.0F;
 	cls_loss = 0.0F;
 	iou_loss = 0.0F;
 	size_t n_iou_loss = 0;
-	for (size_t s = 0; s < l_wh; s++) {
-		det_cell cell = cells[s];
-		for (size_t b = 0; b < batch_size; b++) {
-			size_t bn = b * n_anchors;
+	for (size_t b = 0; b < batch_size; b++) {
+		det_sample* sample = samples[b];
+		bbox* tboxes = sample->bboxes;  // truth boxes
+		size_t n_tboxes = sample->n;
+		for (size_t s = 0; s < l_wh; s++) {
+			float row = s / l_wh;
+			float col = s % l_wh;
+			float cell_left = col / (float)l_wh;
+			float cell_top = row / (float)l_wh;
 			for (size_t a = 0; a < n_anchors; a++) {
-				size_t bna = bn + a;
-				// objectness
-				size_t p_index = s + b * l_n + a * A;
-				size_t obj_index = p_index + l_wh * 4;
-				float p_obj = p[obj_index];  // prediction
-				float t_obj = cell.obj[bn];   // truth
-				loss_bce_x(p_obj, t_obj, &errors[obj_index], &grads[obj_index]);
-				obj_loss += errors[obj_index];
-				/*if (t_obj < 1.0F) {
-					grads[obj_index] *= NO_OBJ_MULTI;
-					continue;
-				}*/
-				if (!cell.tboxes[bna].w) {
-					grads[obj_index] *= NO_OBJ_MULTI;
-					continue;
-				}
-				printf("b[%zu] Cell[%zu] Anchor[%zu]\n", b, s, a);
-				printf("obj conf: %.3f, obj grad: %.3f\n", p_obj, grads[obj_index]);
-				// class
-				float pcls = 0.0F;
-				float pgrad = 0.0F;
-				for (size_t i = 0; i < n_classes; i++) {
-					size_t cls_index = obj_index + (i + 1) * l_wh;
-					float p_cls = p[cls_index];
-					float t_cls = (cell.cls[bna] == (int)i) ? 1.0F : 0.0F;
-					loss_bce_x(p_cls, t_cls, &errors[cls_index], &grads[cls_index]);
-					if (t_cls) {
-						pcls = p_cls;
-						pgrad = grads[cls_index];
-					}
-					cls_loss += errors[cls_index];
-				}
-				printf("cls conf: %.3f, cls grad: %.3f\n", pcls, pgrad);
-				// iou
-				float w = p[p_index];  // predicted value for w, h is % of img size
-				float h = p[p_index + l_wh];
-				float cx = p[p_index + l_wh * 2] * cell_size + cell.left;  // predicted value for cx, cy is % of cell size
-				float cy = p[p_index + l_wh * 3] * cell_size + cell.top;
-				bbox pbox = { 0 };
+				bbox* anchor = &l->anchors[a];
+
+				size_t p_index = b * l_n + s + a * A;  // index of prediction "entry"
+				size_t obj_index = p_index + l_wh * 4;  // index of objectness score
+				float p_obj = p[obj_index];
+				
+				float w = p[p_index] * p[p_index] * 4.0F * anchor->w;  // idk why w & h get multiplied by 4, havent read anything that says to do this but it's what darknet does
+				float h = p[p_index + l_wh] * p[p_index + l_wh] * 4.0F * anchor->h;
+				float cx = p[p_index + l_wh * 2] + cell_left;  // predicted value for cx, cy is % of cell size
+				float cy = p[p_index + l_wh * 3] + cell_top;
+				bbox pbox = { 0 };  // prediction box
 				pbox.cx = cx;
 				pbox.cy = cy;
 				pbox.w = w;
@@ -96,7 +74,31 @@ void forward_detect(layer* l, network* net) {
 				pbox.left = cx - (w / 2.0F);
 				pbox.right = pbox.left + w;
 				pbox.top = cy - (h / 2.0F);
-				pbox.bottom = cell.top + h;
+				pbox.bottom = pbox.top + h;
+
+				size_t cls_index = p[obj_index + 1];
+				for (size_t k = 0; k < n_classes; k++) {
+					if (p[cls_index + k * l_wh] > 0.25F) {  // darknet uses 0.25
+						float best_iou = 0.0F;
+						for (size_t t = 0; t < n_tboxes; t++) {
+							float iou = get_iou(pbox, tboxes[t]);
+							if (iou > best_iou) best_iou = iou;
+						}
+						grads[obj_index] = obj_normalizer * (0.0F - p_obj);  // compute grad as if obj_truth is 0, will get overwritten if below iou criteria is met
+						if (best_iou > ignore_thresh) {
+							if (obj_normalizer) {
+								float obj_grad_normed = obj_normalizer * (best_iou - p_obj);
+								if (obj_grad_normed > grads[obj_index]) grads[obj_index] = obj_grad_normed;
+							}
+							else grads[obj_index] = 0.0F;
+						}
+					}
+				}
+				
+
+
+
+
 				float* dL_dw = &grads[p_index];
 				float* dL_dh = &grads[p_index + l_wh];
 				float* dL_dx = &grads[p_index + l_wh * 2];
