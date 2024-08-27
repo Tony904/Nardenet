@@ -107,6 +107,9 @@ extern "C" {
             detector_dataset detr;
         } data;
 
+        bbox* anchors;  // anchors across all detection layers
+        size_t n_anchors;
+
         float draw_thresh;  // threshold for drawing detections (if p >= draw_thresh then draw)
     } network;
 

@@ -21,6 +21,10 @@ void forward_detect(layer* l, network* net) {
 	size_t batch_size = net->batch_size;
 	float* p = l->in_layers[0]->output;  // predictions
 	det_sample** samples = net->data.detr.current_batch;
+	bbox* anchors = l->anchors;
+	bbox* all_anchors = net->anchors;
+	int l_id = l->id;
+	size_t n_all_anchors = net->n_anchors;
 	size_t l_w = l->w;
 	size_t l_h = l->h;
 	size_t l_wh = l_w * l_h;
@@ -28,7 +32,7 @@ void forward_detect(layer* l, network* net) {
 	size_t n_classes = l->n_classes;
 	size_t n_anchors = l->n_anchors;
 	size_t net_w = net->w;
-	float cell_size = (float)l_w / (float)net_w;
+	float cell_size = 1.0F / (float)l_w;
 	size_t A = (NUM_ANCHOR_PARAMS + n_classes) * l_wh;
 	float* errors = l->errors;
 	zero_array(errors, l_n * batch_size);
@@ -50,12 +54,12 @@ void forward_detect(layer* l, network* net) {
 		bbox* tboxes = sample->bboxes;  // truth boxes
 		size_t n_tboxes = sample->n;
 		for (size_t s = 0; s < l_wh; s++) {
-			float row = s / l_wh;
-			float col = s % l_wh;
-			float cell_left = col / (float)l_wh;
-			float cell_top = row / (float)l_wh;
+			float row = s / l_w;
+			float col = s % l_w;
+			float cell_left = col * cell_size;
+			float cell_top = row * cell_size;
 			for (size_t a = 0; a < n_anchors; a++) {
-				bbox* anchor = &l->anchors[a];
+				bbox* anchor = &anchors[a];
 
 				size_t p_index = b * l_n + s + a * A;  // index of prediction "entry"
 				size_t obj_index = p_index + l_wh * 4;  // index of objectness score
@@ -92,27 +96,70 @@ void forward_detect(layer* l, network* net) {
 							}
 							else grads[obj_index] = 0.0F;
 						}
+						break;
 					}
 				}
-				
-
-
-
-
+			}
+		}
+		for (size_t t = 0; t < n_tboxes; t++) {
+			bbox tbox = tboxes[t];
+			bbox tbox_shifted = tbox;
+			tbox_shifted.cx = 0.0F;
+			tbox_shifted.cy = 0.0F;
+			float best_iou = 0.0F;
+			size_t l_a = 0;
+			for (size_t a = 0; a < n_all_anchors; a++) {
+				bbox anchor = all_anchors[a];
+				float iou = get_iou(anchor, tbox_shifted);
+				if (anchor.lbl == l_id) {
+					l_a++;
+				}
+				if (iou > best_iou) {
+					best_iou = iou;
+					if (anchor.lbl != l_id) l_a = 0;
+				}
+			}
+			size_t col = tbox.cx * l_w;
+			size_t row = tbox.cy * l_h;
+			size_t s = row * l_w + col;
+			float cell_left = (float)col * cell_size;
+			float cell_top = (float)row * cell_size;
+			if (l_a) {  // if best iou is with an anchor from this layer
+				l_a--;
+				bbox* anchor = &anchors[l_a];
+				size_t p_index = b * l_n + s + l_a * A;  // index of prediction "entry"
+				float w = p[p_index] * p[p_index] * 4.0F * anchor->w;  // idk why w & h get multiplied by 4, havent read anything that says to do this but it's what darknet does
+				float h = p[p_index + l_wh] * p[p_index + l_wh] * 4.0F * anchor->h;
+				float cx = p[p_index + l_wh * 2] + cell_left;  // predicted value for cx, cy is % of cell size
+				float cy = p[p_index + l_wh * 3] + cell_top;
+				bbox pbox = { 0 };  // prediction box
+				pbox.cx = cx;
+				pbox.cy = cy;
+				pbox.w = w;
+				pbox.h = h;
+				pbox.area = w * h;
+				pbox.left = cx - (w / 2.0F);
+				pbox.right = pbox.left + w;
+				pbox.top = cy - (h / 2.0F);
+				pbox.bottom = pbox.top + h;
 				float* dL_dw = &grads[p_index];
 				float* dL_dh = &grads[p_index + l_wh];
 				float* dL_dx = &grads[p_index + l_wh * 2];
 				float* dL_dy = &grads[p_index + l_wh * 3];
-				float iouloss = get_grads_ciou(pbox, cell.tboxes[bna], dL_dx, dL_dy, dL_dw, dL_dh);
-				*dL_dw *= COORD_MULTI;
-				*dL_dh *= COORD_MULTI;
-				*dL_dx *= COORD_MULTI * cell_size;
-				*dL_dy *= COORD_MULTI * cell_size;
-				//*dL_dx *= cell_size;  // not sure if needed
-				//*dL_dy *= cell_size;
-				printf("iouloss: %.3f, dx: %.3f, dy: %.3f, dw: %.3f, dh: %.3f\n", iouloss, *dL_dx, *dL_dy, *dL_dw, *dL_dh);
-				iou_loss += iouloss;
+				float ciou_loss = get_grads_ciou(pbox, tbox, dL_dx, dL_dy, dL_dw, dL_dh);
+				iou_loss += ciou_loss;
 				n_iou_loss++;
+
+				size_t obj_index = p_index + l_wh * 4;  // index of objectness score
+				float p_obj = p[obj_index];
+				if (obj_normalizer) {
+					float obj_grad_normed = obj_normalizer * (1.0F - p_obj);
+					if (grads[obj_index] == 0.0F) grads[obj_index] = obj_grad_normed;
+				}
+				else grads[obj_index] = 1.0F - p_obj;
+
+
+				l_a++;
 			}
 		}
 	}

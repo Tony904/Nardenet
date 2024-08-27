@@ -74,6 +74,7 @@ void build_network(network* net) {
 	}
 	if (net->type == NET_DETECT) {
 		net->data.detr.current_batch = (det_sample**)xcalloc(net->batch_size, sizeof(det_sample*));
+		net->anchors = (bbox*)xcalloc(net->n_anchors, sizeof(bbox));
 	}
 }
 
@@ -581,13 +582,26 @@ void build_detect_layer(int i, network* net) {
 		float w = l->anchors[j].w;  // percentage of image width
 		float h = l->anchors[j].h;  // percentage of image height
 		l->anchors[j].area = w * h;
-		l->anchors[j].cx = 0.5F;  // percentage of cell size
-		l->anchors[j].cy = 0.5F;
+		l->anchors[j].cx = 0.0F;  // percentage of cell size
+		l->anchors[j].cy = 0.0F;
 		// edges are offsets from top-left of cell (same as if top-left of cell was at (0, 0) of image)
-		l->anchors[j].left = 0.5 * (cell_size - w);
+		l->anchors[j].left = -w / 2.0F;
 		l->anchors[j].right = l->anchors[j].left + w;
-		l->anchors[j].top = 0.5 * (cell_size - h);
+		l->anchors[j].top = -h / 2.0F;
 		l->anchors[j].bottom = l->anchors[j].top + h;
+	}
+	for (size_t k = 0; k < net->n_anchors; k++) {
+		if (!net->anchors[k].w) {
+			for (size_t j = 0; j < l->n_anchors; j++) {
+				if (k + j >= net->n_anchors) {
+					printf("Out of bounds error when settings network anchors.\n");
+					wait_for_key_then_exit();
+				}
+				net->anchors[k + j] = l->anchors[j];
+				net->anchors[k + j].lbl = l->id;
+			}
+			break;
+		}
 	}
 	l->detections = (bbox*)xcalloc(l->w * l->h * l->n_anchors, sizeof(bbox));
 	l->sorted = (bbox**)xcalloc(l->w * l->h * l->n_anchors, sizeof(bbox*));

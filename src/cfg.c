@@ -281,6 +281,7 @@ void copy_cfg_to_network(cfg* cfig, network* net) {
 				l->anchors[j].w = cl->anchors.a[j * 2];
 				l->anchors[j].h = cl->anchors.a[j * 2 + 1];
 			}
+			net->n_anchors += l->n_anchors;
 			xfree(cl->anchors.a);
 		}
 		noed = noed->next;
