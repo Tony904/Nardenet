@@ -49,6 +49,10 @@ network* new_network(size_t num_of_layers) {
 }
 
 void build_network(network* net) {
+	if (net->type == NET_DETECT) {
+		net->data.detr.current_batch = (det_sample**)xcalloc(net->batch_size, sizeof(det_sample*));
+		net->anchors = (bbox*)xcalloc(net->n_anchors, sizeof(bbox));
+	}
 	build_input_layer(net);
 	size_t largest_workspace = 0;
 	layer* ls = net->layers;
@@ -71,10 +75,6 @@ void build_network(network* net) {
 	}
 	else {
 		net->regularize_weights = regularize_none;
-	}
-	if (net->type == NET_DETECT) {
-		net->data.detr.current_batch = (det_sample**)xcalloc(net->batch_size, sizeof(det_sample*));
-		net->anchors = (bbox*)xcalloc(net->n_anchors, sizeof(bbox));
 	}
 }
 
@@ -497,8 +497,7 @@ void build_residual_layer(int i, network* net) {
 }
 
 void build_detect_layer(int i, network* net) {
-	if (net->type == NET_NONE) net->type = NET_DETECT;
-	else {
+	if (net->type != NET_DETECT) {
 		printf("Invalid network cfg: Cannot have a detect layer in a non-detector network.\n");
 		wait_for_key_then_exit();
 	}
@@ -534,8 +533,8 @@ void build_detect_layer(int i, network* net) {
 	else { // if first layer
 		l->in_layers[0] = net->input;
 	}
-	if (l->in_layers[0]->activation != ACT_NONE) {
-		printf("Invalid cfg: The input layer to a detect layer must have an activation of \"none\".\n");
+	if (l->in_layers[0]->activation != ACT_SIGMOID) {
+		printf("Invalid cfg: The input layer to a detect layer must have an sigmoid activation.\n");
 		wait_for_key_then_exit();
 	}
 
@@ -577,7 +576,7 @@ void build_detect_layer(int i, network* net) {
 		printf("Network input and output width & height must be square.\n");
 		wait_for_key_then_exit();
 	}
-	float cell_size = (float)l->out_w / (float)net->w;  // percentage of image width
+	
 	for (size_t j = 0; j < l->n_anchors; j++) {
 		float w = l->anchors[j].w;  // percentage of image width
 		float h = l->anchors[j].h;  // percentage of image height
@@ -610,7 +609,9 @@ void build_detect_layer(int i, network* net) {
 	l->nms_cls_thresh = 0.3F;
 	l->nms_iou_thresh = 0.5F;
 	l->ignore_thresh = 0.7F;
+	l->iou_thresh = 0.2F;
 	l->obj_normalizer = 0.4F;
+	l->max_box_grad = 2.0F;
 }
 
 void set_activate(layer* l) {

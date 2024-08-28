@@ -31,22 +31,19 @@ void forward_detect(layer* l, network* net) {
 	size_t l_n = l->n;
 	size_t n_classes = l->n_classes;
 	size_t n_anchors = l->n_anchors;
-	size_t net_w = net->w;
 	float cell_size = 1.0F / (float)l_w;
 	size_t A = (NUM_ANCHOR_PARAMS + n_classes) * l_wh;
 	float* errors = l->errors;
 	zero_array(errors, l_n * batch_size);
 	float* grads = l->grads;
 	zero_array(grads, l_n * batch_size);
-	float loss = l->loss;
 	float obj_loss = l->obj_loss;
 	float cls_loss = l->cls_loss;
 	float iou_loss = l->iou_loss;
 	float ignore_thresh = l->ignore_thresh;
+	float iou_thresh = l->iou_thresh;
 	float obj_normalizer = l->obj_normalizer;
-	loss = 0.0F;
-	obj_loss = 0.0F;
-	cls_loss = 0.0F;
+	float max_box_grad = l->max_box_grad;
 	iou_loss = 0.0F;
 	size_t n_iou_loss = 0;
 	for (size_t b = 0; b < batch_size; b++) {
@@ -147,6 +144,10 @@ void forward_detect(layer* l, network* net) {
 				float* dL_dx = &grads[p_index + l_wh * 2];
 				float* dL_dy = &grads[p_index + l_wh * 3];
 				float ciou_loss = get_grads_ciou(pbox, tbox, dL_dx, dL_dy, dL_dw, dL_dh);
+				if (*dL_dw > max_box_grad) *dL_dw = max_box_grad;
+				if (*dL_dh > max_box_grad) *dL_dh = max_box_grad;
+				if (*dL_dx > max_box_grad) *dL_dx = max_box_grad;
+				if (*dL_dy > max_box_grad) *dL_dy = max_box_grad;
 				iou_loss += ciou_loss;
 				n_iou_loss++;
 
@@ -158,16 +159,95 @@ void forward_detect(layer* l, network* net) {
 				}
 				else grads[obj_index] = 1.0F - p_obj;
 
-
+				size_t cls_index = p_index + l_wh * NUM_ANCHOR_PARAMS;
+				for (size_t k = 0; k < n_classes; k++) {
+					float t_cls = (tbox.lbl == k) ? 1.0F : 0.0F;
+					grads[cls_index + k * l_wh] = t_cls - p[cls_index + k * l_wh];
+				}
 				l_a++;
+			}
+			for (size_t a = 0; a < n_anchors; a++) {
+				if (a + 1 == l_a) continue;
+				bbox* anchor = &anchors[l_a];
+				size_t p_index = b * l_n + s + l_a * A;  // index of prediction "entry"
+				float w = p[p_index] * p[p_index] * 4.0F * anchor->w;  // idk why w & h get multiplied by 4, havent read anything that says to do this but it's what darknet does
+				float h = p[p_index + l_wh] * p[p_index + l_wh] * 4.0F * anchor->h;
+				float cx = p[p_index + l_wh * 2] + cell_left;  // predicted value for cx, cy is % of cell size
+				float cy = p[p_index + l_wh * 3] + cell_top;
+				bbox pbox = { 0 };  // prediction box
+				pbox.cx = cx;
+				pbox.cy = cy;
+				pbox.w = w;
+				pbox.h = h;
+				pbox.area = w * h;
+				pbox.left = cx - (w / 2.0F);
+				pbox.right = pbox.left + w;
+				pbox.top = cy - (h / 2.0F);
+				pbox.bottom = pbox.top + h;
+				float iou = get_iou(*anchor, tbox_shifted);
+				if (iou > iou_thresh) {
+					float* dL_dw = &grads[p_index];
+					float* dL_dh = &grads[p_index + l_wh];
+					float* dL_dx = &grads[p_index + l_wh * 2];
+					float* dL_dy = &grads[p_index + l_wh * 3];
+					float ciou_loss = get_grads_ciou(pbox, tbox, dL_dx, dL_dy, dL_dw, dL_dh);
+					if (*dL_dw > max_box_grad) *dL_dw = max_box_grad;
+					if (*dL_dh > max_box_grad) *dL_dh = max_box_grad;
+					if (*dL_dx > max_box_grad) *dL_dx = max_box_grad;
+					if (*dL_dy > max_box_grad) *dL_dy = max_box_grad;
+					iou_loss += ciou_loss;
+					n_iou_loss++;
+
+					size_t obj_index = p_index + l_wh * 4;  // index of objectness score
+					float p_obj = p[obj_index];
+					if (obj_normalizer) {
+						float obj_grad_normed = obj_normalizer * (1.0F - p_obj);
+						if (grads[obj_index] == 0.0F) grads[obj_index] = obj_grad_normed;
+					}
+					else grads[obj_index] = 1.0F - p_obj;
+
+					size_t cls_index = p_index + l_wh * NUM_ANCHOR_PARAMS;
+					for (size_t k = 0; k < n_classes; k++) {
+						float t_cls = (tbox.lbl == k) ? 1.0F : 0.0F;
+						grads[cls_index + k * l_wh] = t_cls - p[cls_index + k * l_wh];
+					}
+				}
 			}
 		}
 	}
-	l->loss = obj_loss + cls_loss + iou_loss;
-	l->obj_loss = obj_loss / (l_wh * n_anchors);
-	l->cls_loss = cls_loss / (l_wh * n_anchors * n_classes);
+	size_t obj_offset = 4 * l_wh;
+	size_t b;
+#pragma omp parallel for reduction(+:obj_loss) firstprivate(obj_offset, l_n, l_wh, n_anchors)
+	for (b = 0; b < batch_size; b++) {
+		size_t bn = b * l_n;
+		for (size_t s = 0; s < l_wh; s++) {
+			size_t bns = bn + s;
+			for (size_t a = 0; a < n_anchors; a++) {
+				size_t obj_index = bns + a * A + obj_offset;
+				obj_loss += grads[obj_index] * grads[obj_index];
+				
+			}
+		}
+	}
+	size_t cls_offset = obj_offset + l_wh;
+#pragma omp parallel for reduction(+:cls_loss) firstprivate(cls_offset, l_n, l_wh, n_anchors, n_classes)
+	for (b = 0; b < batch_size; b++) {
+		size_t bn = b * l_n;
+		for (size_t s = 0; s < l_wh; s++) {
+			size_t bns = bn + s;
+			for (size_t a = 0; a < n_anchors; a++) {
+				size_t cls_index = bns + a * A + cls_offset;
+				for (size_t k = 0; k < n_classes; k++) {
+					cls_loss += grads[cls_index + k * l_wh] * grads[cls_index + k * l_wh];
+				}
+			}
+		}
+	}
+	l->obj_loss = obj_loss / (batch_size * l_wh * n_anchors);
+	l->cls_loss = obj_loss / (batch_size * l_wh * n_anchors * n_classes);
 	if (n_iou_loss) l->iou_loss = iou_loss / (float)n_iou_loss;
 	else l->iou_loss = 0.0F;
+	l->loss = l->obj_loss + l->cls_loss + l->iou_loss;
 	printf("total detect loss: %f\navg obj loss: %f\navg class loss: %f\navg iou loss: %f\n", l->loss, l->obj_loss, l->cls_loss, l->iou_loss);
 	//pprint_detect_array(l->grads, l->h, l->w, n_classes, n_anchors);
 	cull_predictions_and_do_nms(l, net);  // for debugging
@@ -194,39 +274,18 @@ void backward_detect(layer* l, network* net) {
 	}
 }
 
-//void sigmoid_detect_inputs(layer* l, network* net) {
-//	size_t batch_size = net->batch_size;
-//	float* act_outputs = l->in_layers[0]->output;
-//	size_t n = l->n;
-//	float* act_inputs = l->in_layers[0]->act_inputs;
-//	size_t S = l->w * l->h;
-//	size_t n_classes = l->n_classes;
-//	for (size_t b = 0; b < batch_size; b++) {
-//		for (size_t s = 0; s < S * 3; s++) {  // objness, cx, cy
-//			act_outputs[s] = sigmoid_x(act_inputs[s]);
-//		}
-//		size_t offset = S * 5;
-//		for (size_t s = 0; s < S * n_classes; s++) {  // class scores
-//			act_outputs[offset + s] = sigmoid_x(act_outputs[offset + s]);
-//		}
-//	}
-//}
-
 void cull_predictions_and_do_nms(layer* l, network* net) {
 	size_t net_w = net->w;
 	float obj_thresh = l->nms_obj_thresh;
 	float cls_thresh = l->nms_cls_thresh;
 	float iou_thresh = l->nms_iou_thresh;
-	//float obj_thresh = 0.0F;
-	//float cls_thresh = 0.0F;
-	det_cell* cells = l->cells;
-	//size_t batch_size = net->batch_size;
 	size_t batch_size = 1;
 	size_t l_w = l->w;
 	size_t l_h = l->h;
 	size_t l_wh = l_w * l_h;
 	size_t l_n = l->n;
 	size_t n_classes = l->n_classes;
+	bbox* anchors = l->anchors;
 	size_t n_anchors = l->n_anchors;
 	float cell_size = (float)l_w / (float)net_w;
 	size_t A = (NUM_ANCHOR_PARAMS + n_classes) * l_wh;
@@ -238,9 +297,12 @@ void cull_predictions_and_do_nms(layer* l, network* net) {
 		size_t n_dets = 0;
 		// cull predictions below thresholds
 		for (size_t s = 0; s < l_wh; s++) {
-			det_cell cell = cells[s];
+			float row = s / l_w;
+			float col = s % l_w;
+			float cell_left = col * cell_size;
+			float cell_top = row * cell_size;
 			for (size_t a = 0; a < n_anchors; a++) {
-				size_t p_index = s + b * l_n + a * A;
+				size_t p_index = b * l_n + s + a * A;
 				size_t obj_index = p_index + l_wh * 4;
 				if (p[obj_index] < obj_thresh) continue;  // objectness thresh
 				int best_cls = -1;
@@ -255,10 +317,11 @@ void cull_predictions_and_do_nms(layer* l, network* net) {
 					}
 				}
 				if (best_cls < 0) continue;
-				float w = p[p_index];  // predicted value for w, h is % of img size
-				float h = p[p_index + l_wh];
-				float cx = p[p_index + l_wh * 2] * cell_size + cell.left;  // predicted value for cx, cy is % of cell size
-				float cy = p[p_index + l_wh * 3] * cell_size + cell.top;
+				bbox* anchor = &anchors[a];
+				float w = p[p_index] * p[p_index] * 4.0F * anchor->w;  // idk why w & h get multiplied by 4, havent read anything that says to do this but it's what darknet does
+				float h = p[p_index + l_wh] * p[p_index + l_wh] * 4.0F * anchor->h;
+				float cx = p[p_index + l_wh * 2] + cell_left;  // predicted value for cx, cy is % of cell size
+				float cy = p[p_index + l_wh * 3] + cell_top;
 				float left = cx - w / 2.0F;
 				if (left >= 1.0F) continue;
 				float right = left + w;

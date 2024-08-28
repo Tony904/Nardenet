@@ -271,6 +271,7 @@ void copy_cfg_to_network(cfg* cfig, network* net) {
 		l->loss_type = cl->loss_type;
 		l->n_classes = cl->n_classes;
 		if (l->type == LAYER_DETECT) {
+			net->type = NET_DETECT;
 			if (cl->anchors.n % 2 != 0 || cl->anchors.n == 0) {
 				printf("Invalid input for anchors in layer %d. Each anchor must have two values.\n", i);
 				wait_for_key_then_exit();

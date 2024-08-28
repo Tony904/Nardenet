@@ -183,7 +183,9 @@ extern "C" {
         float* truth;  // truths for classifier
 
         float ignore_thresh;
+        float iou_thresh;
         float obj_normalizer;
+        float max_box_grad;
 
         float** maxpool_addresses;  // addresses of input layer outputs that were max values (for backprop)
     } layer;
