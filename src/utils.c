@@ -341,17 +341,18 @@ int is_valid_fopen_mode(char* mode) {
 }
 
 size_t get_line_count(FILE* file) {
-	char buf[1024];
+	char buf[1024] = { 0 };
 	size_t counter = 0;
 	while (1) {
 		size_t n = fread((void*)buf, 1, 1024, file);
 		if (ferror(file)) print_location_and_exit(NARDENET_LOCATION);
 		if (n == 0) return (size_t)0;
-		size_t i;
-		for (i = 0; i < n; i++) {
+		char last = buf[n - 1];
+		for (size_t i = 0; i < n; i++) {
 			if (buf[i] == '\n') counter++;
+			buf[i] = '0';
 		}
-		if (buf[i] != '\n') counter++;
+		if (last != '\n' && n != 1024) counter++;
 		if (feof(file)) break;
 	}
 	rewind(file);

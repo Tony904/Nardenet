@@ -40,6 +40,8 @@ det_sample* load_det_samples(char* directory, size_t* count_dst) {
 		memcpy(antfile, imgfile, strlen(imgfile) - strlen(dot));
 		memcpy(&antfile[strlen(antfile)], ".txt", 4);
 		load_det_sample(antfile, imgfile, &samples[i]);
+		bbox asdf = samples[i].bboxes[0];
+		print_bbox(asdf);
 	}
 	*count_dst = n_samps;
 	free_list(imgpaths, 0);
@@ -76,6 +78,7 @@ void load_det_sample(char* antfile, char* imgfile, det_sample* samp) {
 		box->cy = str2float(tokens[2]);
 		box->w = str2float(tokens[3]);
 		box->h = str2float(tokens[4]);
+		box->prob = 1.0F;
 		box->area = box->w * box->h;
 		box->left = box->cx - (box->w * 0.5F);
 		box->top = box->cy - (box->h * 0.5F);

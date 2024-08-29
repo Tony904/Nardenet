@@ -25,6 +25,8 @@ extern "C" {
                 }
             }
         }
+        
+        cv::resize(mat, mat, cv::Size2d(), 10.0, 10.0, 1);
         //cv::destroyAllWindows();
         cv::cvtColor(mat, mat, cv::COLOR_BGR2RGB);
         //std::string window_name = "Display";

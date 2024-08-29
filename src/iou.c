@@ -1,5 +1,6 @@
 #include "iou.h"
 #include <math.h>
+#include <stdio.h>
 
 
 #define V_CONST 4.0F / powf(acosf(-1.0F), 2.0F)  // used for calculating aspect ratio consistency for ciou
@@ -76,6 +77,7 @@ float loss_ciou(bbox box1, bbox box2) {
 
 // Returns ciou loss as well as calculate gradients
 float get_grads_ciou(bbox box1, bbox box2, float* dL_dx, float* dL_dy, float* dL_dw, float* dL_dh) {
+	float ep = 0.000001F;
 	// intersection
 	float I_left = maxfloat(box1.left, box2.left);
 	float I_top = maxfloat(box1.top, box2.top);
@@ -87,7 +89,7 @@ float get_grads_ciou(bbox box1, bbox box2, float* dL_dx, float* dL_dy, float* dL
 	// union
 	float U_area = box1.area + box2.area - I_area;
 	// iou
-	float iou = I_area / U_area;
+	float iou = I_area / (U_area + ep);
 
 	// derivatives
 	
@@ -107,10 +109,10 @@ float get_grads_ciou(bbox box1, bbox box2, float* dL_dx, float* dL_dy, float* dL
 	float dU_dT = box1.left - box1.right - dI_dT;
 	float dU_dB = box1.right - box1.left - dI_dB;
 
-	float dIoU_dL = (dI_dL * U_area - I_area * dU_dL) / (U_area * U_area);
-	float dIoU_dR = (dI_dR * U_area - I_area * dU_dR) / (U_area * U_area);
-	float dIoU_dT = (dI_dT * U_area - I_area * dU_dT) / (U_area * U_area);
-	float dIoU_dB = (dI_dB * U_area - I_area * dU_dB) / (U_area * U_area);
+	float dIoU_dL = (dI_dL * U_area - I_area * dU_dL) / (U_area * U_area + ep);
+	float dIoU_dR = (dI_dR * U_area - I_area * dU_dR) / (U_area * U_area + ep);
+	float dIoU_dT = (dI_dT * U_area - I_area * dU_dT) / (U_area * U_area + ep);
+	float dIoU_dB = (dI_dB * U_area - I_area * dU_dB) / (U_area * U_area + ep);
 
 	float dIoU_dw = dIoU_dR - dIoU_dL;
 	float dIoU_dh = dIoU_dB - dIoU_dT;
@@ -125,13 +127,13 @@ float get_grads_ciou(bbox box1, bbox box2, float* dL_dx, float* dL_dy, float* dL
 	float C = distance_between_points(C_left, C_top, C_right, C_bottom);
 
 	float dCL_dL = box1.left < box2.left ? 1.0F : 0.0F;
-	float dC_dL = ((C_right - C_left) / C) * (-dCL_dL);
+	float dC_dL = ((C_right - C_left) / (C + ep)) * (-dCL_dL);
 	float dCR_dR = box1.right > box2.right ? 1.0F : 0.0F;
-	float dC_dR = ((C_right - C_left) / C) * dCR_dR;
+	float dC_dR = ((C_right - C_left) / (C + ep)) * dCR_dR;
 	float dCT_dT = box1.top < box2.top ? 1.0F : 0.0F;
-	float dC_dT = ((C_bottom - C_top) / C) * (-dCT_dT);
+	float dC_dT = ((C_bottom - C_top) / (C + ep)) * (-dCT_dT);
 	float dCB_dB = box1.bottom > box2.bottom ? 1.0F : 0.0F;
-	float dC_dB = ((C_bottom - C_top) / C) * dCB_dB;
+	float dC_dB = ((C_bottom - C_top) / (C + ep)) * dCB_dB;
 
 	float dC_dw = dC_dR - dC_dL;
 	float dC_dh = dC_dB - dC_dT;
@@ -140,12 +142,12 @@ float get_grads_ciou(bbox box1, bbox box2, float* dL_dx, float* dL_dy, float* dL
 
 	// distance between box1 and box2 centers
 	float S = distance_between_points(box1.cx, box1.cy, box2.cx, box2.cy);
-	float dS_dx = (box1.cx - box2.cx) / S;
-	float dS_dy = (box1.cy - box2.cy) / S;
+	float dS_dx = (box1.cx - box2.cx) / (S + ep);
+	float dS_dy = (box1.cy - box2.cy) / (S + ep);
 	float dS_dw = 0;
 	float dS_dh = 0;
 
-	float diou_term = (2.0F * S) / (C * C * C);
+	float diou_term = (2.0F * S) / (C * C * C + ep);
 	float dDIoU_dx = diou_term * (C * dS_dx - S * dC_dx);
 	float dDIoU_dy = diou_term * (C * dS_dy - S * dC_dy);
 	float dDIoU_dw = diou_term * (C * dS_dw - S * dC_dw);
@@ -155,6 +157,7 @@ float get_grads_ciou(bbox box1, bbox box2, float* dL_dx, float* dL_dy, float* dL
 	float theta = atanf(box2.w / box2.h) - atanf(box1.w / box1.h);
 	float V = V_CONST * theta * theta;
 	float alpha = (iou < 0.5F) ? 0.0F : V / (1.0F - iou + V);
+	if (isnan(alpha) || isinf(alpha)) alpha = 0.0F;
 
 	float dV_dw = V2_CONST * theta * box1.h;
 	float dV_dh = V2_CONST * theta * (-box2.w);
@@ -166,6 +169,8 @@ float get_grads_ciou(bbox box1, bbox box2, float* dL_dx, float* dL_dy, float* dL
 	*dL_dy = -dIoU_dy + dDIoU_dy;
 	*dL_dw = -dIoU_dw + dDIoU_dw + dV_dw * alpha;
 	*dL_dh = -dIoU_dh + dDIoU_dh + dV_dh * alpha;
+	//printf("diou_dw: %f dDiou_dw: %f dv_dw: %f alpha: %f\n", dIoU_dw, dDIoU_dw, dV_dw, alpha);
+	//printf("diou_dh: %f dDiou_dh: %f dv_dh: %f alpha: %f\n", dIoU_dh, dDIoU_dh, dV_dh, alpha);
 
 	return 1.0F - iou + S + V * alpha;
 }

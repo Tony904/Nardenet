@@ -571,6 +571,8 @@ void build_detect_layer(int i, network* net) {
 	l->activation = ACT_NONE;
 	set_activate(l);
 
+	l->output = (float*)xcalloc(l->n * net->batch_size, sizeof(float));
+
 	// set anchors
 	if (net->w != net->h || l->out_w != l->out_h) {
 		printf("Network input and output width & height must be square.\n");
@@ -583,7 +585,6 @@ void build_detect_layer(int i, network* net) {
 		l->anchors[j].area = w * h;
 		l->anchors[j].cx = 0.0F;  // percentage of cell size
 		l->anchors[j].cy = 0.0F;
-		// edges are offsets from top-left of cell (same as if top-left of cell was at (0, 0) of image)
 		l->anchors[j].left = -w / 2.0F;
 		l->anchors[j].right = l->anchors[j].left + w;
 		l->anchors[j].top = -h / 2.0F;
@@ -605,13 +606,14 @@ void build_detect_layer(int i, network* net) {
 	l->detections = (bbox*)xcalloc(l->w * l->h * l->n_anchors, sizeof(bbox));
 	l->sorted = (bbox**)xcalloc(l->w * l->h * l->n_anchors, sizeof(bbox*));
 	// TODO: Make these cfg parameters
-	l->nms_obj_thresh = 0.6F;
+	l->nms_obj_thresh = 0.3F;
 	l->nms_cls_thresh = 0.3F;
 	l->nms_iou_thresh = 0.5F;
 	l->ignore_thresh = 0.7F;
 	l->iou_thresh = 0.2F;
 	l->obj_normalizer = 0.4F;
 	l->max_box_grad = 2.0F;
+	l->scale_grid = 2.0F;
 }
 
 void set_activate(layer* l) {

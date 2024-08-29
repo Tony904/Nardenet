@@ -12,14 +12,17 @@
 
 
 inline static void loss_bce_x(float x, float truth, float* error, float* grad);
+inline static float clamp_x(float x, float thresh);
 void cull_predictions_and_do_nms(layer* l, network* net);
 void draw_detections(bbox** dets, size_t n_dets, image* img, float thresh);
+void apply_grid_scaling(layer* l, network* net);
 void pprint_detect_array(float* data, size_t rows, size_t cols, size_t n_classes, size_t n_anchors);
 
 
 void forward_detect(layer* l, network* net) {
+	apply_grid_scaling(l, net);
 	size_t batch_size = net->batch_size;
-	float* p = l->in_layers[0]->output;  // predictions
+	float* p = l->output;  // predictions
 	det_sample** samples = net->data.detr.current_batch;
 	bbox* anchors = l->anchors;
 	bbox* all_anchors = net->anchors;
@@ -66,6 +69,7 @@ void forward_detect(layer* l, network* net) {
 				float h = p[p_index + l_wh] * p[p_index + l_wh] * 4.0F * anchor->h;
 				float cx = p[p_index + l_wh * 2] + cell_left;  // predicted value for cx, cy is % of cell size
 				float cy = p[p_index + l_wh * 3] + cell_top;
+				//printf("w: %f, h: %f, cx: %f, cy: %f\n", p[p_index], p[p_index + l_wh], p[p_index + l_wh * 2], p[p_index + l_wh * 3]);
 				bbox pbox = { 0 };  // prediction box
 				pbox.cx = cx;
 				pbox.cy = cy;
@@ -77,7 +81,7 @@ void forward_detect(layer* l, network* net) {
 				pbox.top = cy - (h / 2.0F);
 				pbox.bottom = pbox.top + h;
 
-				size_t cls_index = p[obj_index + 1];
+				size_t cls_index = p[obj_index + l_wh];
 				for (size_t k = 0; k < n_classes; k++) {
 					if (p[cls_index + k * l_wh] > 0.25F) {  // darknet uses 0.25
 						float best_iou = 0.0F;
@@ -144,10 +148,11 @@ void forward_detect(layer* l, network* net) {
 				float* dL_dx = &grads[p_index + l_wh * 2];
 				float* dL_dy = &grads[p_index + l_wh * 3];
 				float ciou_loss = get_grads_ciou(pbox, tbox, dL_dx, dL_dy, dL_dw, dL_dh);
-				if (*dL_dw > max_box_grad) *dL_dw = max_box_grad;
-				if (*dL_dh > max_box_grad) *dL_dh = max_box_grad;
-				if (*dL_dx > max_box_grad) *dL_dx = max_box_grad;
-				if (*dL_dy > max_box_grad) *dL_dy = max_box_grad;
+				printf("dL_dw: %f dL_dh: %f dL_dx: %f dL_dy: %f\n", *dL_dw, *dL_dh, *dL_dx, *dL_dy);
+				*dL_dw = clamp_x(*dL_dw, max_box_grad);
+				*dL_dh = clamp_x(*dL_dh, max_box_grad);
+				*dL_dx = clamp_x(*dL_dx, max_box_grad);
+				*dL_dy = clamp_x(*dL_dy, max_box_grad);
 				iou_loss += ciou_loss;
 				n_iou_loss++;
 
@@ -191,10 +196,11 @@ void forward_detect(layer* l, network* net) {
 					float* dL_dx = &grads[p_index + l_wh * 2];
 					float* dL_dy = &grads[p_index + l_wh * 3];
 					float ciou_loss = get_grads_ciou(pbox, tbox, dL_dx, dL_dy, dL_dw, dL_dh);
-					if (*dL_dw > max_box_grad) *dL_dw = max_box_grad;
-					if (*dL_dh > max_box_grad) *dL_dh = max_box_grad;
-					if (*dL_dx > max_box_grad) *dL_dx = max_box_grad;
-					if (*dL_dy > max_box_grad) *dL_dy = max_box_grad;
+					printf("dL_dw: %f dL_dh: %f dL_dx: %f dL_dy: %f\n", *dL_dw, *dL_dh, *dL_dx, *dL_dy);
+					*dL_dw = clamp_x(*dL_dw, max_box_grad);
+					*dL_dh = clamp_x(*dL_dh, max_box_grad);
+					*dL_dx = clamp_x(*dL_dx, max_box_grad);
+					*dL_dy = clamp_x(*dL_dy, max_box_grad);
 					iou_loss += ciou_loss;
 					n_iou_loss++;
 
@@ -225,7 +231,6 @@ void forward_detect(layer* l, network* net) {
 			for (size_t a = 0; a < n_anchors; a++) {
 				size_t obj_index = bns + a * A + obj_offset;
 				obj_loss += grads[obj_index] * grads[obj_index];
-				
 			}
 		}
 	}
@@ -279,7 +284,7 @@ void cull_predictions_and_do_nms(layer* l, network* net) {
 	float obj_thresh = l->nms_obj_thresh;
 	float cls_thresh = l->nms_cls_thresh;
 	float iou_thresh = l->nms_iou_thresh;
-	size_t batch_size = 1;
+	size_t batch_size = 2;
 	size_t l_w = l->w;
 	size_t l_h = l->h;
 	size_t l_wh = l_w * l_h;
@@ -289,7 +294,7 @@ void cull_predictions_and_do_nms(layer* l, network* net) {
 	size_t n_anchors = l->n_anchors;
 	float cell_size = (float)l_w / (float)net_w;
 	size_t A = (NUM_ANCHOR_PARAMS + n_classes) * l_wh;
-	float* p = l->in_layers[0]->output;
+	float* p = l->output;
 	size_t ndets = 0;  // debugging
 	for (size_t b = 0; b < batch_size; b++) {
 		bbox* dets = l->detections;
@@ -373,7 +378,7 @@ void cull_predictions_and_do_nms(layer* l, network* net) {
 			for (size_t j = i + 1; j < n_dets; j++) {
 				if (test->lbl == sorted[j]->lbl) {
 					float iou = get_diou(*test, *sorted[j]);
-					if (iou < iou_thresh) {
+					if (iou > iou_thresh) {
 						sorted[j]->prob = 0.0F;
 						sorted[j]->lbl = -1;
 					}
@@ -448,6 +453,35 @@ void draw_detections(bbox** dets, size_t n_dets, image* img, float thresh) {
 	}
 }
 
+void apply_grid_scaling(layer* l, network* net) {
+	float* p = l->in_layers[0]->output;
+	float* q = l->output;
+	size_t batch_size = net->batch_size;
+	size_t l_n = l->n;
+	size_t l_wh = l->w * l->h;
+	size_t n_classes = l->n_classes;
+	size_t n_anchors = l->n_anchors;
+	size_t A = (NUM_ANCHOR_PARAMS + n_classes) * l_wh;
+	float alpha = l->scale_grid;
+	float beta = (alpha - 1.0F) / 2.0F;
+	size_t b;
+#pragma omp parallel for firstprivate(l_wh, n_anchors, l_n, A, alpha, beta)
+	for (b = 0; b < batch_size; b++) {
+		for (size_t s = 0; s < l_wh; s++) {
+			for (size_t a = 0; a < n_anchors; a++) {
+				size_t p_index = b * l_n + s + a * A;
+				for (size_t k = 0; k < 4; k++) {
+					q[p_index + k * l_wh] = p[p_index + k * l_wh] * alpha - beta;
+				}
+				q[p_index + 4 * l_wh] = p[p_index + 4 * l_wh];
+				for (size_t k = 0; k < n_classes; k++) {
+					q[p_index + 5 * l_wh + k * l_wh] = p[p_index + 5 * l_wh + k * l_wh];
+				}
+			}
+		}
+	}
+}
+
 void pprint_detect_array(float* data, size_t rows, size_t cols, size_t n_classes, size_t n_anchors) {
 	size_t S = rows * cols;
 	size_t A = (NUM_ANCHOR_PARAMS + n_classes) * S;
@@ -477,4 +511,10 @@ void pprint_detect_array(float* data, size_t rows, size_t cols, size_t n_classes
 inline static void loss_bce_x(float x, float truth, float* error, float* grad) {
 	*grad = x - truth;
 	*error = -truth * logf(x) - (1.0F - truth) * logf(1.0F - x);
+}
+
+inline static float clamp_x(float x, float thresh) {
+	if (x > thresh) return thresh;
+	if (x < -thresh) return -thresh;
+	return x;
 }
