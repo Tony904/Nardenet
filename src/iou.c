@@ -54,6 +54,7 @@ float get_ciou(bbox box1, bbox box2) {
 	float v = V_CONST * t * t;
 	// calculate trade-off parameter for balancing the aspect ratio term
 	float alpha = (iou < 0.5F) ? 0.0F : v / (1.0F - iou + v);
+	if (isnan(alpha) || isinf(alpha)) alpha = 0.0F;
 	return iou - (delta * delta) / (diag * diag) - alpha * v;
 }
 

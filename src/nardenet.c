@@ -12,7 +12,7 @@ int main(void) {
 	srand(7777777);
 
 	//char* cfgfile = "D:\\TonyDev\\Nardenet\\cfg\\nardenet-detect.cfg";
-	char* cfgfile = "C:\\Users\\TNard\\OneDrive\\Desktop\\dev\\Nardenet-main\\cfg\\nardenet-detect.cfg";
+	char* cfgfile = "C:\\Users\\TNard\\OneDrive\\Desktop\\dev\\Nardenet-main\\cfg\\nardenet-detect1.cfg";
 	network* net = create_network_from_cfg(cfgfile);
 	train(net);
 

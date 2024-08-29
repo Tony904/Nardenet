@@ -606,8 +606,8 @@ void build_detect_layer(int i, network* net) {
 	l->detections = (bbox*)xcalloc(l->w * l->h * l->n_anchors, sizeof(bbox));
 	l->sorted = (bbox**)xcalloc(l->w * l->h * l->n_anchors, sizeof(bbox*));
 	// TODO: Make these cfg parameters
-	l->nms_obj_thresh = 0.3F;
-	l->nms_cls_thresh = 0.3F;
+	l->nms_obj_thresh = 0.5F;
+	l->nms_cls_thresh = 0.5F;
 	l->nms_iou_thresh = 0.5F;
 	l->ignore_thresh = 0.7F;
 	l->iou_thresh = 0.2F;

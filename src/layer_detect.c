@@ -82,23 +82,23 @@ void forward_detect(layer* l, network* net) {
 				pbox.bottom = pbox.top + h;
 
 				size_t cls_index = p[obj_index + l_wh];
+				float best_iou = 0.0F;
 				for (size_t k = 0; k < n_classes; k++) {
 					if (p[cls_index + k * l_wh] > 0.25F) {  // darknet uses 0.25
-						float best_iou = 0.0F;
 						for (size_t t = 0; t < n_tboxes; t++) {
 							float iou = get_iou(pbox, tboxes[t]);
 							if (iou > best_iou) best_iou = iou;
 						}
-						grads[obj_index] = obj_normalizer * (0.0F - p_obj);  // compute grad as if obj_truth is 0, will get overwritten if below iou criteria is met
-						if (best_iou > ignore_thresh) {
-							if (obj_normalizer) {
-								float obj_grad_normed = obj_normalizer * (best_iou - p_obj);
-								if (obj_grad_normed > grads[obj_index]) grads[obj_index] = obj_grad_normed;
-							}
-							else grads[obj_index] = 0.0F;
-						}
 						break;
 					}
+				}
+				grads[obj_index] = obj_normalizer * (0.0F - p_obj);  // compute grad as if obj_truth is 0, will get overwritten if below iou criteria is met
+				if (best_iou > ignore_thresh) {
+					if (obj_normalizer) {
+						float obj_grad_normed = obj_normalizer * (best_iou - p_obj);
+						if (obj_grad_normed > grads[obj_index]) grads[obj_index] = obj_grad_normed;
+					}
+					else grads[obj_index] = 0.0F;
 				}
 			}
 		}
@@ -111,7 +111,7 @@ void forward_detect(layer* l, network* net) {
 			size_t l_a = 0;
 			for (size_t a = 0; a < n_all_anchors; a++) {
 				bbox anchor = all_anchors[a];
-				float iou = get_iou(anchor, tbox_shifted);
+				float iou = get_ciou(anchor, tbox_shifted);
 				if (anchor.lbl == l_id) {
 					l_a++;
 				}
@@ -196,7 +196,7 @@ void forward_detect(layer* l, network* net) {
 					float* dL_dx = &grads[p_index + l_wh * 2];
 					float* dL_dy = &grads[p_index + l_wh * 3];
 					float ciou_loss = get_grads_ciou(pbox, tbox, dL_dx, dL_dy, dL_dw, dL_dh);
-					printf("dL_dw: %f dL_dh: %f dL_dx: %f dL_dy: %f\n", *dL_dw, *dL_dh, *dL_dx, *dL_dy);
+					//printf("dL_dw: %f dL_dh: %f dL_dx: %f dL_dy: %f\n", *dL_dw, *dL_dh, *dL_dx, *dL_dy);
 					*dL_dw = clamp_x(*dL_dw, max_box_grad);
 					*dL_dh = clamp_x(*dL_dh, max_box_grad);
 					*dL_dx = clamp_x(*dL_dx, max_box_grad);
@@ -395,7 +395,7 @@ void cull_predictions_and_do_nms(layer* l, network* net) {
 	img.h = 32;
 	img.c = 3;
 	img.data = buffer;
-	load_image_to_buffer(samples[0]->imgpath, &img);
+	load_image_to_buffer(samples[1]->imgpath, &img);
 	net->draw_thresh = 0.5F;  // TODO: Make a cfg parameter
 	draw_detections(l->sorted, ndets, &img, net->draw_thresh);
 	////write_image(img, "D:\\TonyDev\\Nardenet\\data\\detector\\test.png");
@@ -470,9 +470,10 @@ void apply_grid_scaling(layer* l, network* net) {
 		for (size_t s = 0; s < l_wh; s++) {
 			for (size_t a = 0; a < n_anchors; a++) {
 				size_t p_index = b * l_n + s + a * A;
-				for (size_t k = 0; k < 4; k++) {
-					q[p_index + k * l_wh] = p[p_index + k * l_wh] * alpha - beta;
-				}
+				q[p_index] = p[p_index] * alpha;
+				q[p_index + l_wh] = p[p_index + l_wh] * alpha;
+				q[p_index + 2 * l_wh] = p[p_index + 2 * l_wh] * alpha - beta;
+				q[p_index + 3 * l_wh] = p[p_index + 3 * l_wh] * alpha - beta;
 				q[p_index + 4 * l_wh] = p[p_index + 4 * l_wh];
 				for (size_t k = 0; k < n_classes; k++) {
 					q[p_index + 5 * l_wh + k * l_wh] = p[p_index + 5 * l_wh + k * l_wh];
