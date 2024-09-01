@@ -35,57 +35,6 @@ static void print_location_and_exit(const char* const filename, const char* cons
 static void print_error_and_exit(const char* const filename);
 
 
-int zz_str2int(char* str, const char* const filename, const char* const funcname, const int line) {
-	errno = 0;
-	char* p;
-	int ret = (int)strtol(str, &p, 10);
-	if (errno == ERANGE) {
-		fprintf(stderr, "Error converting string (%s) to int via strtol().", str);
-#pragma warning(suppress:4996)
-		fprintf(stderr, "Error Code %d: %s", errno, strerror(errno));
-		print_location_and_exit(filename, funcname, line);
-	}
-	if (p == str) {
-		fprintf(stderr, "No number parsed in string (%s). String is empty or does not start with numbers.\n", str);
-		print_location_and_exit(filename, funcname, line);
-	}
-	return ret;
-}
-
-size_t zz_str2sizet(char* str, const char* const filename, const char* const funcname, const int line) {
-	errno = 0;
-	char* p;
-	size_t ret = (size_t)strtoumax(str, &p, 10);
-	if (errno == ERANGE) {
-		fprintf(stderr, "Error converting string (%s) to int via strtoumax().", str);
-#pragma warning(suppress:4996)
-		fprintf(stderr, "Error Code %d: %s", errno, strerror(errno));
-		print_location_and_exit(filename, funcname, line);
-	}
-	if (p == str) {
-		fprintf(stderr, "No number parsed in string (%s). String is empty or does not start with numbers.\n", str);
-		print_location_and_exit(filename, funcname, line);
-	}
-	return ret;
-}
-
-float zz_str2float(char* str, const char* const filename, const char* const funcname, const int line) {
-	errno = 0;
-	char* p;
-	float ret = strtof(str, &p);
-	if (errno == ERANGE) {
-		fprintf(stderr, "Error converting string (%s) to float via strtof().", str);
-#pragma warning(suppress:4996)
-		fprintf(stderr, "Error Code %d: %s", errno, strerror(errno));
-		print_location_and_exit(filename, funcname, line);
-	}
-	if (p == str) {
-		fprintf(stderr, "No number parsed in string (%s). String is empty or does not start with numbers.\n", str);
-		print_location_and_exit(filename, funcname, line);
-	}
-	return ret;
-}
-
 void fill_array(float* arr, size_t size, float val) {
 	size_t i;
 #pragma omp parallel for
@@ -306,7 +255,12 @@ int file_exists(char* filename) {
 	return 1;
 #else
 	struct stat buffer;
-	return (stat(filename, &buffer) == 0);
+	int result = (stat(filename, &buffer) == 0);
+	if (result == 0) {
+		printf("File %s does not exist.\n", filename);
+		return 0;
+	}
+	return result;
 #endif
 	/*FILE* file = fopen(filename, "r");
 	if (file) {
@@ -346,7 +300,7 @@ size_t get_line_count(FILE* file) {
 	while (1) {
 		size_t n = fread((void*)buf, 1, 1024, file);
 		if (ferror(file)) print_location_and_exit(NARDENET_LOCATION);
-		if (n == 0) return (size_t)0;
+		if (n == 0) return (int)0;
 		char last = buf[n - 1];
 		for (size_t i = 0; i < n; i++) {
 			if (buf[i] == '\n') counter++;
@@ -530,4 +484,55 @@ static void print_location_and_exit(const char* const filename, const char* cons
 	printf("Press ENTER to exit the program.");
 	(void)getchar();
 	exit(EXIT_FAILURE);
+}
+
+int zz_str2int(char* str, const char* const filename, const char* const funcname, const int line) {
+	errno = 0;
+	char* p;
+	int ret = (int)strtol(str, &p, 10);
+	if (errno == ERANGE) {
+		fprintf(stderr, "Error converting string (%s) to int via strtol().", str);
+#pragma warning(suppress:4996)
+		fprintf(stderr, "Error Code %d: %s", errno, strerror(errno));
+		print_location_and_exit(filename, funcname, line);
+	}
+	if (p == str) {
+		fprintf(stderr, "No number parsed in string (%s). String is empty or does not start with numbers.\n", str);
+		print_location_and_exit(filename, funcname, line);
+	}
+	return ret;
+}
+
+size_t zz_str2sizet(char* str, const char* const filename, const char* const funcname, const int line) {
+	errno = 0;
+	char* p;
+	size_t ret = (size_t)strtoumax(str, &p, 10);
+	if (errno == ERANGE) {
+		fprintf(stderr, "Error converting string (%s) to int via strtoumax().", str);
+#pragma warning(suppress:4996)
+		fprintf(stderr, "Error Code %d: %s", errno, strerror(errno));
+		print_location_and_exit(filename, funcname, line);
+	}
+	if (p == str) {
+		fprintf(stderr, "No number parsed in string (%s). String is empty or does not start with numbers.\n", str);
+		print_location_and_exit(filename, funcname, line);
+	}
+	return ret;
+}
+
+float zz_str2float(char* str, const char* const filename, const char* const funcname, const int line) {
+	errno = 0;
+	char* p;
+	float ret = strtof(str, &p);
+	if (errno == ERANGE) {
+		fprintf(stderr, "Error converting string (%s) to float via strtof().", str);
+#pragma warning(suppress:4996)
+		fprintf(stderr, "Error Code %d: %s", errno, strerror(errno));
+		print_location_and_exit(filename, funcname, line);
+	}
+	if (p == str) {
+		fprintf(stderr, "No number parsed in string (%s). String is empty or does not start with numbers.\n", str);
+		print_location_and_exit(filename, funcname, line);
+	}
+	return ret;
 }

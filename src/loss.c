@@ -113,7 +113,7 @@ void loss_l1(network* net) {
 		float* weights = ls[i].weights.a;
 		for (size_t j = 0; j < ls[i].weights.n; j++) {
 			float w = weights[j];
-			w = (w < 0.0F) ? -w : w;  // w needs to be positive
+			if (w < 0.0F) w = -w;  // w needs to be positive
 			loss += w * decay;
 		}
 	}

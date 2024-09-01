@@ -30,18 +30,17 @@ BUGS:
 
 PHASE 1:
  residual layer - make sure it works
+ saving weights
+ loading weights
+ object detection
+ data augmentation:
+	saturation, exposure, hue, mosaic, rotation (classifier only), jitter
  swish activation
  resize input images if needed
  learning rate policies: step, adam, adagrad, rmsprop, cyclic rates maybe
- saving weights
- loading weights
- data augmentation:
-	saturation, exposure, hue, mosaic, rotation (classifier only), jitter
- decay (not entirely sure what this is yet)
 
 PHASE 2:
  training progress graph
- object detection
  Huber loss (for object detection)
  group convolution (i.e. at group = 2, half of filters convolve over one half of the channels, the other
 	half of filters convolve over the other half of the filters. note: sometimes group convolutions

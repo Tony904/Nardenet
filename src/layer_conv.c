@@ -73,7 +73,7 @@ void backward_conv(layer* l, network* net) {
 	size_t K = l->out_w * l->out_h; // # of patches
 
 	// sum dC/dz for each filter to get it's bias gradients.
-	get_bias_grads(l->bias_grads, grads, M, K, batch_size);
+	get_bias_grads(l->bias_grads, grads, M, K, batch_size);  // note: biases = betas for batch norm
 
 	if (l->batch_norm) backward_batch_norm(l, batch_size);
 
