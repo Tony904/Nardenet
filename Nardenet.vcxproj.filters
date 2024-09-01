@@ -15,13 +15,43 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\nardenet.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\im2col.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\xallocs.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\list.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gemm.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\utils.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\layer_conv.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="src\activations.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\batchnorm.c">
+    <ClCompile Include="src\layer_maxpool.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\network.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\layer_classify.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\cfg.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\loss.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\data.c">
@@ -36,55 +66,22 @@
     <ClCompile Include="src\derivatives.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\gemm.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\im2col.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\image.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\layer_classify.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\layer_conv.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\layer_maxpool.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\list.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\locmacro.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\loss.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\nardenet.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\network.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\stbimage.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\train.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\utils.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\xallocs.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\xarrays.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\xopencv.cpp">
+    <ClCompile Include="src\stbimage.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\batchnorm.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\layer_residual.c">
@@ -96,15 +93,48 @@
     <ClCompile Include="src\iou.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\xopencv.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\state.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\im2col.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\list.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\nardenet.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\xallocs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gemm.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\layer_maxpool.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\network.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\layer_classify.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="src\activations.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\batchnorm.h">
+    <ClInclude Include="src\cfg.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\cfg.h">
+    <ClInclude Include="src\loss.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\data.h">
@@ -119,64 +149,34 @@
     <ClInclude Include="src\derivatives.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\gemm.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\im2col.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\image.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\layer_classify.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\layer_conv.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\layer_maxpool.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\lib_api.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\list.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\locmacro.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\loss.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\nardenet.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\network.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\stb_image.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\stb_image_write.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\stbimage.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\train.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\utils.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\xallocs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\xarrays.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\xopencv.h">
+    <ClInclude Include="src\stb_image.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\stbimage.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\stb_image_write.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\batchnorm.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\layer_residual.h">
@@ -188,10 +188,11 @@
     <ClInclude Include="src\iou.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="src\cpp.hint">
+    <ClInclude Include="src\xopencv.h">
       <Filter>Header Files</Filter>
-    </None>
+    </ClInclude>
+    <ClInclude Include="src\state.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
