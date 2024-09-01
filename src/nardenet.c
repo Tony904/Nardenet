@@ -38,6 +38,7 @@ PHASE 1:
  swish activation
  resize input images if needed
  learning rate policies: step, adam, adagrad, rmsprop, cyclic rates maybe
+ ema for last X iterations (ema = exponential moving average)
 
 PHASE 2:
  training progress graph

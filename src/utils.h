@@ -41,6 +41,8 @@ extern "C" {
 	size_t get_line_count(FILE* file);
 	list* get_files_list(char* dir, char* extensions);
 	int get_filename_ext_index(char* filename);
+	/* arr & chars must be null terminated. index = index of arr to insert chars */
+	int insert_chars(char* arr, size_t arr_size, int index, char* chars);
 	size_t tokens_length(char** tokens);
 	void print_str_array(char** strs, size_t count);
 	void print_float_array(float* array, size_t size);

@@ -10,7 +10,7 @@
 extern "C" {
 #endif
 
-	void write_state(network* net);
+	void save_state(network* net);
 	void load_state(network* net);
 
 #ifdef __cplusplus

@@ -31,6 +31,7 @@ extern "C" {
 		size_t batch_size;
 		size_t subbatch_size;
 		size_t max_iterations;
+		size_t save_frequency;
 		float learning_rate;
 		LR_POLICY lr_policy;
 		floatarr step_percents;

@@ -428,6 +428,27 @@ int get_filename_ext_index(char* filename) {
 	return -1;
 }
 
+/* index = index of arr to insert chars */
+int insert_chars(char* arr, size_t arr_size, int index, char* chars) {
+	size_t L1 = strlen(arr);
+	size_t L2 = strlen(chars);
+	if (L1 + L2 > arr_size) {
+		printf("Array size too small to insert chars: \"%s\"", chars);
+		return 0;
+	}
+	if (L1 + L2 > 1024) {
+		printf("New char array must not be greater than 1024, is %zu\n.", L1 + L2);
+		return 0;
+	}
+	char buf[1024] = { 0 };
+	char* x = &arr[index];
+	char* y = &arr[index + L2];
+	strcpy(buf, x);
+	strcpy(y, buf);
+	memcpy(x, chars, L2);
+	return 1;
+}
+
 size_t tokens_length(char** tokens) {
 	size_t i = 0;
 	while (tokens[i] != NULL) {

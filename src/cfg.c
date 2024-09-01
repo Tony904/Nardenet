@@ -138,6 +138,9 @@ void copy_to_cfg(cfg* c, char** tokens, char* header) {
 		else if (strcmp(k, "max_iterations") == 0) {
 			c->max_iterations = str2sizet(tokens[1]);
 		}
+		else if (strcmp(k, "save_frequency") == 0) {
+			c->save_frequency = str2sizet(tokens[1]);
+		}
 		else if (strcmp(k, "learning_rate") == 0) {
 			c->learning_rate = str2float(tokens[1]);
 		}
@@ -238,6 +241,7 @@ void copy_cfg_to_network(cfg* cfig, network* net) {
 	net->batch_size = cfig->batch_size;
 	net->subbatch_size = cfig->subbatch_size;
 	net->max_iterations = cfig->max_iterations;
+	net->save_frequency = cfig->save_frequency;
 	net->learning_rate = cfig->learning_rate;
 	net->lr_policy = cfig->lr_policy;
 	net->step_percents = cfig->step_percents;

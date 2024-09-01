@@ -71,6 +71,7 @@ extern "C" {
         size_t batch_size;  // number of images per batch
         size_t subbatch_size;  // number of images per sub-batch, must divide evenly into batch_size
         size_t max_iterations;  // maximum number of training iterations before automatically ending training
+        size_t save_frequency;
 
         float learning_rate;
         float current_learning_rate;

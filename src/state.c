@@ -1,13 +1,14 @@
 #include "state.h"
 #include <stdio.h>
 #include <stdint.h>
+#include <string.h>
 #include "locmacro.h"
 #include "utils.h"
 
 
 
-int write_binary_float(float* data, size_t n, FILE* file);
-int read_binary_float(float* dst, size_t n, FILE* file);
+int write_binary_float(float* data, size_t n, FILE* file, char* data_name, int layer_id);
+int read_binary_float(float* dst, size_t n, FILE* file, char* data_name, int layer_id);
 void close_file_then_exit(FILE* file);
 
 #define SIGNATURE 8312024
@@ -16,7 +17,14 @@ void close_file_then_exit(FILE* file);
 #define HEADER_SIZE 20
 
 
-void write_state(network* net) {
+void save_state(network* net) {
+	char filename[_MAX_PATH] = { 0 };
+	strcpy(filename, net->weights_file);
+	int ext_i = get_filename_ext_index(filename);
+	char suffix[_MAX_PATH] = { 0 };
+	snprintf(suffix, sizeof(suffix), "-%zu", net->iteration);
+	insert_chars(filename, sizeof(filename), ext_i, suffix);
+	printf("Saving network state to %s\n", filename);
 	FILE* file = get_filestream(net->weights_file, "wb");
 	uint64_t h[HEADER_SIZE] = { 0 };
 	h[0] = SIGNATURE;
@@ -42,46 +50,23 @@ void write_state(network* net) {
 		if (l->type == LAYER_MAXPOOL || l->type == LAYER_RESIDUAL || l->type == LAYER_DETECT) {
 			continue;
 		}
-		if (!write_binary_float(l->weights.a, l->weights.n, file)) {
-			printf("Error writing weights to file. layer: %d\n", l->id);
-			close_file_then_exit(file);
-		}
+		int id = l->id;
+		write_binary_float(l->weights.a, l->weights.n, file, "weights", id);
 		total_vals += l->weights.n;
-		if (!write_binary_float(l->biases, l->n_filters, file)) {
-			printf("Error writing biases to file. layer: %d\n", l->id);
-			close_file_then_exit(file);
-		}
+		write_binary_float(l->biases, l->n_filters, file, "biases", id);
 		total_vals += l->n_filters;
-		if (!write_binary_float(l->weights_velocity, l->weights.n, file)) {
-			printf("Error writing weights_velocity to file. layer: %d\n", l->id);
-			close_file_then_exit(file);
-		}
+		write_binary_float(l->weights_velocity, l->weights.n, file, "weights_velocity", id);
 		total_vals += l->weights.n;
-		if (!write_binary_float(l->biases_velocity, l->n_filters, file)) {
-			printf("Error writing biases_velocity to file. layer: %d\n", l->id);
-			close_file_then_exit(file);
-		}
+		write_binary_float(l->biases_velocity, l->n_filters, file, "biases_velocity", id);
 		total_vals += l->n_filters;
 		if (l->batch_norm) {
-			if (!write_binary_float(l->gammas, l->n_filters, file)) {
-				printf("Error writing gammas to file. layer: %d\n", l->id);
-				close_file_then_exit(file);
-			}
+			write_binary_float(l->gammas, l->n_filters, file, "gammas", id);
 			total_vals += l->n_filters;
-			if (!write_binary_float(l->rolling_means, l->n_filters, file)) {
-				printf("Error writing rolling means to file. layer: %d\n", l->id);
-				close_file_then_exit(file);
-			}
+			write_binary_float(l->rolling_means, l->n_filters, file, "rolling_means", id);
 			total_vals += l->n_filters;
-			if (!write_binary_float(l->rolling_variances, l->n_filters, file)) {
-				printf("Error writing rolling variances to file. layer: %d\n", l->id);
-				close_file_then_exit(file);
-			}
+			write_binary_float(l->rolling_variances, l->n_filters, file, "rolling_variances", id);
 			total_vals += l->n_filters;
-			if (!write_binary_float(l->gammas_velocity, l->n_filters, file)) {
-				printf("Error writing gammas_velocity to file. layer: %d\n", l->id);
-				close_file_then_exit(file);
-			}
+			write_binary_float(l->gammas_velocity, l->n_filters, file, "gammas_velocity", id);
 			total_vals += l->n_filters;
 		}
 	}
@@ -90,9 +75,9 @@ void write_state(network* net) {
 		close_file_then_exit(file);
 	}
 	if (total_vals > 0) {
-		written = fwrite(total_vals, sizeof(uint64_t), 1, file);
+		written = fwrite(&total_vals, sizeof(uint64_t), 1, file);
 		if (written != 1) {
-			printf("Error writing total_vals to file.\n");
+			printf("Error writing total_vals to file.");
 			close_file_then_exit(file);
 		}
 	}
@@ -100,6 +85,7 @@ void write_state(network* net) {
 }
 
 void load_state(network* net) {
+	printf("Loading network state from %s\n", net->weights_file);
 	FILE* file = get_filestream(net->weights_file, "rb");
 	uint64_t h[HEADER_SIZE] = { 0 };
 	size_t read = fread(h, sizeof(uint64_t), HEADER_SIZE, file);
@@ -154,46 +140,23 @@ void load_state(network* net) {
 		if (l->type == LAYER_MAXPOOL || l->type == LAYER_RESIDUAL || l->type == LAYER_DETECT) {
 			continue;
 		}
-		if (!read_binary_float(l->weights.a, l->weights.n, file)) {
-			printf("Error reading weights from file. layer: %d\n", l->id);
-			close_file_then_exit(file);
-		}
+		int id = l->id;
+		read_binary_float(l->weights.a, l->weights.n, file, "weights", id);
 		total_vals += l->weights.n;
-		if (!read_binary_float(l->biases, l->n_filters, file)) {
-			printf("Error reading biases from file. layer: %d\n", l->id);
-			close_file_then_exit(file);
-		}
+		read_binary_float(l->biases, l->n_filters, file, "biases", id);
 		total_vals += l->n_filters;
-		if (!read_binary_float(l->weights_velocity, l->weights.n, file)) {
-			printf("Error reading weights_velocity from file. layer: %d\n", l->id);
-			close_file_then_exit(file);
-		}
+		read_binary_float(l->weights_velocity, l->weights.n, file, "weights_velocity", id);
 		total_vals += l->weights.n;
-		if (!read_binary_float(l->biases_velocity, l->n_filters, file)) {
-			printf("Error reading biases_velocity from file. layer: %d\n", l->id);
-			close_file_then_exit(file);
-		}
+		read_binary_float(l->biases_velocity, l->n_filters, file, "biases_velocity", id);
 		total_vals += l->n_filters;
 		if (l->batch_norm) {
-			if (!read_binary_float(l->gammas, l->n_filters, file)) {
-				printf("Error reading gammas from file. layer: %d\n", l->id);
-				close_file_then_exit(file);
-			}
+			read_binary_float(l->gammas, l->n_filters, file, "gammas", id);
 			total_vals += l->n_filters;
-			if (!read_binary_float(l->rolling_means, l->n_filters, file)) {
-				printf("Error reading rolling means from file. layer: %d\n", l->id);
-				close_file_then_exit(file);
-			}
+			read_binary_float(l->rolling_means, l->n_filters, file, "rolling_means", id);
 			total_vals += l->n_filters;
-			if (!read_binary_float(l->rolling_variances, l->n_filters, file)) {
-				printf("Error reading rolling variances from file. layer: %d\n", l->id);
-				close_file_then_exit(file);
-			}
+			read_binary_float(l->rolling_variances, l->n_filters, file, "rolling_variances", id);
 			total_vals += l->n_filters;
-			if (!read_binary_float(l->gammas_velocity, l->n_filters, file)) {
-				printf("Error reading gammas_velocity from file. layer: %d\n", l->id);
-				close_file_then_exit(file);
-			}
+			read_binary_float(l->gammas_velocity, l->n_filters, file, "gammas_velocity", id);
 			total_vals += l->n_filters;
 		}
 	}
@@ -206,17 +169,24 @@ void load_state(network* net) {
 
 /* n = # of floats to write to file.
 Returns 1 if successful, otherwise 0. */
-int write_binary_float(float* data, size_t n, FILE* file) {
-	size_t written = fwrite(data, sizeof(float), n, file);
-	return (written == n);
+int write_binary_float(float* data, size_t n, FILE* file, char* data_name, int layer_id) {
+	if (fwrite(data, sizeof(float), n, file) != n) {
+		printf("Error saving layer %d %s.\n", layer_id, data_name);
+		close_file_then_exit(file);
+	}
+	return 1;
 }
 
 /* n = # of floats to read from file and store in dst.
 Returns 1 if successful, otherwise 0.*/
-int read_binary_float(float* dst, size_t n, FILE* file) {
+int read_binary_float(float* dst, size_t n, FILE* file, char* data_name, int layer_id) {
 	if (!n) return 0;
 	size_t floats_read = fread((void*)dst, sizeof(float), n, file);
-	return (!ferror(file) && floats_read == n);
+	if (ferror(file) || floats_read == n) {
+		printf("Error loading layer %d %s.\n", layer_id, data_name);
+		close_file_then_exit(file);
+	}
+	return 1;
 }
 
 void close_file_then_exit(FILE* file) {

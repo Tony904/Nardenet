@@ -7,6 +7,8 @@
 #include "image.h"
 #include "data.h"
 #include "loss.h"
+#include "state.h"
+#include "xallocs.h"
 
 
 void train_classifer(network* net);
@@ -21,7 +23,14 @@ void update_current_learning_rate(network* net, size_t iteration, size_t ease_in
 
 void train(network* net) {
 	net->training = 1;
-	initialize_weights_kaiming(net);
+	if (net->weights_file) load_state(net);
+	else {
+		initialize_weights_kaiming(net);
+		net->weights_file = (char*)xcalloc(_MAX_PATH, sizeof(char));
+		strcpy(net->weights_file, net->cfg_file);
+		int ext_i = get_filename_ext_index(net->weights_file);
+		strcpy(&net->weights_file[ext_i], ".weights");
+	}
 	if (net->type == NET_DETECT) train_detector(net);
 	else if (net->type == NET_CLASSIFY) train_classifer(net);
 }
@@ -36,6 +45,8 @@ void train_classifer(network* net) {
 	size_t n_classes = net->n_classes;
 	size_t ease_in = net->ease_in;
 	size_t batch_size = net->batch_size;
+	size_t max_iterations = net->max_iterations;
+	size_t save_frequency = net->save_frequency;
 	size_t width = net->w;
 	size_t height = net->h;
 	size_t channels = net->c;
@@ -45,8 +56,8 @@ void train_classifer(network* net) {
 	//layer* layer0 = net->layers;
 	size_t n_layers = net->n_layers;
 	print_network_summary(net, 1);
-	for (size_t iter = 0; iter < net->max_iterations; iter++) {
-		printf("\nIteration: %zu\n", iter);
+	for (size_t iter = 0; iter < max_iterations; iter++) {
+		printf("\nIteration: %zu\n", iter + 1);
 		update_current_learning_rate(net, iter, ease_in);
 		printf("Learning rate: %f\n", net->current_learning_rate * (float)batch_size);
 		classifier_get_next_batch(&net->data.clsr, batch_size, input, width, height, channels, truth, n_classes);
@@ -63,6 +74,10 @@ void train_classifer(network* net) {
 		}
 		for (size_t i = 0; i < n_layers; i++) {
 			layers[i].update(&layers[i], net);
+		}
+		if ((iter + 1) % save_frequency == 0) {
+			net->iteration = iter + 1;
+			save_state(net);
 		}
 	}
 	free_classifier_dataset_members(&net->data.clsr);
