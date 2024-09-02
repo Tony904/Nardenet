@@ -27,6 +27,9 @@ int main(void) {
 
 /* TODO:
 BUGS:
+ Store addresses in allocs_list in xallocs.c as ints instead of void* because the compiler may
+	do some weird stuff that prevents those stored addresses from being properly compared with
+	other addresses.
 
 PHASE 1:
  residual layer - make sure it works
