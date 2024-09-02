@@ -16,8 +16,8 @@ int main(void) {
 	network* net = create_network_from_cfg(cfgfile);
 	train(net);
 
-	/*free_network(net);
-	print_alloc_list();*/
+	//free_network(net);
+	//print_alloc_list();
 
 #ifndef _DEBUG
 	printf("\n\nPress ENTER to exit the program.");
@@ -30,11 +30,14 @@ BUGS:
  Store addresses in allocs_list in xallocs.c as ints instead of void* because the compiler may
 	do some weird stuff that prevents those stored addresses from being properly compared with
 	other addresses.
+CHANGES:
+ decouple the fully connected stuff from classify layer
 
 PHASE 1:
- residual layer - make sure it works
  saving weights
  loading weights
+ global average pooling layer
+ upsample layer
  object detection
  data augmentation:
 	saturation, exposure, hue, mosaic, rotation (classifier only), jitter
@@ -50,9 +53,6 @@ PHASE 2:
 	half of filters convolve over the other half of the filters. note: sometimes group convolutions
 	are followed up by a 1x1 convolution to maintain the same feature pooling as a normal 3x3 convolution.
 	video on group convs: https://www.youtube.com/watch?v=vVaRhZXovbw)
- upsample layer (not super sure what this is yet)
- spatial pooling (not super sure what this is yet)
- multiple prediction heads
  GPU support (cuda)
  yolov4-csp implementation
  yolov7 implementation
@@ -72,7 +72,6 @@ PHASE 4:
 
 PHASE 9999:
  Implement transformer architecture + attention modules
- Mamba/Jamba if that's still a thing by the time I get everything else done
  Unsupervised learning
  Adversarial training
  */
