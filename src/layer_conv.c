@@ -53,17 +53,15 @@ void backward_conv(layer* l, network* net) {
 	float* grads = l->grads;  // propogated gradients up to this layer
 	// dz/dw = previous layer (shallower layer) input
 	// da/dz = activation derivative
-	if (l->type == LAYER_CONV) {
-		if (l->activation == ACT_MISH) get_grads_mish(grads, l->act_inputs, l->out_n, batch_size);  // dC/da * da/dz
-		else if (l->activation == ACT_RELU) get_grads_relu(grads, l->act_inputs, l->out_n, batch_size);
-		else if (l->activation == ACT_LEAKY) get_grads_leaky_relu(grads, l->act_inputs, l->out_n, batch_size);
-		else if (l->activation == ACT_SIGMOID) get_grads_sigmoid(grads, l->output, l->out_n, batch_size);
-		else if (l->activation == ACT_TANH) get_grads_tanh(grads, l->act_inputs, l->out_n, batch_size);
-		else if (l->activation == ACT_NONE);
-		else {
-			printf("Incorrect or unsupported activation function.\n");
-			exit(EXIT_FAILURE);
-		}
+	if (l->activation == ACT_MISH) get_grads_mish(grads, l->act_inputs, l->out_n, batch_size);  // dC/da * da/dz
+	else if (l->activation == ACT_RELU) get_grads_relu(grads, l->act_inputs, l->out_n, batch_size);
+	else if (l->activation == ACT_LEAKY) get_grads_leaky_relu(grads, l->act_inputs, l->out_n, batch_size);
+	else if (l->activation == ACT_SIGMOID) get_grads_sigmoid(grads, l->output, l->out_n, batch_size);
+	else if (l->activation == ACT_TANH) get_grads_tanh(grads, l->act_inputs, l->out_n, batch_size);
+	else if (l->activation == ACT_NONE);
+	else {
+		printf("Incorrect or unsupported activation function.\n");
+		wait_for_key_then_exit();
 	}
 	// grads[] is now dC/dz.
 	

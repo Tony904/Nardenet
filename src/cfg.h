@@ -21,7 +21,7 @@ extern "C" {
 		char* dataset_dir;
 		char* classes_file;
 		char* weights_file;
-		char* backup_dir;
+		char* save_dir;
 		// [net]
 		size_t width;
 		size_t height;

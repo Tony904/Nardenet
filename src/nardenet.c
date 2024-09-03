@@ -12,7 +12,7 @@ int main(void) {
 	srand(7777777);
 
 	//char* cfgfile = "D:\\TonyDev\\Nardenet\\cfg\\nardenet-detect.cfg";
-	char* cfgfile = "C:\\Users\\TNard\\OneDrive\\Desktop\\dev\\Nardenet-main\\cfg\\nardenet-detect1.cfg";
+	char* cfgfile = "D:\\TonyDev\\Nardenet\\cfg\\nardenet-yolov4-tiny-classifier.cfg";
 	network* net = create_network_from_cfg(cfgfile);
 	train(net);
 
@@ -27,9 +27,6 @@ int main(void) {
 
 /* TODO:
 BUGS:
- Store addresses in allocs_list in xallocs.c as ints instead of void* because the compiler may
-	do some weird stuff that prevents those stored addresses from being properly compared with
-	other addresses.
 CHANGES:
  decouple the fully connected stuff from classify layer
 

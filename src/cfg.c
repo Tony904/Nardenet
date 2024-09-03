@@ -21,7 +21,7 @@
 
 void load_cfg(char* filename, cfg* c);
 void copy_to_cfg(cfg* c, char** tokens, char* header);
-void copy_to_cfg_layer(cfg_layer* l, char** tokens);
+void copy_to_cfg_layer(cfg_layer* l, char** tokens, cfg* c);
 void copy_cfg_to_network(cfg* cfig, network* net);
 void copy_data_augment_range(float* dst, floatarr src);
 void load_class_names(char* filename, network* net, size_t n_classes);
@@ -82,7 +82,7 @@ void load_cfg(char* filename, cfg* c) {
 			copy_to_cfg(c, tokens, header);
 		}
 		else {
-			copy_to_cfg_layer(l, tokens);
+			copy_to_cfg_layer(l, tokens, c);
 		}
 	}
 	c->layers = layers;
@@ -109,9 +109,9 @@ void copy_to_cfg(cfg* c, char** tokens, char* header) {
 			c->weights_file = (char*)xcalloc(strlen(tokens[1]) + 1, sizeof(char));
 			strcpy(c->weights_file, tokens[1]);
 		}
-		else if (strcmp(k, "backup_dir") == 0) {
-			c->backup_dir = (char*)xcalloc(strlen(tokens[1]) + 1, sizeof(char));
-			strcpy(c->backup_dir, tokens[1]);
+		else if (strcmp(k, "save_dir") == 0) {
+			c->save_dir = (char*)xcalloc(strlen(tokens[1]) + 1, sizeof(char));
+			strcpy(c->save_dir, tokens[1]);
 		}
 	}
 	else if (strcmp(header, hNET) == 0) {
@@ -177,7 +177,7 @@ void copy_to_cfg(cfg* c, char** tokens, char* header) {
 	}
 }
 
-void copy_to_cfg_layer(cfg_layer* l, char** tokens) {
+void copy_to_cfg_layer(cfg_layer* l, char** tokens, cfg* c) {
 	size_t t = tokens_length(tokens);
 	if (t < 2) {
 		printf("Error. Tokens must have a minimum length of 2, has %zu.\n", t);
@@ -200,7 +200,15 @@ void copy_to_cfg_layer(cfg_layer* l, char** tokens) {
 		l->batch_norm = str2int(tokens[1]);
 	}
 	else if (strcmp(k, "filters") == 0) {
-		l->n_filters = str2sizet(tokens[1]);
+		if (strcmp(tokens[1], "num_classes") == 0) {
+			l->n_filters = c->n_classes;
+		}
+		else if (strcmp(tokens[1], "anchors") == 0) {
+			l->n_filters = (NUM_ANCHOR_PARAMS + c->n_classes) * 3;
+		}
+		else {
+			l->n_filters = str2sizet(tokens[1]);
+		}
 	}
 	else if (strcmp(k, "kernel_size") == 0) {
 		l->kernel_size = str2sizet(tokens[1]);
@@ -230,7 +238,7 @@ void copy_cfg_to_network(cfg* cfig, network* net) {
 	net->dataset_dir = cfig->dataset_dir;
 	load_class_names(cfig->classes_file, net, cfig->n_classes);
 	net->weights_file = cfig->weights_file;
-	net->backup_dir = cfig->backup_dir;
+	net->save_dir = cfig->save_dir;
 	// [net]
 	net->w = cfig->width;
 	net->h = cfig->height;
@@ -468,7 +476,7 @@ void print_cfg(cfg* c) {
 	printf("dataset_dir = %s\n", c->dataset_dir);
 	printf("classes_file = %s\n", c->classes_file);
 	printf("weights_file = %s\n", c->weights_file);
-	printf("backup_dir = %s\n", c->backup_dir);
+	printf("backup_dir = %s\n", c->save_dir);
 
 	printf("\n[NET]\n");
 	printf("width = %zu\n", c->width);

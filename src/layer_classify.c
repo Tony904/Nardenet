@@ -14,15 +14,5 @@
 
 
 void forward_classify(layer* l, network* net) {
-	forward_conv(l, net);
 	l->get_loss(l, net);
-}
-
-#pragma warning(suppress:4100)  // unreferenced formal parameter: 'net'
-void backward_classify(layer* l, network* net) {
-	backward_conv(l, net);
-}
-
-void update_classify(layer* l, network* net) {
-	update_conv(l, net);
 }

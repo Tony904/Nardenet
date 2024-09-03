@@ -9,6 +9,7 @@
 #include "layer_maxpool.h"
 #include "layer_residual.h"
 #include "layer_detect.h"
+#include "layer_avgpool.h"
 #include "activations.h"
 #include "loss.h"
 #include "derivatives.h"
@@ -126,6 +127,7 @@ void build_conv_layer(int i, network* net) {
 			if (l->in_ids.a[j] < 0) l->in_ids.a[j] += i;
 			if (l->in_ids.a[j] > i || l->in_ids.a[j] < 0) {
 				printf("Invalid in_id of %d for layer %d\n", l->in_ids.a[j], i);
+				wait_for_key_then_exit();
 			}
 		}
 	}
@@ -149,6 +151,7 @@ void build_conv_layer(int i, network* net) {
 		layer* inl = l->in_layers[j];
 		if (l->w != inl->out_w || l->h != inl->out_h) {
 			printf("Invalid input layer dimensions. Width and height must match.\n Layer %d, Input layer %d.\n", i, inl->id);
+			wait_for_key_then_exit();
 		}
 		l->c += inl->out_c;
 	}
@@ -209,6 +212,7 @@ void build_fc_layer(int i, network* net) {
 			if (l->in_ids.a[j] < 0) l->in_ids.a[j] += i;
 			if (l->in_ids.a[j] > i || l->in_ids.a[j] < 0) {
 				printf("Invalid in_id of %d for layer %d\n", l->in_ids.a[j], i);
+				wait_for_key_then_exit();
 			}
 		}
 	}
@@ -225,6 +229,7 @@ void build_fc_layer(int i, network* net) {
 		layer* inl = l->in_layers[i];
 		if (l->w != inl->out_w || l->h != inl->out_h) {
 			printf("Invalid input layer dimensions. Width and height must match.\n Layer %d, Input layer %d.\n", i, inl->id);
+			wait_for_key_then_exit();
 		}
 		l->c += inl->out_c;
 	}
@@ -288,20 +293,22 @@ void build_classify_layer(int i, network* net) {
 	l->id = i;
 
 	if (l->n_classes == 0) l->n_classes = net->n_classes;
-	l->n_filters = l->n_classes;
 
 	if (l->in_ids.n == 0) {
 		l->in_ids.a = (int*)xcalloc(1, sizeof(int));
 		l->in_ids.a[0] = i - 1;
 		l->in_ids.n = 1;
 	}
-	else {
-		for (int j = 0; j < l->in_ids.n; j++) {
-			if (l->in_ids.a[j] < 0) l->in_ids.a[j] += i;
-			if (l->in_ids.a[j] > i || l->in_ids.a[j] < 0) {
-				printf("Invalid in_id of %d for layer %d\n", l->in_ids.a[j], i);
-			}
+	else if (l->in_ids.n == 1) {
+		if (l->in_ids.a[0] < 0) l->in_ids.a[0] += i;
+		if (l->in_ids.a[0] > i || l->in_ids.a[0] < 0) {
+			printf("Invalid in_id of %d for classify layer id %d\n", l->in_ids.a[0], i);
+			wait_for_key_then_exit();
 		}
+	}
+	else {
+		printf("Classify layers can only have one input layer.\n");
+		wait_for_key_then_exit();
 	}
 
 	l->in_layers = (layer**)xcalloc(l->in_ids.n, sizeof(layer*));
@@ -312,59 +319,34 @@ void build_classify_layer(int i, network* net) {
 	l->w = l->in_layers[0]->out_w;
 	l->h = l->in_layers[0]->out_h;
 	l->c = l->in_layers[0]->out_c;
-	for (size_t j = 1; j < l->in_ids.n; j++) {
-		layer* inl = l->in_layers[i];
-		if (l->w != inl->out_w || l->h != inl->out_h) {
-			printf("Invalid input layer dimensions. Width and height must match.\n Layer %d, Input layer %d.\n", i, inl->id);
-		}
-		l->c += inl->out_c;
-	}
 	l->n = l->w * l->h * l->c;
 
 	l->pad = 0;
 	l->stride = 1;
-	assert(l->w == l->h);
-	l->ksize = l->w;
+	if (l->w != 1 || l->h != 1 || l->c != l->n_classes) {
+		printf("The layer outputting to a classify layer must have a width, height, and depth of 1x1x%zu, has %zux%zux%zu.\n", l->n_classes, l->w, l->h, l->c);
+		wait_for_key_then_exit();
+	}
 
 	// Calculate output dimensions.
-	l->out_w = ((l->w + (l->pad * 2) - l->ksize) / l->stride) + 1;
-	l->out_h = ((l->h + (l->pad * 2) - l->ksize) / l->stride) + 1;
-	l->out_c = l->n_filters;
+	l->out_w = l->w;
+	l->out_h = l->h;
+	l->out_c = l->c;
 	l->out_n = l->out_w * l->out_h * l->out_c;
 
 	l->Z = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-	l->weights.n = l->n_filters * l->ksize * l->ksize * l->c;
-	l->weights.a = (float*)xcalloc(l->weights.n, sizeof(float));
-	l->biases = (float*)xcalloc(l->n_filters, sizeof(float));
-	l->grads = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-	l->weight_grads = (float*)xcalloc(l->weights.n, sizeof(float));
-	l->bias_grads = (float*)xcalloc(l->n_filters, sizeof(float));
-	l->weights_velocity = (float*)xcalloc(l->weights.n, sizeof(float));
-	l->biases_velocity = (float*)xcalloc(l->n_filters, sizeof(float));
+	l->grads = l->in_layers[0]->grads;
 	l->truth = (float*)xcalloc(net->n_classes * net->batch_size, sizeof(float));
 	l->errors = (float*)xcalloc(net->n_classes * net->batch_size, sizeof(float));
-	if (l->batch_norm) {
-		l->Z_norm = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-		l->act_inputs = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-		l->means = (float*)xcalloc(l->out_c, sizeof(float));
-		l->variances = (float*)xcalloc(l->out_c, sizeof(float));
-		l->gammas = (float*)xcalloc(l->out_c, sizeof(float));
-		l->gamma_grads = (float*)xcalloc(l->out_c, sizeof(float));
-		l->gammas_velocity = (float*)xcalloc(l->out_c, sizeof(float));
-		fill_array(l->gammas, l->out_c, 1.0F);
-		l->rolling_means = (float*)xcalloc(l->out_c, sizeof(float));
-		l->rolling_variances = (float*)xcalloc(l->out_c, sizeof(float));
-	}
-	else {
-		l->act_inputs = l->Z;
-	}
+
+	l->act_inputs = l->Z;
 	
 	if (l->activation) l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 	else l->output = l->act_inputs;
 	
 	l->forward = forward_classify;
-	l->backward = backward_classify;
-	l->update = update_classify;
+	l->backward = backward_none;  // all backprop stuff is done in forward pass
+	l->update = update_none;
 
 	set_activate(l);
 
@@ -388,6 +370,7 @@ void build_maxpool_layer(int i, network* net) {
 			if (l->in_ids.a[j] < 0) l->in_ids.a[j] += i;
 			if (l->in_ids.a[j] > i || l->in_ids.a[j] < 0) {
 				printf("Invalid in_id of %d for layer %d\n", l->in_ids.a[j], i);
+				wait_for_key_then_exit();
 			}
 		}
 	}
@@ -411,6 +394,7 @@ void build_maxpool_layer(int i, network* net) {
 		layer* inl = l->in_layers[j];
 		if (l->w != inl->out_w || l->h != inl->out_h) {
 			printf("Invalid input layer dimensions. Width and height must match.\n Layer %d, Input layer %d.\n", i, inl->id);
+			wait_for_key_then_exit();
 		}
 		l->c += inl->out_c;
 	}
@@ -447,6 +431,7 @@ void build_residual_layer(int i, network* net) {
 			if (l->in_ids.a[j] < 0) l->in_ids.a[j] += i;
 			if (l->in_ids.a[j] > i || l->in_ids.a[j] < 0) {
 				printf("Invalid in_id of %d for layer %d\n", l->in_ids.a[j], i);
+				wait_for_key_then_exit();
 			}
 		}
 	}
@@ -496,6 +481,72 @@ void build_residual_layer(int i, network* net) {
 	set_activate(l);
 }
 
+void build_avgpool_layer(int i, network* net) {
+	layer* l = &(net->layers[i]);
+	layer* ls = net->layers;
+	l->id = i;
+
+	// Set default in_ids if none specified.
+	if (l->in_ids.n == 0) {
+		l->in_ids.a = (int*)xcalloc(1, sizeof(int));
+		l->in_ids.a[0] = i - 1;
+		l->in_ids.n = 1;
+	}
+	else {
+		for (int j = 0; j < l->in_ids.n; j++) {
+			if (l->in_ids.a[j] < 0) l->in_ids.a[j] += i;
+			if (l->in_ids.a[j] > i || l->in_ids.a[j] < 0) {
+				printf("Invalid in_id of %d for layer %d\n", l->in_ids.a[j], i);
+				wait_for_key_then_exit();
+			}
+		}
+	}
+
+	// Build array of input layer addresses.
+	l->in_layers = (layer**)xcalloc(l->in_ids.n, sizeof(layer*));
+	if (i > 0) {
+		for (size_t j = 0; j < l->in_ids.n; j++) {
+			l->in_layers[j] = &ls[l->in_ids.a[j]];
+		}
+	}
+	else { // if first layer
+		l->in_layers[0] = net->input;
+	}
+
+	// Calculate input dimensions.
+	l->w = l->in_layers[0]->out_w;
+	l->h = l->in_layers[0]->out_h;
+	l->c = l->in_layers[0]->out_c;
+	for (size_t j = 1; j < l->in_ids.n; j++) {
+		layer* inl = l->in_layers[j];
+		if (l->w != inl->out_w || l->h != inl->out_h) {
+			printf("Invalid input layer dimensions. Width and height must match.\n Layer %d, Input layer %d.\n", i, inl->id);
+			wait_for_key_then_exit();
+		}
+		l->c += inl->out_c;
+	}
+	l->n = l->w * l->h * l->c;
+
+	// Calculate output dimensions.
+	l->out_w = 1;
+	l->out_h = 1;
+	l->out_c = l->c;
+	l->out_n = l->out_w * l->out_h * l->out_c;
+
+	l->Z = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	l->act_inputs = l->Z;
+	l->grads = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+
+	if (l->activation) l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	else l->output = l->Z;
+
+	l->forward = forward_avgpool;
+	l->backward = backward_avgpool;
+	l->update = update_none;
+
+	set_activate(l);
+}
+
 void build_detect_layer(int i, network* net) {
 	if (net->type != NET_DETECT) {
 		printf("Invalid network cfg: Cannot have a detect layer in a non-detector network.\n");
@@ -519,6 +570,7 @@ void build_detect_layer(int i, network* net) {
 			if (l->in_ids.a[j] < 0) l->in_ids.a[j] += i;
 			if (l->in_ids.a[j] > i || l->in_ids.a[j] < 0) {
 				printf("Invalid in_id of %d for layer %d\n", l->in_ids.a[j], i);
+				wait_for_key_then_exit();
 			}
 		}
 	}
@@ -667,6 +719,11 @@ void set_loss(layer* l) {
 }
 
 #pragma warning(suppress:4100)  // unreferenced formal parameter: 'net'
+void backward_none(layer* l, network* net) {
+	l;
+}
+
+#pragma warning(suppress:4100)  // unreferenced formal parameter: 'net'
 void update_none(layer* l, network* net) {
 	l;
 }
@@ -684,7 +741,7 @@ void free_network(network* n) {
 	xfree(n->workspace.a);
 	xfree(n->dataset_dir);
 	xfree(n->weights_file);
-	xfree(n->backup_dir);
+	xfree(n->save_dir);
 	free_classifier_dataset_members(&n->data.clsr);
 	xfree(n);
 }

@@ -28,6 +28,7 @@ extern "C" {
 
     network* new_network(size_t num_of_layers);
     void build_network(network* net);
+    void backward_none(layer* l, network* net);
     void update_none(layer* l, network* net);
 
     void free_network(network* net);
@@ -101,7 +102,7 @@ extern "C" {
         char* cfg_file;
         char* dataset_dir;
         char* weights_file;
-        char* backup_dir;
+        char* save_dir;
         NET_TYPE type;
         union data {
             classifier_dataset clsr;
