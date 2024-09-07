@@ -9,6 +9,8 @@ extern "C" {
 
 	void forward_avgpool(layer* l, network* net);
 	void backward_avgpool(layer* l, network* net);
+	/*void test_forward_avgpool(void);
+	void test_backward_avgpool(void);*/
 
 #ifdef __cplusplus
 }

@@ -196,9 +196,9 @@ void test_forward_maxpool(void) {
 	inl1->out_n = inl1->out_w * inl1->out_h * inl1->out_c;
 	inl2->out_n = inl2->out_w * inl2->out_h * inl2->out_c;
 	inl1->output = (float*)xcalloc(inl1->out_n * net->batch_size, sizeof(float));
-	fill_array_rand_float(inl1->output, inl1->out_n * net->batch_size, 0, (int)(inl1->out_n * net->batch_size));
+	fill_array_rand_float(inl1->output, inl1->out_n * net->batch_size, 0.0, (double)(inl1->out_n * net->batch_size));
 	inl2->output = (float*)xcalloc(inl2->out_n * net->batch_size, sizeof(float));
-	fill_array_rand_float(inl2->output, inl2->out_n * net->batch_size, 0, (int)(inl2->out_n * net->batch_size));
+	fill_array_rand_float(inl2->output, inl2->out_n * net->batch_size, 0.0, (double)(inl2->out_n * net->batch_size));
 	inl1->grads = (float*)xcalloc(inl1->out_n * net->batch_size, sizeof(float));
 	inl2->grads = (float*)xcalloc(inl2->out_n * net->batch_size, sizeof(float));
 	l->in_layers = (layer**)xcalloc(2, sizeof(layer*));
@@ -243,10 +243,10 @@ void test_backward_maxpool(void) {
 	inl2->out_n = inl2->out_w * inl2->out_h * inl2->out_c;
 	inl1->output = (float*)xcalloc(inl1->out_n, sizeof(float));
 	inl1->grads = (float*)xcalloc(inl1->out_n, sizeof(float));
-	fill_array_rand_float(inl1->output, inl1->out_n, 0, 100);
+	fill_array_rand_float(inl1->output, inl1->out_n, 0.0, 100.0);
 	inl2->output = (float*)xcalloc(inl2->out_n, sizeof(float));
 	inl2->grads = (float*)xcalloc(inl2->out_n, sizeof(float));
-	fill_array_rand_float(inl2->output, inl2->out_n, 25, 75);
+	fill_array_rand_float(inl2->output, inl2->out_n, 25.0, 75.0);
 	l->in_layers = (layer**)xcalloc(2, sizeof(layer*));
 	l->in_layers[0] = inl1;
 	l->in_layers[1] = inl2;
@@ -260,5 +260,4 @@ void test_backward_maxpool(void) {
 	backward_maxpool(l, net);
 	pprint_mat(inl1->grads, (int)inl1->out_w, (int)inl1->out_h, (int)inl1->out_c);
 	pprint_mat(inl2->grads, (int)inl2->out_w, (int)inl2->out_h, (int)inl2->out_c);
-	
 }

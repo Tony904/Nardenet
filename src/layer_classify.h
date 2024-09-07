@@ -10,8 +10,6 @@ extern "C" {
 #endif
 
 	void forward_classify(layer* l, network* net);
-	void backward_classify(layer* l, network* net);
-	void update_classify(layer* l, network* net);
 
 #ifdef __cplusplus
 }

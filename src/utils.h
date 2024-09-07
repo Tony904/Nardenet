@@ -25,7 +25,7 @@ extern "C" {
 	int char_in_string(char c, char* str);
 	void fill_array(float* arr, size_t size, float val);
 	void fill_array_increment(float* arr, size_t size, float start_val, float increment);
-	void fill_array_rand_float(float* arr, size_t size, int start, int end);
+	void fill_array_rand_float(float* arr, size_t size, double mean, double sdev);
 	void zero_array(float* arr, size_t size);
 	float sum_array(float* arr, size_t size);
 	double randn(double mean, double stddev);

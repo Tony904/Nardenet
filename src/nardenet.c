@@ -12,10 +12,10 @@ int main(void) {
 	srand(7777777);
 
 	//char* cfgfile = "D:\\TonyDev\\Nardenet\\cfg\\nardenet-detect.cfg";
-	char* cfgfile = "D:\\TonyDev\\Nardenet\\cfg\\nardenet-yolov4-tiny-classifier.cfg";
+	/*char* cfgfile = "D:\\TonyDev\\Nardenet\\cfg\\nardenet-yolov4-tiny-classifier.cfg";
 	network* net = create_network_from_cfg(cfgfile);
-	train(net);
-
+	train(net);*/
+	
 	//free_network(net);
 	//print_alloc_list();
 
