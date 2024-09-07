@@ -10,6 +10,7 @@
 #include "layer_residual.h"
 #include "layer_detect.h"
 #include "layer_avgpool.h"
+#include "layer_upsample.h"
 #include "activations.h"
 #include "loss.h"
 #include "derivatives.h"
@@ -21,7 +22,9 @@ void build_layer(int i, network* net);
 void build_conv_layer(int i, network* net);
 void build_fc_layer(int i, network* net);
 void build_maxpool_layer(int i, network* net);
+void build_avgpool_layer(int i, network* net);
 void build_residual_layer(int i, network* net);
+void build_upsample_layer(int i, network* net);
 void build_classify_layer(int i, network* net);
 void build_detect_layer(int i, network* net);
 
@@ -542,6 +545,68 @@ void build_avgpool_layer(int i, network* net) {
 
 	l->forward = forward_avgpool;
 	l->backward = backward_avgpool;
+	l->update = update_none;
+
+	set_activate(l);
+}
+
+void build_upsample_layer(int i, network* net) {
+	layer* l = &(net->layers[i]);
+	layer* ls = net->layers;
+	l->id = i;
+
+	// Set default in_ids if none specified.
+	if (l->in_ids.n == 0) {
+		l->in_ids.a = (int*)xcalloc(1, sizeof(int));
+		l->in_ids.a[0] = i - 1;
+		l->in_ids.n = 1;
+	}
+	else {
+		for (int j = 0; j < l->in_ids.n; j++) {
+			if (l->in_ids.a[j] < 0) l->in_ids.a[j] += i;
+			if (l->in_ids.a[j] > i || l->in_ids.a[j] < 0) {
+				printf("Invalid in_id of %d for layer %d\n", l->in_ids.a[j], i);
+				wait_for_key_then_exit();
+			}
+		}
+	}
+
+	// Build array of input layer addresses.
+	l->in_layers = (layer**)xcalloc(l->in_ids.n, sizeof(layer*));
+	if (i > 0) {
+		for (size_t j = 0; j < l->in_ids.n; j++) {
+			l->in_layers[j] = &ls[l->in_ids.a[j]];
+		}
+	}
+
+	// Calculate input dimensions.
+	l->w = l->in_layers[0]->out_w;
+	l->h = l->in_layers[0]->out_h;
+	l->c = l->in_layers[0]->out_c;
+	for (size_t j = 1; j < l->in_ids.n; j++) {
+		layer* inl = l->in_layers[j];
+		if (l->w != inl->out_w || l->h != inl->out_h) {
+			printf("Invalid input layer dimensions. Width and height must match.\n Layer %d, Input layer %d.\n", i, inl->id);
+			wait_for_key_then_exit();
+		}
+		l->c += inl->out_c;
+	}
+	l->n = l->w * l->h * l->c;
+
+	// Calculate output dimensions.
+	l->out_w = l->w * l->ksize;
+	l->out_h = l->h * l->ksize;
+	l->out_c = l->c;
+	l->out_n = l->out_w * l->out_h * l->out_c;
+	l->Z = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+
+	l->act_inputs = l->Z;
+
+	if (l->activation) l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	else l->output = l->act_inputs;
+
+	l->forward = forward_upsample;
+	l->backward = backward_upsample;
 	l->update = update_none;
 
 	set_activate(l);

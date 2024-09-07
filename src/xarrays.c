@@ -21,6 +21,7 @@ void print_floatarr(floatarr* p) {
 	size_t n = p->n;
 	if (n < 1) {
 		printf("none\n");
+		return;
 	}
 	size_t i;
 	for (i = 0; i < n - 1; i++) {

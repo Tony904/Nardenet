@@ -7,21 +7,21 @@
 
 void forward_residual(layer* l, network* net) {
 	size_t n = l->out_n * net->batch_size;
-	float* l_Z = l->Z;
+	float* Z = l->Z;
 	float* inl0_output = l->in_layers[0]->output;
 	size_t i;
 #pragma omp parallel for
 	for (i = 0; i < n; i++) {
-		l_Z[i] = inl0_output[i];
+		Z[i] = inl0_output[i];
 	}
 	for (size_t a = 1; a < l->in_ids.n; a++) {
 		float* inl_output = l->in_layers[a]->output;
 #pragma omp parallel for
 		for (i = 0; i < n; i++) {
-			l_Z[i] += inl_output[i];
+			Z[i] += inl_output[i];
 		}
 	}
-	if (l->activation) l->activate(l_Z, l->output, l->out_n, net->batch_size);
+	if (l->activation) l->activate(Z, l->output, l->out_n, net->batch_size);
 	if (net->training) zero_array(l->grads, n);
 }
 

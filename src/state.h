@@ -12,6 +12,8 @@ extern "C" {
 
 	void save_state(network* net);
 	void load_state(network* net);
+	/*void test_save_state(void);
+	void test_load_state(void);*/
 
 #ifdef __cplusplus
 }

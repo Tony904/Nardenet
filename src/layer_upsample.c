@@ -1,14 +1,16 @@
-#include "layer_avgpool.h"
-#include "derivatives.h"
+#include "layer_upsample.h"
 #include "utils.h"
 #include "xallocs.h"
 
 
-void forward_avgpool(layer* l, network* net) {
+void forward_upsample(layer* l, network* net) {
 	float* Z = l->Z;
+	size_t ksize = l->ksize;
 	size_t w = l->w;
 	size_t h = l->h;
 	size_t wh = w * h;
+	size_t out_w = l->out_w;
+	size_t out_wh = out_w * l->out_h;
 	size_t batch_size = net->batch_size;
 	for (size_t b = 0; b < batch_size; b++) {
 		size_t bwh = b * wh;
@@ -18,40 +20,42 @@ void forward_avgpool(layer* l, network* net) {
 			size_t inl_out_c = inl->out_c;
 			size_t b_offset = bwh * inl_out_c;
 			size_t ch;
-#pragma omp parallel for firstprivate(wh)
+#pragma omp parallel for firstprivate(w, h, ksize)
 			for (ch = 0; ch < inl_out_c; ch++) {
-				float sum = 0.0F;
-				size_t offset = ch * wh + b_offset;
-				for (size_t s = 0; s < wh; s++) {
-					sum += inl_output[offset + s];
+				size_t ch_offset = ch * wh + b_offset;
+				size_t z_offset = ch * out_wh;
+				for (size_t row = 0; row < h; row++) {
+					size_t row_offset = ch_offset + row * w;
+					size_t out_row0 = row * ksize * out_w;
+					for (size_t col = 0; col < w; col++) {
+						size_t out_col0 = col * ksize;
+						float val = inl_output[row_offset + col];
+						for (size_t krow = 0; krow < ksize; krow++) {
+							size_t out_row = out_row0 + krow * out_w;
+							for (size_t kcol = 0; kcol < ksize; kcol++) {
+								Z[z_offset + out_row + out_col0 + kcol] = val;
+							}
+						}
+					}
 				}
-				Z[ch] = sum / wh;
 			}
-			Z += inl_out_c;
+			pprint_mat_batch(l->Z, out_w, l->out_h, l->out_c, batch_size);
+			Z += out_wh * inl_out_c;
 		}
 	}
 	if (l->activation) l->activate(l->Z, l->output, l->out_n, net->batch_size);
 	if (net->training) zero_array(l->grads, l->out_n * batch_size);
 }
 
-void backward_avgpool(layer* l, network* net) {
-	size_t batch_size = net->batch_size;
+void backward_upsample(layer* l, network* net) {
 	float* grads = l->grads;
-	if (l->activation) {
-		if (l->activation == ACT_MISH) get_grads_mish(grads, l->act_inputs, l->out_n, batch_size);  // dC/da * da/dz
-		else if (l->activation == ACT_RELU) get_grads_relu(grads, l->act_inputs, l->out_n, batch_size);
-		else if (l->activation == ACT_LEAKY) get_grads_leaky_relu(grads, l->act_inputs, l->out_n, batch_size);
-		else if (l->activation == ACT_SIGMOID) get_grads_sigmoid(grads, l->output, l->out_n, batch_size);
-		else if (l->activation == ACT_TANH) get_grads_tanh(grads, l->act_inputs, l->out_n, batch_size);
-		else {
-			printf("Incorrect or unsupported activation function.\n");
-			wait_for_key_then_exit();
-		}
-	}
+	size_t ksize = l->ksize;
 	size_t w = l->w;
 	size_t h = l->h;
 	size_t wh = w * h;
-	float whF = (float)wh;
+	size_t out_w = l->out_w;
+	size_t out_wh = out_w * l->out_h;
+	size_t batch_size = net->batch_size;
 	for (size_t b = 0; b < batch_size; b++) {
 		size_t bwh = b * wh;
 		for (size_t a = 0; a < l->in_ids.n; a++) {
@@ -60,28 +64,40 @@ void backward_avgpool(layer* l, network* net) {
 			size_t inl_out_c = inl->out_c;
 			size_t b_offset = bwh * inl_out_c;
 			size_t ch;
-#pragma omp parallel for firstprivate(wh, b_offset, whF)
+#pragma omp parallel for firstprivate(w, h, ksize)
 			for (ch = 0; ch < inl_out_c; ch++) {
-				size_t offset = ch * wh + b_offset;
-				float grad = grads[ch] / whF;
-				for (size_t s = 0; s < wh; s++) {
-					inl_grads[offset + s] += grad;
+				size_t ch_offset = ch * wh + b_offset;
+				size_t z_offset = ch * out_wh;
+				for (size_t row = 0; row < h; row++) {
+					size_t row_offset = ch_offset + row * h;
+					size_t out_row0 = row * ksize;
+					for (size_t col = 0; col < w; col++) {
+						size_t out_col0 = col * ksize;
+						size_t index = row_offset + col;
+						for (size_t krow = 0; krow < ksize; krow++) {
+							size_t out_row = out_row0 + krow * out_w;
+							for (size_t kcol = 0; kcol < ksize; kcol++) {
+								inl_grads[index] += grads[z_offset + out_row + out_col0 + kcol];
+							}
+						}
+					}
 				}
 			}
-			grads += inl_out_c;
+			grads += out_wh * inl_out_c;
 		}
 	}
 }
 
 /*** TESTING ***/
 
-void test_forward_avgpool(void) {
+void test_forward_upsample(void) {
 	layer l = { 0 };
 	network net = { 0 };
 	net.batch_size = 2;
 	l.w = 2;
 	l.h = 2;
-	
+	l.ksize = 2;
+
 	layer inl1 = { 0 };
 	layer inl2 = { 0 };
 	inl1.out_w = l.w;
@@ -94,15 +110,15 @@ void test_forward_avgpool(void) {
 	inl2.out_n = inl2.out_w * inl2.out_h * inl2.out_c;
 	inl1.output = (float*)xcalloc(inl1.out_n * net.batch_size, sizeof(float));
 	//fill_array_rand_float(inl1.output, inl1.out_n * net.batch_size, 0.0, 1.0);
-	fill_array_increment(inl1.output, inl1.out_n * net.batch_size, 0.0F, 2.0F);
+	fill_array_increment(inl1.output, inl1.out_n * net.batch_size, 1.0F, 2.0F);
 	inl2.output = (float*)xcalloc(inl2.out_n * net.batch_size, sizeof(float));
 	//fill_array_rand_float(inl2.output, inl2.out_n * net.batch_size, 0.0, 1.0);
-	fill_array_increment(inl2.output, inl2.out_n * net.batch_size, 0.0F, 1.0F);
+	fill_array_increment(inl2.output, inl2.out_n * net.batch_size, 0.5F, 1.0F);
 
 	l.c = inl1.out_c + inl2.out_c;
 	l.n = l.w * l.h * l.c;
-	l.out_w = 1;
-	l.out_h = 1;
+	l.out_w = l.w * l.ksize;
+	l.out_h = l.h * l.ksize;
 	l.out_c = l.c;
 	l.out_n = l.out_w * l.out_h * l.out_c;
 	l.output = (float*)xcalloc(l.out_n * net.batch_size, sizeof(float));
@@ -114,19 +130,20 @@ void test_forward_avgpool(void) {
 	l.in_layers[0] = &inl1;
 	l.in_layers[1] = &inl2;
 	l.in_ids.n = 2;
-	forward_avgpool(&l, &net);
+	forward_upsample(&l, &net);
 
-	pprint_mat(inl1.output, (int)inl1.out_w, (int)inl1.out_h, (int)inl1.out_c * (int)net.batch_size);
-	pprint_mat(inl2.output, (int)inl2.out_w, (int)inl2.out_h, (int)inl2.out_c * (int)net.batch_size);
-	pprint_mat(l.output, (int)l.out_w, (int)l.out_h, (int)l.out_c * (int)net.batch_size);
+	pprint_mat_batch(inl1.output, inl1.out_w, inl1.out_h, inl1.out_c, net.batch_size);
+	pprint_mat_batch(inl2.output, inl2.out_w, inl2.out_h, inl2.out_c, net.batch_size);
+	pprint_mat_batch(l.output, l.out_w, l.out_h, l.out_c, net.batch_size);
 }
 
-void test_backward_avgpool(void) {
+void test_backward_upsample(void) {
 	layer l = { 0 };
 	network net = { 0 };
 	net.batch_size = 2;
 	l.w = 2;
 	l.h = 2;
+	l.ksize = 2;
 
 	layer inl1 = { 0 };
 	layer inl2 = { 0 };
@@ -140,15 +157,15 @@ void test_backward_avgpool(void) {
 	inl2.out_n = inl2.out_w * inl2.out_h * inl2.out_c;
 	inl1.output = (float*)xcalloc(inl1.out_n * net.batch_size, sizeof(float));
 	//fill_array_rand_float(inl1.output, inl1.out_n * net.batch_size, 0.0, 1.0);
-	fill_array_increment(inl1.output, inl1.out_n * net.batch_size, 0.0F, 2.0F);
+	fill_array_increment(inl1.output, inl1.out_n * net.batch_size, 1.0F, 2.0F);
 	inl2.output = (float*)xcalloc(inl2.out_n * net.batch_size, sizeof(float));
 	//fill_array_rand_float(inl2.output, inl2.out_n * net.batch_size, 0.0, 1.0);
-	fill_array_increment(inl2.output, inl2.out_n * net.batch_size, 0.0F, 1.0F);
+	fill_array_increment(inl2.output, inl2.out_n * net.batch_size, 0.5F, 1.0F);
 
 	l.c = inl1.out_c + inl2.out_c;
 	l.n = l.w * l.h * l.c;
-	l.out_w = 1;
-	l.out_h = 1;
+	l.out_w = l.w * l.ksize;
+	l.out_h = l.h * l.ksize;
 	l.out_c = l.c;
 	l.out_n = l.out_w * l.out_h * l.out_c;
 	l.output = (float*)xcalloc(l.out_n * net.batch_size, sizeof(float));
@@ -160,13 +177,10 @@ void test_backward_avgpool(void) {
 	l.in_layers[0] = &inl1;
 	l.in_layers[1] = &inl2;
 	l.in_ids.n = 2;
-	forward_avgpool(&l, &net);
+	backward_upsample(&l, &net);
 
-	l.grads = (float*)xcalloc(l.out_n * net.batch_size, sizeof(float));
 
-	fill_array_increment(l.grads, l.out_n * net.batch_size, 0.0F, 4.0F);
-	backward_avgpool(&l, &net);
-	pprint_mat(l.grads, (int)l.out_w, (int)l.out_h, (int)(l.out_c * net.batch_size));
-	pprint_mat(inl1.grads, (int)inl1.out_w, (int)inl1.out_h, (int)(inl1.out_c * net.batch_size));
-	pprint_mat(inl2.grads, (int)inl2.out_w, (int)inl2.out_h, (int)(inl2.out_c * net.batch_size));
+	pprint_mat_batch(inl1.output, inl1.out_w, inl1.out_h, inl1.out_c, net.batch_size);
+	pprint_mat_batch(inl2.output, inl2.out_w, inl2.out_h, inl2.out_c, net.batch_size);
+	pprint_mat_batch(l.output, l.out_w, l.out_h, l.out_c, net.batch_size);
 }

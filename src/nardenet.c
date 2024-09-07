@@ -5,6 +5,7 @@
 #include "image.h"
 #include "xopencv.h"
 #include "xallocs.h"
+#include "layer_upsample.h"
 
 
 int main(void) {
@@ -15,7 +16,9 @@ int main(void) {
 	/*char* cfgfile = "D:\\TonyDev\\Nardenet\\cfg\\nardenet-yolov4-tiny-classifier.cfg";
 	network* net = create_network_from_cfg(cfgfile);
 	train(net);*/
-	
+
+	test_forward_upsample();
+
 	//free_network(net);
 	//print_alloc_list();
 
@@ -27,14 +30,9 @@ int main(void) {
 
 /* TODO:
 BUGS:
-CHANGES:
- decouple the fully connected stuff from classify layer
 
 PHASE 1:
- saving weights
- loading weights
- global average pooling layer
- upsample layer
+ upsample layer - finish testing backward_upsample()
  object detection
  data augmentation:
 	saturation, exposure, hue, mosaic, rotation (classifier only), jitter
@@ -45,7 +43,6 @@ PHASE 1:
 
 PHASE 2:
  training progress graph
- Huber loss (for object detection)
  group convolution (i.e. at group = 2, half of filters convolve over one half of the channels, the other
 	half of filters convolve over the other half of the filters. note: sometimes group convolutions
 	are followed up by a 1x1 convolution to maintain the same feature pooling as a normal 3x3 convolution.

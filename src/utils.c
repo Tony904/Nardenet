@@ -474,6 +474,27 @@ void pprint_mat(float* data, int width, int height, int channels) {
 	printf("\nend\n\n");
 }
 
+void pprint_mat_batch(float* data, size_t width, size_t height, size_t channels, size_t batch_size) {
+	size_t n = width * height * channels;
+	printf("\nMATRIX");
+	for (size_t b = 0; b < batch_size; b++) {
+		for (size_t channel = 0; channel < channels; channel++) {
+			for (size_t row = 0; row < height; row++) {
+				printf("\n");
+				for (size_t col = 0; col < width; col++) {
+					float val = data[b * n + channel * width * height + row * width + col];
+					if (val < 10 && val >= 0) printf("%0.1f   ", val);
+					else if (val >= 10 && val < 100) printf("%0.1f  ", val);
+					else printf("%0.1f ", val);
+				}
+			}
+			printf("(ch %zu)", channel);
+		}
+		printf("(batch %zu)", b);
+	}
+	printf("\nend\n\n");
+}
+
 void wait_for_key_then_exit(void) {
 	printf("\n\nPress ENTER to exit the program.");
 	(void)getchar();

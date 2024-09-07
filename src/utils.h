@@ -47,6 +47,7 @@ extern "C" {
 	void print_str_array(char** strs, size_t count);
 	void print_float_array(float* array, size_t size);
 	void pprint_mat(float* data, int width, int height, int channels);
+	void pprint_mat_batch(float* data, size_t width, size_t height, size_t channels, size_t batch_size);
 	void wait_for_key_then_exit(void);
 
 #ifdef _cplusplus
