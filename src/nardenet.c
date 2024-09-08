@@ -12,9 +12,9 @@ int main(void) {
 	srand(7777777);
 
 	//char* cfgfile = "D:\\TonyDev\\Nardenet\\cfg\\nardenet-detect.cfg";
-	/*char* cfgfile = "D:\\TonyDev\\Nardenet\\cfg\\nardenet-yolov4-tiny-classifier.cfg";
+	char* cfgfile = "D:\\TonyDev\\Nardenet\\cfg\\nardenet-yolov4-tiny-classifier.cfg";
 	network* net = create_network_from_cfg(cfgfile);
-	train(net);*/
+	train(net);
 
 	//free_network(net);
 	//print_alloc_list();
@@ -29,8 +29,10 @@ int main(void) {
 BUGS:
 
 CHANGES:
- add activation function options to inputs to classify and detect layer, mainly
-	because it will make the case of handling softmax gradients easier
+
+IN PROGRESS:
+ setting up yolov4 tiny classifier backbone to train on imagenet and then
+	use the weights to train an object detector.
 
 PHASE 1:
  object detection

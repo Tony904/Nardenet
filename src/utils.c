@@ -405,6 +405,43 @@ list* get_files_list(char* dir, char* extensions) {
 	return paths;
 }
 
+void fix_dir_str(char* dir, size_t bufsize) {
+	size_t length = strlen(dir);
+	if (dir[length - 1] == '\\') return;
+	if (bufsize > length + 1) {
+		dir[length] = '\\';
+		dir[length + 1] = 0;
+	}
+}
+
+void get_filename_from_path(char* dst, size_t dstsize, char* filepath, int remove_ext) {
+	size_t length = strlen(filepath);
+	size_t i;
+	for (i = length; i; i--) {
+		if (filepath[i] == '\\') break;
+	}
+	char* s = &filepath[i + 1];
+	length = strlen(s);
+	if (remove_ext) {
+		size_t j;
+		for (j = length; j; j--) {
+			if (s[j] == '.') {
+				break;
+			}
+		}
+		if (dstsize < j) {
+			printf("File name is too long: %s\nMust be less than %zu characters without extension.\n", s, dstsize);
+			wait_for_key_then_exit();
+		}
+		memcpy(dst, s, j);
+	}
+	if (dstsize < length) {
+		printf("File name is too long: %s\nMust be less than %zu characters.\n", s, dstsize);
+		wait_for_key_then_exit();
+	}
+	strcpy(dst, s);
+}
+
 /* Returns index of the last '.' character in filename.
    If result is -1 that means no '.' was found. */
 int get_filename_ext_index(char* filename) {

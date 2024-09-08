@@ -42,6 +42,7 @@ void backward_avgpool(layer* l, network* net) {
 		else if (l->activation == ACT_RELU) get_grads_relu(grads, l->act_inputs, l->out_n, batch_size);
 		else if (l->activation == ACT_LEAKY) get_grads_leaky_relu(grads, l->act_inputs, l->out_n, batch_size);
 		else if (l->activation == ACT_SIGMOID) get_grads_sigmoid(grads, l->output, l->out_n, batch_size);
+		else if (l->activation == ACT_SOFTMAX);
 		else if (l->activation == ACT_TANH) get_grads_tanh(grads, l->act_inputs, l->out_n, batch_size);
 		else {
 			printf("Incorrect or unsupported activation function.\n");

@@ -47,14 +47,26 @@ void forward_upsample(layer* l, network* net) {
 }
 
 void backward_upsample(layer* l, network* net) {
+	size_t batch_size = net->batch_size;
 	float* grads = l->grads;
+	if (l->activation) {
+		if (l->activation == ACT_MISH) get_grads_mish(grads, l->act_inputs, l->out_n, batch_size);  // dC/da * da/dz
+		else if (l->activation == ACT_RELU) get_grads_relu(grads, l->act_inputs, l->out_n, batch_size);
+		else if (l->activation == ACT_LEAKY) get_grads_leaky_relu(grads, l->act_inputs, l->out_n, batch_size);
+		else if (l->activation == ACT_SIGMOID) get_grads_sigmoid(grads, l->output, l->out_n, batch_size);
+		else if (l->activation == ACT_SOFTMAX);
+		else if (l->activation == ACT_TANH) get_grads_tanh(grads, l->act_inputs, l->out_n, batch_size);
+		else {
+			printf("Incorrect or unsupported activation function.\n");
+			wait_for_key_then_exit();
+		}
+	}
 	size_t ksize = l->ksize;
 	size_t w = l->w;
 	size_t h = l->h;
 	size_t wh = w * h;
 	size_t out_w = l->out_w;
 	size_t out_wh = out_w * l->out_h;
-	size_t batch_size = net->batch_size;
 	for (size_t b = 0; b < batch_size; b++) {
 		size_t bwh = b * wh;
 		for (size_t a = 0; a < l->in_ids.n; a++) {

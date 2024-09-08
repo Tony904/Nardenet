@@ -25,11 +25,12 @@ void train(network* net) {
 	net->training = 1;
 	if (net->weights_file) load_state(net);
 	else {
+		printf("No weights file specified. Using random weights.\n");
 		initialize_weights_kaiming(net);
 		net->weights_file = (char*)xcalloc(_MAX_PATH, sizeof(char));
-		strcpy(net->weights_file, net->cfg_file);
-		int ext_i = get_filename_ext_index(net->weights_file);
-		strcpy(&net->weights_file[ext_i], ".weights");
+		char buf[_MAX_PATH] = { 0 };
+		get_filename_from_path(buf, _MAX_PATH, net->cfg_file, 1);
+		snprintf(net->weights_file, _MAX_PATH, "%s%s%s", net->save_dir, buf, ".weights");
 	}
 	if (net->type == NET_DETECT) train_detector(net);
 	else if (net->type == NET_CLASSIFY) train_classifer(net);

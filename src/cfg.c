@@ -14,6 +14,8 @@
 #define hRESIDUAL "[residual]"
 #define hCLASSIFY "[classify]"
 #define hDETECT "[detect]"
+#define hAVGPOOL "[avgpool]"
+#define hUPSAMPLE "[upsample]"
 
 #define LINESIZE 512
 #define TOKENSSIZE 64
@@ -98,8 +100,9 @@ void copy_to_cfg(cfg* c, char** tokens, char* header) {
 	char* k = tokens[0];
 	if (strcmp(header, hDATA) == 0) {
 		if (strcmp(k, "dataset_dir") == 0) {
-			c->dataset_dir = (char*)xcalloc(strlen(tokens[1]) + 1, sizeof(char));
+			c->dataset_dir = (char*)xcalloc(_MAX_PATH, sizeof(char));
 			strcpy(c->dataset_dir, tokens[1]);
+			fix_dir_str(c->dataset_dir, _MAX_PATH);
 		}
 		else if (strcmp(k, "classes_file") == 0) {
 			c->classes_file = (char*)xcalloc(strlen(tokens[1]) + 1, sizeof(char));
@@ -110,8 +113,9 @@ void copy_to_cfg(cfg* c, char** tokens, char* header) {
 			strcpy(c->weights_file, tokens[1]);
 		}
 		else if (strcmp(k, "save_dir") == 0) {
-			c->save_dir = (char*)xcalloc(strlen(tokens[1]) + 1, sizeof(char));
+			c->save_dir = (char*)xcalloc(_MAX_PATH, sizeof(char));
 			strcpy(c->save_dir, tokens[1]);
+			fix_dir_str(c->save_dir, _MAX_PATH);
 		}
 	}
 	else if (strcmp(header, hNET) == 0) {
@@ -390,6 +394,16 @@ int is_header(char* str, char* header, int* is_layer) {
 		*is_layer = 1;
 		return 1;
 	}
+	else if (strcmp(str, hAVGPOOL) == 0) {
+		strcpy(header, hAVGPOOL);
+		*is_layer = 1;
+		return 1;
+	}
+	else if (strcmp(str, hUPSAMPLE) == 0) {
+		strcpy(header, hUPSAMPLE);
+		*is_layer = 1;
+		return 1;
+	}
 	return 0;
 }
 
@@ -467,6 +481,8 @@ LAYER_TYPE header2layertype(char* header) {
 	if (strcmp(header, hDETECT) == 0) return LAYER_DETECT;
 	if (strcmp(header, hFC) == 0) return LAYER_FC;
 	if (strcmp(header, hRESIDUAL) == 0) return LAYER_RESIDUAL;
+	if (strcmp(header, hAVGPOOL) == 0) return LAYER_AVGPOOL;
+	if (strcmp(header, hUPSAMPLE) == 0) return LAYER_UPSAMPLE;
 	return LAYER_NONE;
 }
 
@@ -526,6 +542,8 @@ void print_cfg_layer(cfg_layer* l) {
 	else if (l->type == LAYER_DETECT) printf(hDETECT);
 	else if (l->type == LAYER_FC) printf(hFC);
 	else if (l->type == LAYER_RESIDUAL) printf(hRESIDUAL);
+	else if (l->type == LAYER_AVGPOOL) printf(hAVGPOOL);
+	else if (l->type == LAYER_UPSAMPLE) printf(hUPSAMPLE);
 	printf("\nid = %d\n", l->id);
 	printf("train = %d\n", l->train);
 	printf("in_ids = ");

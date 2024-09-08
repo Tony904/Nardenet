@@ -337,21 +337,15 @@ void build_classify_layer(int i, network* net) {
 	l->out_c = l->c;
 	l->out_n = l->out_w * l->out_h * l->out_c;
 
-	l->Z = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	l->output = l->in_layers[0]->output;
 	l->grads = l->in_layers[0]->grads;
-	l->truth = (float*)xcalloc(net->n_classes * net->batch_size, sizeof(float));
-	l->errors = (float*)xcalloc(net->n_classes * net->batch_size, sizeof(float));
 
-	l->act_inputs = l->Z;
-	
-	if (l->activation) l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-	else l->output = l->act_inputs;
+	l->truth = (float*)xcalloc(l->n_classes * net->batch_size, sizeof(float));
+	l->errors = (float*)xcalloc(l->n_classes * net->batch_size, sizeof(float));
 	
 	l->forward = forward_classify;
 	l->backward = backward_none;  // all backprop stuff is done in forward pass
 	l->update = update_none;
-
-	set_activate(l);
 
 	set_loss(l);
 }

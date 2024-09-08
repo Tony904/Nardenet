@@ -207,7 +207,9 @@ extern "C" {
         LAYER_FC,
         LAYER_CLASSIFY,
         LAYER_RESIDUAL,
-        LAYER_DETECT
+        LAYER_DETECT,
+        LAYER_AVGPOOL,
+        LAYER_UPSAMPLE
     } LAYER_TYPE;
 
     typedef enum LR_POLICY {
@@ -220,8 +222,8 @@ extern "C" {
         ACT_LEAKY,
         ACT_MISH,
         ACT_SIGMOID,
-        ACT_TANH,
-        ACT_SOFTMAX
+        ACT_SOFTMAX,
+        ACT_TANH
     } ACTIVATION;
 
     typedef enum LOSS_TYPE {
