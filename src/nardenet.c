@@ -35,11 +35,11 @@ IN PROGRESS:
 	use the weights to train an object detector.
 
 PHASE 1:
+ resize input images if needed
  object detection
  data augmentation:
 	saturation, exposure, hue, mosaic, rotation (classifier only), jitter
  swish activation
- resize input images if needed
  learning rate policies: step, adam, adagrad, rmsprop, cyclic rates maybe
  ema for last X iterations (ema = exponential moving average)
 
