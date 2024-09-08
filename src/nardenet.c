@@ -5,7 +5,6 @@
 #include "image.h"
 #include "xopencv.h"
 #include "xallocs.h"
-#include "layer_upsample.h"
 
 
 int main(void) {
@@ -16,8 +15,6 @@ int main(void) {
 	/*char* cfgfile = "D:\\TonyDev\\Nardenet\\cfg\\nardenet-yolov4-tiny-classifier.cfg";
 	network* net = create_network_from_cfg(cfgfile);
 	train(net);*/
-
-	test_forward_upsample();
 
 	//free_network(net);
 	//print_alloc_list();
@@ -31,8 +28,11 @@ int main(void) {
 /* TODO:
 BUGS:
 
+CHANGES:
+ add activation function options to inputs to classify and detect layer, mainly
+	because it will make the case of handling softmax gradients easier
+
 PHASE 1:
- upsample layer - finish testing backward_upsample()
  object detection
  data augmentation:
 	saturation, exposure, hue, mosaic, rotation (classifier only), jitter

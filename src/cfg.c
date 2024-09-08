@@ -398,6 +398,7 @@ LOSS_TYPE str2loss(char* str) {
 	if (strcmp(str, "mse") == 0) return LOSS_MSE;
 	if (strcmp(str, "mae") == 0) return LOSS_MAE;
 	if (strcmp(str, "cce") == 0) return LOSS_CCE;
+	if (strcmp(str, "bce") == 0) return LOSS_BCE;
 	printf("Error: No valid loss function named %s.\n", str);
 	wait_for_key_then_exit();
 }

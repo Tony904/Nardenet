@@ -228,8 +228,8 @@ extern "C" {
         LOSS_NONE,
         LOSS_MAE,   // mean absolute error
         LOSS_MSE,   // mean squared error
-        LOSS_CCE,   // categorical cross-entropy
-        LOSS_HUBER
+        LOSS_CCE,   // categorical cross-entropy, used for softmax loss
+        LOSS_BCE    // binary cross-entropy, used for sigmoid loss
     } LOSS_TYPE;
 
     typedef enum REGULARIZATION {

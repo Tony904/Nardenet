@@ -9,8 +9,8 @@ extern "C" {
 
 	void forward_upsample(layer* l, network* net);
 	void backward_upsample(layer* l, network* net);
-	void test_forward_upsample(void);
-	void test_backward_upsample(void);
+	/*void test_forward_upsample(void);
+	void test_backward_upsample(void);*/
 
 #ifdef __cplusplus
 }

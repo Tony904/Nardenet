@@ -50,7 +50,7 @@ void loss_mse(layer* l, network* net) {
 // Gradients for softmax are calculated wrt its logits, not its outputs, when paired with cross-entropy loss
 // because math. Otherwise we'd have to calculate the Jacobian of the softmax function which is a lot of math.
 // https://stackoverflow.com/questions/58461808/understanding-backpropagation-with-softmax
-void loss_softmax_cce(layer* l, network* net) {
+void loss_cce(layer* l, network* net) {
 	size_t batch_size = net->batch_size;
 	float* errors = l->errors;
 	float* output = l->output;
@@ -78,8 +78,8 @@ void loss_softmax_cce(layer* l, network* net) {
 	printf("Avg class loss:      %f\n", l->loss);
 }
 
-// aka binary cross entropy
-void loss_sigmoid_cce(layer* l, network* net) {
+// binary cross entropy
+void loss_bce(layer* l, network* net) {
 	size_t batch_size = net->batch_size;
 	float* errors = l->errors;
 	float* output = l->output;
@@ -95,7 +95,7 @@ void loss_sigmoid_cce(layer* l, network* net) {
 			size_t index = offset + i;
 			float t = truth[index];
 			float p = output[index];
-			grads[index] = p - t;
+			grads[index] = p - t;  // dC/da
 			errors[index] = -t * logf(p) - (1.0F - t) * logf(1.0F - p);
 			loss += errors[index];
 		}

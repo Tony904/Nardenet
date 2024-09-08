@@ -763,20 +763,14 @@ void set_loss(layer* l) {
 	case LOSS_MAE:
 		l->get_loss = loss_mae;
 		break;
-	case LOSS_CCE:
-		if (l->activation == ACT_SIGMOID) {
-			l->get_loss = loss_sigmoid_cce;
-		}
-		else if (l->activation == ACT_SOFTMAX) {
-			l->get_loss = loss_softmax_cce;
-		}
-		else {
-			printf("Error: Invalid loss and activation combination.\n Layer %d\n", l->id);
-			wait_for_key_then_exit();
-		}
-		break;
 	case LOSS_MSE:
 		l->get_loss = loss_mse;
+		break;
+	case LOSS_BCE:
+		l->get_loss = loss_bce;
+		break;
+	case LOSS_CCE:
+		l->get_loss = loss_cce;
 		break;
 	default:
 		printf("No loss function set. Layer %d\n", l->id);

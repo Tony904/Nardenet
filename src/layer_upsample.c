@@ -39,7 +39,6 @@ void forward_upsample(layer* l, network* net) {
 					}
 				}
 			}
-			pprint_mat_batch(l->Z, out_w, l->out_h, l->out_c, batch_size);
 			Z += out_wh * inl_out_c;
 		}
 	}
@@ -69,8 +68,8 @@ void backward_upsample(layer* l, network* net) {
 				size_t ch_offset = ch * wh + b_offset;
 				size_t z_offset = ch * out_wh;
 				for (size_t row = 0; row < h; row++) {
-					size_t row_offset = ch_offset + row * h;
-					size_t out_row0 = row * ksize;
+					size_t row_offset = ch_offset + row * w;
+					size_t out_row0 = row * ksize * out_w;
 					for (size_t col = 0; col < w; col++) {
 						size_t out_col0 = col * ksize;
 						size_t index = row_offset + col;
@@ -109,10 +108,8 @@ void test_forward_upsample(void) {
 	inl1.out_n = inl1.out_w * inl1.out_h * inl1.out_c;
 	inl2.out_n = inl2.out_w * inl2.out_h * inl2.out_c;
 	inl1.output = (float*)xcalloc(inl1.out_n * net.batch_size, sizeof(float));
-	//fill_array_rand_float(inl1.output, inl1.out_n * net.batch_size, 0.0, 1.0);
 	fill_array_increment(inl1.output, inl1.out_n * net.batch_size, 1.0F, 2.0F);
 	inl2.output = (float*)xcalloc(inl2.out_n * net.batch_size, sizeof(float));
-	//fill_array_rand_float(inl2.output, inl2.out_n * net.batch_size, 0.0, 1.0);
 	fill_array_increment(inl2.output, inl2.out_n * net.batch_size, 0.5F, 1.0F);
 
 	l.c = inl1.out_c + inl2.out_c;
@@ -124,8 +121,6 @@ void test_forward_upsample(void) {
 	l.output = (float*)xcalloc(l.out_n * net.batch_size, sizeof(float));
 	l.Z = l.output;
 
-	inl1.grads = (float*)xcalloc(inl1.out_n * net.batch_size, sizeof(float));
-	inl2.grads = (float*)xcalloc(inl2.out_n * net.batch_size, sizeof(float));
 	l.in_layers = (layer**)xcalloc(2, sizeof(layer*));
 	l.in_layers[0] = &inl1;
 	l.in_layers[1] = &inl2;
@@ -141,8 +136,8 @@ void test_backward_upsample(void) {
 	layer l = { 0 };
 	network net = { 0 };
 	net.batch_size = 2;
-	l.w = 2;
-	l.h = 2;
+	l.w = 4;
+	l.h = 4;
 	l.ksize = 2;
 
 	layer inl1 = { 0 };
@@ -155,12 +150,8 @@ void test_backward_upsample(void) {
 	inl2.out_c = 2;
 	inl1.out_n = inl1.out_w * inl1.out_h * inl1.out_c;
 	inl2.out_n = inl2.out_w * inl2.out_h * inl2.out_c;
-	inl1.output = (float*)xcalloc(inl1.out_n * net.batch_size, sizeof(float));
-	//fill_array_rand_float(inl1.output, inl1.out_n * net.batch_size, 0.0, 1.0);
-	fill_array_increment(inl1.output, inl1.out_n * net.batch_size, 1.0F, 2.0F);
-	inl2.output = (float*)xcalloc(inl2.out_n * net.batch_size, sizeof(float));
-	//fill_array_rand_float(inl2.output, inl2.out_n * net.batch_size, 0.0, 1.0);
-	fill_array_increment(inl2.output, inl2.out_n * net.batch_size, 0.5F, 1.0F);
+	inl1.grads = (float*)xcalloc(inl1.out_n * net.batch_size, sizeof(float));
+	inl2.grads = (float*)xcalloc(inl2.out_n * net.batch_size, sizeof(float));
 
 	l.c = inl1.out_c + inl2.out_c;
 	l.n = l.w * l.h * l.c;
@@ -168,11 +159,9 @@ void test_backward_upsample(void) {
 	l.out_h = l.h * l.ksize;
 	l.out_c = l.c;
 	l.out_n = l.out_w * l.out_h * l.out_c;
-	l.output = (float*)xcalloc(l.out_n * net.batch_size, sizeof(float));
-	l.Z = l.output;
+	l.grads = (float*)xcalloc(l.out_n * net.batch_size, sizeof(float));
 
-	inl1.grads = (float*)xcalloc(inl1.out_n * net.batch_size, sizeof(float));
-	inl2.grads = (float*)xcalloc(inl2.out_n * net.batch_size, sizeof(float));
+	fill_array_increment(l.grads, l.out_n * net.batch_size, 1.0F, 1.0F);
 	l.in_layers = (layer**)xcalloc(2, sizeof(layer*));
 	l.in_layers[0] = &inl1;
 	l.in_layers[1] = &inl2;
@@ -180,7 +169,7 @@ void test_backward_upsample(void) {
 	backward_upsample(&l, &net);
 
 
-	pprint_mat_batch(inl1.output, inl1.out_w, inl1.out_h, inl1.out_c, net.batch_size);
-	pprint_mat_batch(inl2.output, inl2.out_w, inl2.out_h, inl2.out_c, net.batch_size);
-	pprint_mat_batch(l.output, l.out_w, l.out_h, l.out_c, net.batch_size);
+	pprint_mat_batch(l.grads, l.out_w, l.out_h, l.out_c, net.batch_size);
+	pprint_mat_batch(inl1.grads, inl1.out_w, inl1.out_h, inl1.out_c, net.batch_size);
+	pprint_mat_batch(inl2.grads, inl2.out_w, inl2.out_h, inl2.out_c, net.batch_size);
 }

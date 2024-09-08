@@ -10,8 +10,8 @@ extern "C" {
 
 	void loss_mae(layer* l, network* net);
 	void loss_mse(layer* l, network* net);
-	void loss_softmax_cce(layer* l, network* net);
-	void loss_sigmoid_cce(layer* l, network* net);
+	void loss_cce(layer* l, network* net);
+	void loss_bce(layer* l, network* net);
 	void loss_l1(network* net);
 	void loss_l2(network* net);
 
