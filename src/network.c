@@ -91,6 +91,7 @@ void build_layer(int i, network* net) {
 	else if (l->type == LAYER_FC) build_fc_layer(i, net);
 	else if (l->type == LAYER_RESIDUAL) build_residual_layer(i, net);
 	else if (l->type == LAYER_DETECT) build_detect_layer(i, net);
+	else if (l->type == LAYER_AVGPOOL) build_avgpool_layer(i, net);
 	else {
 		printf("Unknown layer type: %d\n", (int)l->type);
 		wait_for_key_then_exit();
