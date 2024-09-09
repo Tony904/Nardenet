@@ -20,9 +20,17 @@ void show_image(image* img) {
 #endif
 }
 
-void load_image_to_buffer(char* filename, image* dst) {
+/* resize = 1 means the image will be resized to fit the dimensions of dst */
+void load_image_to_buffer(char* filename, image* dst, int resize) {
     //img->data = load_image_opencv(filename, &img->w, &img->h, &img->c);
-    load_image_stbi_to_buffer(filename, &dst->w, &dst->h, &dst->c, dst->data);
+    if (!resize) {
+        load_image_stbi_to_buffer(filename, &dst->w, &dst->h, &dst->c, dst->data);
+        return;
+    }
+    image img = { 0 };
+    img.data = load_image_stbi(filename, &img.w, &img.h, &img.c);
+    resize_image_bilinear(dst, &img);
+    xfree(&img.data);
 }
 
 image* load_image(char* filename) {
@@ -60,6 +68,67 @@ image* new_image(size_t w, size_t h, size_t c) {
     img->c = c;
     img->data = (float*)xcalloc(h * w * c, sizeof(float));
     return img;
+}
+
+/* Set w and h of dst to resized dimensions before passing.
+   Note: dst.c will be set equal to src.c */
+void resize_image_bilinear(image* dst, image* src) {
+    size_t dst_w = dst->w;
+    size_t dst_h = dst->h;
+    size_t src_w = src->w;
+    size_t src_h = src->h;
+    size_t c = src->c;
+    dst->c = c;
+
+    if (!dst_w || !dst_h) {
+        printf("Cannot resize an image dimension to zero.\n");
+        wait_for_key_then_exit();
+    }
+
+    size_t src_wh = src_w * src_h;
+    size_t dst_wh = dst_w * dst_h;
+
+    float* src_data = src->data;
+    float* dst_data = dst->data;
+
+    if (dst_w == src_w && dst_h == src_h) {
+        size_t n = dst_wh * c;
+        for (size_t i = 0; i < n; i++) {
+            dst_data[i] = src_data[i];
+        }
+        return;
+    }
+
+    // need to subtract by 1 or else pixels won't map correctly between input and output images
+    float w_ratio = (float)(src_w - 1) / (float)(dst_w - 1);
+    float h_ratio = (float)(src_h - 1) / (float)(dst_h - 1);
+
+    for (size_t y = 0; y < dst_h; y++) {
+        for (size_t x = 0; x < dst_w; x++) {
+            float px = x * w_ratio;
+            float py = y * h_ratio;
+            size_t x1 = (size_t)px;
+            size_t x2 = x1 + 1;
+            if (x2 >= src_w) x2 = src_w - 1;
+            size_t y1 = (size_t)py;
+            size_t y2 = py + 1;
+            if (y2 >= src_h) y2 = src_h - 1;
+            float dx = px / (float)x1;
+            float dy = py / (float)y1;
+
+            for (size_t ch = 0; ch < c; ch++) {
+                float q1 = src_data[ch * src_wh + y1 * src_w + x1];
+                float q2 = src_data[ch * src_wh + y1 * src_w + x2];
+                float q3 = src_data[ch * src_wh + y2 * src_w + x1];
+                float q4 = src_data[ch * src_wh + y2 * src_w + x2];
+
+                float q12 = (q2 - q1) * dx + q1;
+                float q34 = (q4 - q3) * dx + q3;
+
+                dst_data[ch * dst_wh + y * dst_w + x] = (q34 - q12) * dy + q12;
+            }
+        }
+    }
 }
 
 void free_image(image* img) {

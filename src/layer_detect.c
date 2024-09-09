@@ -395,7 +395,7 @@ void cull_predictions_and_do_nms(layer* l, network* net) {
 	img.h = 32;
 	img.c = 3;
 	img.data = buffer;
-	load_image_to_buffer(samples[1]->imgpath, &img);
+	load_image_to_buffer(samples[1]->imgpath, &img, 1);
 	net->draw_thresh = 0.5F;  // TODO: Make a cfg parameter
 	draw_detections(l->sorted, ndets, &img, net->draw_thresh);
 	////write_image(img, "D:\\TonyDev\\Nardenet\\data\\detector\\test.png");

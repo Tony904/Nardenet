@@ -1,5 +1,6 @@
 #include "layer_upsample.h"
 #include "utils.h"
+#include "derivatives.h"
 #include "xallocs.h"
 
 

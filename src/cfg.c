@@ -325,6 +325,10 @@ void copy_data_augment_range(float* dst, floatarr src) {
 }
 
 void load_class_names(char* filename, network* net, size_t n_classes) {
+	if (!filename) {
+		printf("No classes file specified.\n");
+		wait_for_key_then_exit();
+	}
 	FILE* file = get_filestream(filename, "r");
 	char buff[LINESIZE] = { 0 };
 	size_t n = get_line_count(file);

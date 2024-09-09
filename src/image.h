@@ -12,12 +12,13 @@ extern "C" {
     typedef struct image image;
     
     image* load_image(char* filename);
-    void load_image_to_buffer(char* filename, image* dst);
+    void load_image_to_buffer(char* filename, image* dst, int resize);
     void show_image(image* img);
     void write_image(image* img, char* filename);
     void write_image_test(void);
     void load_image_test(void);
     image* new_image(size_t width, size_t height, size_t channels);
+    void resize_image_bilinear(image* dst, image* src);
     void free_image(image* img);
     void print_image_matrix(image* im);
 

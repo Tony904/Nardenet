@@ -153,7 +153,8 @@ void build_conv_layer(int i, network* net) {
 	for (size_t j = 1; j < l->in_ids.n; j++) {
 		layer* inl = l->in_layers[j];
 		if (l->w != inl->out_w || l->h != inl->out_h) {
-			printf("Invalid input layer dimensions. Width and height must match.\n Layer %d, Input layer %d.\n", i, inl->id);
+			printf("Invalid input layer dimensions. Width and height must match.\n");
+			printf("Layer %d %zux%zu, Input layer %d %zux%zu\n", i, l->w, l->h, inl->id, inl->out_w, inl->out_h);
 			wait_for_key_then_exit();
 		}
 		l->c += inl->out_c;
@@ -231,7 +232,8 @@ void build_fc_layer(int i, network* net) {
 	for (size_t j = 1; j < l->in_ids.n; j++) {
 		layer* inl = l->in_layers[i];
 		if (l->w != inl->out_w || l->h != inl->out_h) {
-			printf("Invalid input layer dimensions. Width and height must match.\n Layer %d, Input layer %d.\n", i, inl->id);
+			printf("Invalid input layer dimensions. Width and height must match.\n");
+			printf("Layer %d %zux%zu, Input layer %d %zux%zu\n", i, l->w, l->h, inl->id, inl->out_w, inl->out_h);
 			wait_for_key_then_exit();
 		}
 		l->c += inl->out_c;
@@ -390,7 +392,8 @@ void build_maxpool_layer(int i, network* net) {
 	for (size_t j = 1; j < l->in_ids.n; j++) {
 		layer* inl = l->in_layers[j];
 		if (l->w != inl->out_w || l->h != inl->out_h) {
-			printf("Invalid input layer dimensions. Width and height must match.\n Layer %d, Input layer %d.\n", i, inl->id);
+			printf("Invalid input layer dimensions. Width and height must match.\n");
+			printf("Layer %d %zux%zu, Input layer %d %zux%zu\n", i, l->w, l->h, inl->id, inl->out_w, inl->out_h);
 			wait_for_key_then_exit();
 		}
 		l->c += inl->out_c;
@@ -517,7 +520,8 @@ void build_avgpool_layer(int i, network* net) {
 	for (size_t j = 1; j < l->in_ids.n; j++) {
 		layer* inl = l->in_layers[j];
 		if (l->w != inl->out_w || l->h != inl->out_h) {
-			printf("Invalid input layer dimensions. Width and height must match.\n Layer %d, Input layer %d.\n", i, inl->id);
+			printf("Invalid input layer dimensions. Width and height must match.\n");
+			printf("Layer %d %zux%zu, Input layer %d %zux%zu\n", i, l->w, l->h, inl->id, inl->out_w, inl->out_h);
 			wait_for_key_then_exit();
 		}
 		l->c += inl->out_c;
@@ -580,7 +584,8 @@ void build_upsample_layer(int i, network* net) {
 	for (size_t j = 1; j < l->in_ids.n; j++) {
 		layer* inl = l->in_layers[j];
 		if (l->w != inl->out_w || l->h != inl->out_h) {
-			printf("Invalid input layer dimensions. Width and height must match.\n Layer %d, Input layer %d.\n", i, inl->id);
+			printf("Invalid input layer dimensions. Width and height must match.\n");
+			printf("Layer %d %zux%zu, Input layer %d %zux%zu\n", i, l->w, l->h, inl->id, inl->out_w, inl->out_h);
 			wait_for_key_then_exit();
 		}
 		l->c += inl->out_c;
@@ -656,7 +661,8 @@ void build_detect_layer(int i, network* net) {
 	for (size_t j = 1; j < l->in_ids.n; j++) {
 		layer* inl = l->in_layers[j];
 		if (l->w != inl->out_w || l->h != inl->out_h) {
-			printf("Invalid input layer dimensions. Width and height must match.\n Layer %d, Input layer %d.\n", i, inl->id);
+			printf("Invalid input layer dimensions. Width and height must match.\n");
+			printf("Layer %d %zux%zu, Input layer %d %zux%zu\n", i, l->w, l->h, inl->id, inl->out_w, inl->out_h);
 			wait_for_key_then_exit();
 		}
 		l->c += inl->out_c;

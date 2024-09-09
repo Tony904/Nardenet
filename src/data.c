@@ -50,7 +50,7 @@ det_sample* detector_dataset_get_next_sample(detector_dataset* dataset, image* d
 	dataset->ri = ri;
 	printf("Loading sample: %s\n", sample->imgpath);
 	// get image from the selected sample
-	load_image_to_buffer(sample->imgpath, dst);
+	load_image_to_buffer(sample->imgpath, dst, 1);
 	return sample;
 }
 
@@ -98,7 +98,7 @@ void classifier_dataset_get_next_image(classifier_dataset* dataset, image* dst, 
 	ri = set->ri;
 	rands = set->rands;
 	n = set->n;  // # of files in class_set.files
-	load_image_to_buffer(set->files[rands[ri]], dst);
+	load_image_to_buffer(set->files[rands[ri]], dst, 1);
 	//printf("%s\n", set->files[rands[ri]]);
 	ri++;
 	if (!(ri < n)) {
