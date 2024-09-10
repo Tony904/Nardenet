@@ -30,7 +30,7 @@ void load_image_to_buffer(char* filename, image* dst, int resize) {
     image img = { 0 };
     img.data = load_image_stbi(filename, &img.w, &img.h, &img.c);
     resize_image_bilinear(dst, &img);
-    xfree(&img.data);
+    xfree(img.data);
 }
 
 image* load_image(char* filename) {
@@ -113,8 +113,8 @@ void resize_image_bilinear(image* dst, image* src) {
             size_t y1 = (size_t)py;
             size_t y2 = py + 1;
             if (y2 >= src_h) y2 = src_h - 1;
-            float dx = px / (float)x1;
-            float dy = py / (float)y1;
+            float dx = x1 ? px / (float)x1 : 0.0F;
+            float dy = y1 ? py / (float)y1 : 0.0F;
 
             for (size_t ch = 0; ch < c; ch++) {
                 float q1 = src_data[ch * src_wh + y1 * src_w + x1];

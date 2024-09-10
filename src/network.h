@@ -44,6 +44,7 @@ extern "C" {
     void print_some_weights(layer* l, size_t n);
     void print_top_class_name(float* probs, size_t n_classes, char** class_names, int include_prob, int new_line);
     void print_network_summary(network* net, int print_training_params);
+    void print_network_structure(network* net);
     void print_prediction_results(network* net, layer* prediction_layer);
 
     typedef struct classifier_dataset {

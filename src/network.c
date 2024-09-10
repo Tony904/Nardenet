@@ -2,6 +2,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <omp.h>
+#include <string.h>
 #include "utils.h"
 #include "xallocs.h"
 #include "layer_conv.h"
@@ -42,6 +43,9 @@ void print_layer_conv(layer* l);
 void print_layer_classify(layer* l);
 void print_layer_maxpool(layer* l);
 void print_layer_residual(layer* l);
+
+void get_layer_type_str(char* buf, size_t bufsize, LAYER_TYPE lt);
+void get_in_ids_str(char* buf, size_t bufsize, intarr inputs);
 
 
 network* new_network(size_t num_of_layers) {
@@ -92,6 +96,7 @@ void build_layer(int i, network* net) {
 	else if (l->type == LAYER_RESIDUAL) build_residual_layer(i, net);
 	else if (l->type == LAYER_DETECT) build_detect_layer(i, net);
 	else if (l->type == LAYER_AVGPOOL) build_avgpool_layer(i, net);
+	else if (l->type == LAYER_UPSAMPLE) build_upsample_layer(i, net);
 	else {
 		printf("Unknown layer type: %d\n", (int)l->type);
 		wait_for_key_then_exit();
@@ -167,6 +172,7 @@ void build_conv_layer(int i, network* net) {
 	l->out_h = ((l->h + (l->pad * 2) - l->ksize) / l->stride) + 1;
 	l->out_c = l->n_filters;
 	l->out_n = l->out_w * l->out_h * l->out_c;
+
 	l->Z = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 	l->weights.n = l->n_filters * l->ksize * l->ksize * l->c;
 	l->weights.a = (float*)xcalloc(l->weights.n, sizeof(float));
@@ -979,29 +985,35 @@ void print_lrpolicy(LR_POLICY lrp) {
 }
 
 void print_layertype(LAYER_TYPE lt) {
-	if (lt == LAYER_CONV) printf("conv\n");
+	if (lt == LAYER_NONE) printf("none\n");
+	else if (lt == LAYER_AVGPOOL) printf("avgpool\n");
 	else if (lt == LAYER_CLASSIFY) printf("classify\n");
-	else if (lt == LAYER_MAXPOOL) printf("maxpool\n");
+	else if (lt == LAYER_CONV) printf("conv\n");
+	else if (lt == LAYER_DETECT) printf("detect\n");
 	else if (lt == LAYER_FC) printf("fc\n");
+	else if (lt == LAYER_MAXPOOL) printf("maxpool\n");
 	else if (lt == LAYER_RESIDUAL) printf("residual\n");
-	else printf("NONE\n");
+	else if (lt == LAYER_UPSAMPLE) printf("upsample\n");
+	else printf("INVALID\n");
 }
 
 void print_activation(ACTIVATION a) {
-	if (a == ACT_RELU) printf("relu\n");
+	if (a == ACT_NONE) printf("none\n");
+	else if (a == ACT_RELU) printf("relu\n");
 	else if (a == ACT_LEAKY) printf("leaky relu\n");
 	else if (a == ACT_MISH) printf("mish\n");
 	else if (a == ACT_SIGMOID) printf("sigmoid\n");
 	else if (a == ACT_SOFTMAX) printf("softmax\n");
 	else if (a == ACT_TANH) printf("tanh\n");
-	else printf("NONE\n");
+	else printf("INVALID\n");
 }
 
 void print_loss_type(LOSS_TYPE c) {
-	if (c == LOSS_MSE) printf("mse\n");
+	if (c == LOSS_NONE) printf("none\n");
 	else if (c == LOSS_MAE) printf("mae\n");
+	else if (c == LOSS_MSE) printf("mse\n");
 	else if (c == LOSS_CCE) printf("cce\n");
-	else printf("NONE\n");
+	else printf("INVALID\n");
 }
 
 void print_all_network_weights(network* net) {
@@ -1067,6 +1079,19 @@ void print_network_summary(network* net, int print_training_params) {
 	printf("\n");
 }
 
+void print_network_structure(network* net) {
+	size_t n_layers = net->n_layers;
+	layer* layers = net->layers;
+	char ltbuf[50] = { 0 };
+	char idbuf[50] = { 0 };
+	for (size_t i = 0; i < n_layers; i++) {
+		layer* l = &layers[i];
+		get_layer_type_str(ltbuf, sizeof(ltbuf), l->type);
+		get_in_ids_str(idbuf, 50, l->in_ids);
+		printf("[%d] %s inputs[%s] %zux%zux%zu -> %zux%zux%zu pad: %zu stride: %zu ksize: %zu\n", l->id, ltbuf, idbuf, l->w, l->h, l->c, l->out_w, l->out_h, l->out_c, l->pad, l->stride, l->ksize);
+	}
+}
+
 void print_prediction_results(network* net, layer* prediction_layer) {
 	size_t n_classes = net->n_classes;
 	char** class_names = net->class_names;
@@ -1077,4 +1102,35 @@ void print_prediction_results(network* net, layer* prediction_layer) {
 	printf("Predicted: ");
 	print_top_class_name(predictions, n_classes, class_names, 1, 1);
 	printf("Class loss = %f\n", prediction_layer->loss);
+}
+
+void get_layer_type_str(char* buf, size_t bufsize, LAYER_TYPE lt) {
+	if (bufsize < 50) {
+		printf("Error: bufsize too small.\n");
+		wait_for_key_then_exit();
+	}
+	memset(buf, 0, bufsize);
+	if (lt == LAYER_NONE) strcpy(buf, "none");
+	else if (lt == LAYER_AVGPOOL) strcpy(buf, "avgpool");
+	else if (lt == LAYER_CLASSIFY) strcpy(buf, "classify");
+	else if (lt == LAYER_CONV) strcpy(buf, "conv");
+	else if (lt == LAYER_DETECT) strcpy(buf, "detect");
+	else if (lt == LAYER_FC) strcpy(buf, "fc");
+	else if (lt == LAYER_MAXPOOL) strcpy(buf, "maxpool");
+	else if (lt == LAYER_RESIDUAL) strcpy(buf, "residual");
+	else if (lt == LAYER_UPSAMPLE) strcpy(buf, "upsample");
+}
+
+void get_in_ids_str(char* buf, size_t bufsize, intarr inputs) {
+	if (bufsize < 50) {
+		printf("Error: bufsize too small.\n");
+		wait_for_key_then_exit();
+	}
+	memset(buf, 0, bufsize);
+	if (!inputs.a) return;
+	snprintf(buf, bufsize, "%d", inputs.a[0]);
+	for (size_t i = 1; i < inputs.n; i++) {
+		size_t length = strlen(buf);
+		snprintf(&buf[length], bufsize - length, ",%d", inputs.a[i]);
+	}
 }

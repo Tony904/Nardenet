@@ -57,6 +57,7 @@ void train_classifer(network* net) {
 	//layer* layer0 = net->layers;
 	size_t n_layers = net->n_layers;
 	print_network_summary(net, 1);
+	print_network_structure(net);
 	for (size_t iter = 0; iter < max_iterations; iter++) {
 		printf("\nIteration: %zu\n", iter + 1);
 		update_current_learning_rate(net, iter, ease_in);
@@ -76,9 +77,11 @@ void train_classifer(network* net) {
 		for (size_t i = 0; i < n_layers; i++) {
 			layers[i].update(&layers[i], net);
 		}
-		if ((iter + 1) % save_frequency == 0) {
-			net->iteration = iter + 1;
-			save_state(net);
+		if (save_frequency) {
+			if ((iter + 1) % save_frequency == 0) {
+				net->iteration = iter + 1;
+				save_state(net);
+			}
 		}
 	}
 	free_classifier_dataset_members(&net->data.clsr);

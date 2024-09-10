@@ -3,7 +3,7 @@
 #include "utils.h"
 
 
-#define MAX_FILTERS 1024
+#define MAX_FILTERS 10240
 
 
 void forward_batch_norm(layer* l, size_t batch_size) {
@@ -114,7 +114,11 @@ void backward_batch_norm(layer* l, size_t batch_size) {
 	// grads is now dL/dznorm
 
 	// Now we need to get the gradients wrt means and variances and then use those to get the gradients wrt Z.
-	float mean_grads[MAX_FILTERS] = { 0 };
+	float mean_grads[MAX_FILTERS] = { 0 };/*
+	if (F > MAX_FILTERS) {
+		printf("Layer %d has too many filters. Max filters = %d\n", l->id, MAX_FILTERS);
+		wait_for_key_then_exit();
+	}*/
 #pragma omp parallel for firstprivate(out_n)
 	for (f = 0; f < F; f++) {
 		float sum = 0.0F;
