@@ -32,16 +32,16 @@ BUGS:
 CHANGES:
 
 IN PROGRESS:
+ learning rate policies: step, cyclic rates
  setting up yolov4 tiny classifier backbone to train on imagenet and then
 	use the weights to train an object detector.
 
 PHASE 1:
- resize input images if needed
+ learning rate policies: step, adam, adagrad, rmsprop, cyclic rates maybe
  object detection
  data augmentation:
 	saturation, exposure, hue, mosaic, rotation (classifier only), jitter
  swish activation
- learning rate policies: step, adam, adagrad, rmsprop, cyclic rates maybe
  ema for last X iterations (ema = exponential moving average)
 
 PHASE 2:
@@ -68,6 +68,7 @@ PHASE 4:
  Orientation detection for both classifier and object detector
 
 PHASE 9999:
+ yolov9 implementation
  Implement transformer architecture + attention modules
  Unsupervised learning
  Adversarial training
