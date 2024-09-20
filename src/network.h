@@ -125,6 +125,7 @@ extern "C" {
         void(*backward)  (layer*, network*);
         void(*update)    (layer*, network*);
         void(*get_loss)  (layer*, network*);
+        size_t n_groups;
         size_t n_filters;
         size_t ksize;
         size_t stride;

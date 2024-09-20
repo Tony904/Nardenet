@@ -8,19 +8,46 @@ void print_test_matrix(size_t rows, size_t cols, size_t channels, float* matrix)
 
 
 void gemm(size_t M, size_t N, size_t K, float* A, float* B, float* C) {
-	/*M = # of filters
+	/*
+	M = # of filters
 	N = # of patches (# of dot products performed per filter)
 	K = # of weights per filter
 	A = filter matrix (M * K)
 	B = expanded input matrix (K * N)
-	C = output dot products (M * N)*/
+	C = output dot products (M * N)
+	*/
 	size_t m;
 #pragma omp parallel for
 	for (m = 0; m < M; m++) {
+		size_t mK = m * K;
 		for (size_t k = 0; k < K; k++) {
-			float a = A[m * K + k];
+			float a = A[mK + k];
+			size_t mN = m * N;
+			size_t kN = k * N;
 			for (size_t n = 0; n < N; n++) {
-				C[m * N + n] += a * B[k * N + n];
+				C[mN + n] += a * B[kN + n];
+			}
+		}
+	}
+}
+
+void gemm_groups(size_t M, size_t N, size_t K, float* A, float* B, float* C, size_t n_groups) {
+	/*
+	M = # of filters
+	N = # of patches (# of dot products performed per filter)
+	K = # of weights per filter
+	A = weight matrix (M * K)
+	B = expanded input matrix (K * N)
+	C = output dot products (M * N)
+	*/
+	M = M / n_groups;  // # of filters per group
+	for (size_t g = 0; g < n_groups; g++) {
+		for (size_t m = 0; m < M; m++) {
+			for (size_t k = 0; k < K; k++) {
+				float a = A[m * K + k];
+				for (size_t n = 0; n < N; n++) {
+					C[m * N + n] += a * B[k * N + n];
+				}
 			}
 		}
 	}
@@ -38,8 +65,9 @@ void gemm_atb(size_t M, size_t N, size_t K, float* A, float* B, float* C) {
 	size_t m;
 #pragma omp parallel for
 	for (m = 0; m < M; m++) {
+		size_t mK = m * K;
 		for (size_t k = 0; k < K; k++) {
-			float a = A[m * K + k];
+			float a = A[mK + k];
 			size_t mN = m * N;
 			for (size_t n = 0; n < N; n++) {
 				C[mN + n] += a * B[n * K + k];
@@ -60,8 +88,9 @@ void gemm_tab(size_t M, size_t N, size_t K, float* A, float* B, float* C) {
 	size_t m;
 #pragma omp parallel for
 	for (m = 0; m < M; m++) {
+		size_t mN = m * N;
 		for (size_t n = 0; n < N; n++) {
-			float a = A[m * N + n];
+			float a = A[mN + n];
 			size_t nK = n * K;
 			size_t mK = m * K;
 			for (size_t k = 0; k < K; k++) {

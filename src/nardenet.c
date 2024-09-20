@@ -11,9 +11,7 @@ int main(void) {
 
 	srand(7777777);
 
-	//char* cfgfile = "D:\\TonyDev\\Nardenet\\cfg\\nardenet-detect.cfg";
 	char* cfgfile = "D:\\TonyDev\\Nardenet\\cfg\\nardenet-yolov4-tiny-classifier.cfg";
-	//char* cfgfile = "D:\\TonyDev\\Nardenet\\cfg\\nardenet-alexnetish.cfg";
 	network* net = create_network_from_cfg(cfgfile);
 	train(net);
 
@@ -32,6 +30,7 @@ BUGS:
 CHANGES:
 
 IN PROGRESS:
+ group convolutions
  learning rate policies: step, cyclic rates
  setting up yolov4 tiny classifier backbone to train on imagenet and then
 	use the weights to train an object detector.

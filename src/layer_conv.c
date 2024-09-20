@@ -17,31 +17,33 @@ void forward_conv(layer* l, network* net) {
 	size_t out_n = l->out_n;
 	size_t batch_size = net->batch_size;
 	zero_array(l->Z, out_n * batch_size);
+	size_t n_groups = l->n_groups;
 	size_t w = l->w;
 	size_t h = l->h;
 	size_t M = l->n_filters;
 	size_t N = l->out_w * l->out_h;
 	size_t K = l->ksize * l->ksize * l->c;
 	float* A = l->weights.a;  // M * K
-	for (size_t s = 0; s < batch_size; s++) {
+	for (size_t b = 0; b < batch_size; b++) {
 		float* B = net->workspace.a;  // K * N
 		float* B0 = B;
 		for (size_t i = 0; i < l->in_ids.n; i++) {
 			layer* inl = l->in_layers[i];
 			size_t c = inl->out_c;
-			float* im = &inl->output[s * inl->out_n];
+			float* im = &inl->output[b * inl->out_n];
 			im2col(im, (int)c, (int)h, (int)w, (int)l->ksize, (int)l->pad, (int)l->stride, B);
 			B += K * l->ksize * l->ksize * c;
 		}
-		float* C = &l->Z[s * M * N];  // M * N
-		gemm(M, N, K, A, B0, C);
+		float* C = &l->Z[b * M * N];  // M * N
+		if (n_groups > 1) gemm_groups(M, N, K, A, B0, C, n_groups);
+		else gemm(M, N, K, A, B0, C);
 	}
 	if (l->batch_norm) {
 		forward_batch_norm(l, batch_size);
 		l->activate(l->act_inputs, l->output, out_n, batch_size);
 	}
 	else {
-		// l->Z == l->act_inputs when batchnorm disabled
+		// note: l->Z = l->act_inputs when batchnorm disabled
 		add_biases(l->Z, l->biases, M, N, batch_size);
 		l->activate(l->Z, l->output, out_n, batch_size);
 	}
