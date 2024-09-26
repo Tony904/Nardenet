@@ -214,6 +214,12 @@ void copy_to_cfg_layer(cfg_layer* l, char** tokens, cfg* c) {
 			l->n_filters = str2sizet(tokens[1]);
 		}
 	}
+	else if (strcmp(k, "groups") == 0) {
+		l->n_groups = str2sizet(tokens[1]);
+	}
+	else if (strcmp(k, "omit_groups") == 0) {
+		l->omit_groups = tokens2intarr(tokens, 1);
+	}
 	else if (strcmp(k, "kernel_size") == 0) {
 		l->kernel_size = str2sizet(tokens[1]);
 	}
@@ -277,6 +283,9 @@ void copy_cfg_to_network(cfg* cfig, network* net) {
 		l->type = cl->type;
 		l->activation = cl->activation;
 		l->n_filters = cl->n_filters;
+		l->n_groups = cl->n_groups;
+		l->omit_groups.n = cl->omit_groups.n;
+		l->omit_groups.a = cl->omit_groups.a;
 		l->batch_norm = cl->batch_norm;
 		l->ksize = cl->kernel_size;
 		l->in_ids = cl->in_ids;

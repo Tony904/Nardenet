@@ -57,6 +57,8 @@ extern "C" {
 		intarr out_ids;
 		int batch_norm;
 		size_t n_filters;
+		size_t n_groups;
+		intarr omit_groups;
 		size_t kernel_size;
 		size_t stride;
 		size_t pad;

@@ -174,7 +174,7 @@ void build_conv_layer(int i, network* net) {
 	l->out_n = l->out_w * l->out_h * l->out_c;
 
 	l->Z = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-	l->weights.n = l->n_filters * l->ksize * l->ksize * l->c;
+	l->weights.n = l->n_filters * l->ksize * l->ksize * l->c / l->n_groups;
 	l->weights.a = (float*)xcalloc(l->weights.n, sizeof(float));
 	l->biases = (float*)xcalloc(l->n_filters, sizeof(float));
 	l->grads = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
