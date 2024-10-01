@@ -34,19 +34,31 @@ void gemm(size_t M, size_t N, size_t K, float* A, float* B, float* C) {
 void gemm_groups(size_t M, size_t N, size_t K, float* A, float* B, float* C, size_t n_groups) {
 	/*
 	M = # of filters
-	N = # of patches (# of dot products performed per filter)
-	K = # of weights per filter
+	N = # of outputs per filter
+	K = # of weights per filter (if n_groups = 1)
 	A = weight matrix (M * K)
 	B = expanded input matrix (K * N)
 	C = output dot products (M * N)
 	*/
 	M = M / n_groups;  // # of filters per group
-	for (size_t g = 0; g < n_groups; g++) {
+	K = K / n_groups;  // # of weights per filter per group
+	size_t MK = M * K;
+	size_t MN = M * N;
+	size_t NK = N * K;
+	size_t g;
+#pragma omp parallel for firstprivate(MK, MN, NK)
+	for (g = 0; g < n_groups; g++) {
+		size_t gMK = g * MK;
+		size_t gMN = g * MN;
+		size_t gNK = g * NK;
 		for (size_t m = 0; m < M; m++) {
+			size_t gMNmN = gMN + m * N;
+			size_t gMKmK = gMK + m * K;
 			for (size_t k = 0; k < K; k++) {
-				float a = A[m * K + k];
+				float a = A[gMKmK + k];
+				size_t gNKkN = gNK + k * N;
 				for (size_t n = 0; n < N; n++) {
-					C[m * N + n] += a * B[k * N + n];
+					C[gMNmN + n] += a * B[gNKkN + n];
 				}
 			}
 		}
@@ -55,6 +67,30 @@ void gemm_groups(size_t M, size_t N, size_t K, float* A, float* B, float* C, siz
 
 /*A[M*K], B[N*K], BT[K*N], C[M*N]*/
 void gemm_atb(size_t M, size_t N, size_t K, float* A, float* B, float* C) {
+	// M = # of filters
+	// N = # of weights per filter
+	// K = # of patches
+	// A = M * K
+	// B = N * K -> transpose -> K * N
+	// C = M * N
+	//printf("gemm_atb...");
+	size_t m;
+#pragma omp parallel for
+	for (m = 0; m < M; m++) {
+		size_t mK = m * K;
+		for (size_t k = 0; k < K; k++) {
+			float a = A[mK + k];
+			size_t mN = m * N;
+			for (size_t n = 0; n < N; n++) {
+				C[mN + n] += a * B[n * K + k];
+			}
+		}
+	}
+	//printf("done.\n");
+}
+
+/*A[M*K], B[N*K], BT[K*N], C[M*N]*/
+void gemm_atb_groups(size_t M, size_t N, size_t K, float* A, float* B, float* C, size_t n_groups) {
 	// M = # of filters
 	// N = # of weights per filter
 	// K = # of patches
@@ -135,7 +171,7 @@ void get_bias_grads(float* bias_grads, float* grads, size_t F, size_t S, size_t 
 	}
 }
 
-void gemm_test(int M, int N, int K, float* A, float* B, float* C) {
+void test_gemm(int M, int N, int K, float* A, float* B, float* C) {
 	// M = # of filters
 	// N = # of convolutions/dot products performed per filter
 	// K = # of elements per filter
@@ -155,6 +191,35 @@ void gemm_test(int M, int N, int K, float* A, float* B, float* C) {
 		B = B_start;
 	}
 	printf("\nmmm done.\n");
+}
+
+void test_gemm_groups(void) {
+	// size_t M, size_t N, size_t K, float* A, float* B, float* C, size_t n_groups
+	/*
+	M = # of filters
+	N = # of outputs per filter
+	K = # of weights per filter (if n_groups = 1)
+	A = weight matrix (M * K)
+	B = expanded input matrix (K * N)
+	C = output dot products (M * N)
+	*/
+	size_t M = 4;
+	size_t N = 4;
+	size_t K = 16;
+	size_t n_groups = 2;
+	float* A = (float*)xcalloc((size_t)(M * K / n_groups), sizeof(float));
+	float* B = (float*)xcalloc((size_t)(N * K), sizeof(float));
+	float* C = (float*)xcalloc((size_t)(M * N), sizeof(float));
+	for (size_t i = 0; i < M * K; i++) {
+		A[i] = (float)(i + 1);
+	}
+	print_test_matrix(M, K / n_groups, 1, A);
+	for (size_t i = 0; i < N * K; i++) {
+		B[i] = (float)(i + 2);
+	}
+	print_test_matrix(K, N, 1, B);
+	gemm_groups(M, N, K, A, B, C, n_groups);
+	print_test_matrix(M, N, 1, C);
 }
 
 void test_gemm_atb(void) {

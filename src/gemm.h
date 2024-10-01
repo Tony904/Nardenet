@@ -1,6 +1,7 @@
 #ifndef GEMM_H
 #define GEMM_H
 
+#include <stdlib.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -13,6 +14,7 @@ extern "C" {
 	B = expanded input matrix (K * N)
 	C = output dot products (M * N)*/
 	void gemm(size_t M, size_t N, size_t K, float* A, float* B, float* C);
+	void gemm_groups(size_t M, size_t N, size_t K, float* A, float* B, float* C, size_t n_groups);
 	/*A[M*K], B[N*K], BT[K*N], C[M*N]*/
 	void gemm_atb(size_t M, size_t N, size_t K, float* A, float* B, float* C);
 	/*A[M*N], AT[N*M], B[M*K], C[N*K]*/
@@ -21,9 +23,6 @@ extern "C" {
 	void add_biases(float* output, float* biases, size_t M, size_t N, size_t batch_size);
 	/*M = # of filters, K = out_w * out_h*/
 	void get_bias_grads(float* bias_grads, float* grads, size_t M, size_t K, size_t batch_size);
-
-	void test_gemm_atb(void);
-	void test_gemm_tab(void);
 
 #ifdef __cplusplus
 }
