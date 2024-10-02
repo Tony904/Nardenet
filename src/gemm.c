@@ -183,8 +183,9 @@ void add_biases(float* output, float* biases, size_t F, size_t S, size_t batch_s
 	size_t f;
 #pragma omp parallel for firstprivate(out_n)
 	for (f = 0; f < F; f++) {
+		size_t fS = f * S;
 		for (size_t b = 0; b < B; b++) {
-			size_t offset = b * out_n + f * S;
+			size_t offset = b * out_n + fS;
 			for (size_t s = 0; s < S; s++) {
 				output[offset + s] += biases[f];
 			}
@@ -200,8 +201,9 @@ void get_bias_grads(float* bias_grads, float* grads, size_t F, size_t S, size_t 
 #pragma omp parallel for firstprivate(out_n)
 	for (f = 0; f < F; f++) {
 		float sum = 0.0F;
+		size_t fS = f * S;
 		for (size_t b = 0; b < B; b++) {
-			size_t offset = b * out_n + f * S;
+			size_t offset = b * out_n + fS;
 			for (size_t s = 0; s < S; s++) {
 				sum += grads[offset + s];
 			}

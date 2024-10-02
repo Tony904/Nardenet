@@ -124,6 +124,11 @@ void build_conv_layer(int i, network* net) {
 	layer* l = &(net->layers[i]);
 	layer* ls = net->layers;
 	l->id = i;
+	if (l->n_groups < 1) l->n_groups = 1;
+	if (l->n_filters % l->n_groups > 0) {
+		printf("Cannot evenly distribute %zu filters between %zu groups. (layer %d)\n", l->n_filters, l->n_groups, i);
+		wait_for_key_then_exit();
+	}
 
 	// Set default in_ids if none specified.
 	if (l->in_ids.n == 0) {
@@ -167,6 +172,11 @@ void build_conv_layer(int i, network* net) {
 	}
 	l->n = l->w * l->h * l->c;
 
+	if (l->c % l->n_groups > 0) {
+		printf("Cannot evenly distribute %zu channels between %zu groups. (layer %d)\n", l->c, l->n_groups, i);
+		wait_for_key_then_exit();
+	}
+
 	// Calculate output dimensions.
 	l->out_w = ((l->w + (l->pad * 2) - l->ksize) / l->stride) + 1;
 	l->out_h = ((l->h + (l->pad * 2) - l->ksize) / l->stride) + 1;
@@ -174,7 +184,7 @@ void build_conv_layer(int i, network* net) {
 	l->out_n = l->out_w * l->out_h * l->out_c;
 
 	l->Z = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-	l->weights.n = l->n_filters * l->ksize * l->ksize * l->c / l->n_groups;
+	l->weights.n = l->n_filters * l->ksize * l->ksize * (l->c / l->n_groups);
 	l->weights.a = (float*)xcalloc(l->weights.n, sizeof(float));
 	l->biases = (float*)xcalloc(l->n_filters, sizeof(float));
 	l->grads = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));

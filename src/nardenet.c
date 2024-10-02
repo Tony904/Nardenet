@@ -11,10 +11,9 @@
 int main(void) {
 
 	srand(7777777);
-	test_gemm_groups();
-	//char* cfgfile = "D:\\TonyDev\\Nardenet\\cfg\\nardenet-yolov4-tiny-classifier.cfg";
-	//network* net = create_network_from_cfg(cfgfile);
-	//train(net);
+	char* cfgfile = "D:\\TonyDev\\Nardenet\\cfg\\nardenet-yolov4-tiny-classifier.cfg";
+	network* net = create_network_from_cfg(cfgfile);
+	train(net);
 
 	//free_network(net);
 	//print_alloc_list();
@@ -31,7 +30,7 @@ BUGS:
 CHANGES:
 
 IN PROGRESS:
- group convolutions
+ group convolutions - implemented, make sure transpose versions work
  learning rate policies: step, cyclic rates
  setting up yolov4 tiny classifier backbone to train on imagenet and then
 	use the weights to train an object detector.
