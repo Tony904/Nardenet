@@ -78,6 +78,7 @@ void backward_conv(layer* l, network* net) {
 
 	if (l->batch_norm) backward_batch_norm(l, batch_size);
 
+	size_t n_groups = l->n_groups;
 	size_t w = l->w;
 	size_t h = l->h;
 	for (size_t s = 0; s < batch_size; s++) {
@@ -94,7 +95,8 @@ void backward_conv(layer* l, network* net) {
 			B += N * l->ksize * l->ksize * c;
 		}
 		B = B0;
-		gemm_atb(M, N, K, A, B, C);
+		if (n_groups > 1) gemm_atb_groups(M, N, K, A, B, C, n_groups);
+		else gemm_atb(M, N, K, A, B, C);
 	}
 	// C is now dC/dw for all weights. 
 	// Note: C array's storage structure is [filter_index * filter_length + filter_weight_index]
@@ -110,8 +112,9 @@ void backward_conv(layer* l, network* net) {
 		float* A = l->weights.a;  // M * N
 		float* B = &grads[s * M * K];  // M * K
 		float* C = net->workspace.a;  // N * K
-		zero_array(C, (size_t)(N * K));
-		gemm_tab(M, N, K, A, B, C);
+		zero_array(C, N * K);
+		if (n_groups > 1) gemm_tab_groups(M, N, K, A, B, C, n_groups);
+		else gemm_tab(M, N, K, A, B, C);
 		// C is now dC/da in col'd form (as in im2col).
 		// So now we need to turn this "expanded" form (col) into the form of the dimensions of
 		// the output of the input layer (im). We do this using col2im().

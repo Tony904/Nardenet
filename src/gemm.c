@@ -20,9 +20,9 @@ void gemm(size_t M, size_t N, size_t K, float* A, float* B, float* C) {
 #pragma omp parallel for
 	for (m = 0; m < M; m++) {
 		size_t mK = m * K;
+		size_t mN = m * N;
 		for (size_t k = 0; k < K; k++) {
 			float a = A[mK + k];
-			size_t mN = m * N;
 			size_t kN = k * N;
 			for (size_t n = 0; n < N; n++) {
 				C[mN + n] += a * B[kN + n];
@@ -35,7 +35,7 @@ void gemm_groups(size_t M, size_t N, size_t K, float* A, float* B, float* C, siz
 	/*
 	M = # of filters
 	N = # of outputs per filter
-	K = # of weights per filter (if n_groups = 1)
+	K = # of weights per filter (as if n_groups = 1)
 	A = weight matrix (M * K)
 	B = expanded input matrix (K * N)
 	C = output dot products (M * N)
@@ -73,64 +73,103 @@ void gemm_atb(size_t M, size_t N, size_t K, float* A, float* B, float* C) {
 	// A = M * K
 	// B = N * K -> transpose -> K * N
 	// C = M * N
-	//printf("gemm_atb...");
 	size_t m;
 #pragma omp parallel for
 	for (m = 0; m < M; m++) {
 		size_t mK = m * K;
+		size_t mN = m * N;
 		for (size_t k = 0; k < K; k++) {
 			float a = A[mK + k];
-			size_t mN = m * N;
 			for (size_t n = 0; n < N; n++) {
 				C[mN + n] += a * B[n * K + k];
 			}
 		}
 	}
-	//printf("done.\n");
 }
 
 /*A[M*K], B[N*K], BT[K*N], C[M*N]*/
 void gemm_atb_groups(size_t M, size_t N, size_t K, float* A, float* B, float* C, size_t n_groups) {
 	// M = # of filters
-	// N = # of weights per filter
-	// K = # of patches
-	// A = M * K
+	// N = # of weights per filter (as if n_groups = 1)
+	// K = # of outputs per filter
+	// A = M * K (dC/dz grads)
 	// B = N * K -> transpose -> K * N
 	// C = M * N
-	//printf("gemm_atb...");
-	size_t m;
-#pragma omp parallel for
-	for (m = 0; m < M; m++) {
-		size_t mK = m * K;
-		for (size_t k = 0; k < K; k++) {
-			float a = A[mK + k];
-			size_t mN = m * N;
-			for (size_t n = 0; n < N; n++) {
-				C[mN + n] += a * B[n * K + k];
+	M = M / n_groups; // # of filters per group
+	N = N / n_groups; // # of weights per filter per group
+	size_t MN = M * N;
+	size_t NK = N * K;
+	size_t MK = M * K;
+	size_t g;
+#pragma omp parallel for firstprivate(MN, NK, MK)
+	for (g = 0; g < n_groups; g++) {
+		size_t gMN = g * MN;
+		size_t gNK = g * NK;
+		size_t gMK = g * MK;
+		for (size_t m = 0; m < M; m++) {
+			size_t gMKmK = gMK + m * K;
+			size_t gMNmN = gMN + m * N;
+			for (size_t k = 0; k < K; k++) {
+				float a = A[gMKmK + k];
+				size_t gNKk = gNK + k;
+				for (size_t n = 0; n < N; n++) {
+					C[gMNmN + n] += a * B[gNKk + n * K];
+				}
 			}
 		}
 	}
-	//printf("done.\n");
 }
 
 /*A[M*N], AT[N*M], B[M*K], C[N*K]*/
 void gemm_tab(size_t M, size_t N, size_t K, float* A, float* B, float* C) {
 	// M = # of filters
 	// N = # of weights per filter
-	// K = # of patches
-	// A = M * N -> transpose -> N * M
-	// B = M * K
-	// C = N * K
+	// K = # of outputs per filter
+	// A = M * N -> transpose -> N * M (weights)
+	// B = M * K (dC/dz grads)
+	// C = N * K (col'd array to go through col2im)
 	size_t m;
 #pragma omp parallel for
 	for (m = 0; m < M; m++) {
 		size_t mN = m * N;
+		size_t mK = m * K;
 		for (size_t n = 0; n < N; n++) {
 			float a = A[mN + n];
 			size_t nK = n * K;
-			size_t mK = m * K;
 			for (size_t k = 0; k < K; k++) {
 				C[nK + k] += a * B[mK + k];
+			}
+		}
+	}
+}
+
+void gemm_tab_groups(size_t M, size_t N, size_t K, float* A, float* B, float* C, size_t n_groups) {
+	// M = # of filters
+	// N = # of weights per filter (as if n_groups = 1)
+	// K = # of outputs per filter
+	// A = M * N -> transpose -> N * M (weights)
+	// B = M * K (dC/dz grads)
+	// C = N * K (col'd array to go through col2im)
+	M = M / n_groups; // # of filters per group
+	N = N / n_groups; // # of weights per filter per group
+	size_t MN = M * N;
+	size_t NK = N * K;
+	size_t MK = M * K;
+	size_t g;
+#pragma omp parallel for firstprivate(MN, NK, MK)
+	for (g = 0; g < n_groups; g++) {
+		size_t gMN = g * MN;
+		size_t gNK = g * NK;
+		size_t gMK = g * MK;
+		for (size_t m = 0; m < M; m++) {
+			size_t gMNmN = gMN + m * N;
+			size_t gMKmK = gMK + m * K;
+			for (size_t n = 0; n < N; n++) {
+				float a = A[gMNmN + n];
+				size_t gNKnK = gNK + n * K;
+				for (size_t k = 0; k < K; k++) {
+					C[gNKnK + k] += a * B[gMKmK + k];
+				}
 			}
 		}
 	}
