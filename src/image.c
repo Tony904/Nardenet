@@ -8,6 +8,15 @@
 #include "xopencv.h"
 #endif
 
+
+#define NTSC_RED 0.299F
+#define NTSC_GREEN 0.587
+#define NTSC_BLUE 0.114
+
+
+void rgb2hsv(image* img);
+
+
 #pragma warning(disable:4100)  // 'img' unreferenced formal parameter (when OPENCV is not defined)
 /* REQUIRES COMPILATION WITH OPENCV */
 void show_image(image* img) {
@@ -128,6 +137,56 @@ void resize_image_bilinear(image* dst, image* src) {
                 dst_data[ch * dst_wh + y * dst_w + x] = (q34 - q12) * dy + q12;
             }
         }
+    }
+}
+
+void change_brightness(image* img, float multiplier) {
+    float* data = img->data;
+    size_t n = img->w * img->h * img->c;
+    for (size_t i = 0; i < n; i++) {
+        data[i] *= multiplier;
+        if (data[i] > 255.0F) data[i] = 255.0F;
+    }
+}
+
+/* https://www.cs.rit.edu/~ncs/color/t_convert.html */
+void rgb2hsv(image* img) {
+    size_t w = img->w;
+    size_t h = img->h;
+    size_t c = img->c;
+    float* data = img->data;
+    size_t wh = w * h;
+    for (size_t s = 0; s < wh; s++) {
+        float red = data[s];
+        float green = data[wh + s];
+        float blue = data[wh * 2 + s];
+
+        float min_val;
+        float max_val;
+
+        if (red < green) min_val = (red < blue) ? red : blue;
+        else min_val = (green < blue) ? green : blue;
+
+        if (red > green) max_val = (red > blue) ? red : blue;
+        else max_val = (green > blue) ? green : blue;
+
+        float V = max_val;
+        float delta = max_val - min_val;
+        float S = 0.0F;
+        float H = -1.0F;
+        if (max_val) S = delta / max_val;
+        else return;
+
+        if (red == max_val) H = (green - blue) / delta;
+        else if (green == max_val) H = 2.0F + (blue - red) / delta;
+        else H = 4.0F + (red - green) / delta;
+
+        H *= 60.0F;
+        if (H < 0.0F) H += 360.0F;
+
+        data[s] = H;
+        data[wh + s] = S;
+        data[wh * 2] = V;
     }
 }
 
