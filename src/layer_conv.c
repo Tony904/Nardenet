@@ -84,7 +84,7 @@ void backward_conv(layer* l, network* net) {
 	for (size_t s = 0; s < batch_size; s++) {
 		float* A = &grads[s * M * K];  // M * K
 		float* B = net->workspace.a;  // N * K
-		zero_array(B, (size_t)(N * K));
+		zero_array(B, N * K);
 		float* B0 = B;
 		float* C = l->weight_grads;  // M * N
 		for (size_t i = 0; i < l->in_ids.n; i++) {
@@ -109,7 +109,7 @@ void backward_conv(layer* l, network* net) {
 
 	if (l->id == 0) return;
 	for (size_t s = 0; s < batch_size; s++) {
-		float* A = l->weights.a;  // M * N
+		float* A = l->weights.a;  // M * N / n_groups
 		float* B = &grads[s * M * K];  // M * K
 		float* C = net->workspace.a;  // N * K
 		zero_array(C, N * K);

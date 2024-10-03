@@ -212,30 +212,7 @@ void get_bias_grads(float* bias_grads, float* grads, size_t F, size_t S, size_t 
 	}
 }
 
-void test_gemm(int M, int N, int K, float* A, float* B, float* C) {
-	// M = # of filters
-	// N = # of convolutions/dot products performed per filter
-	// K = # of elements per filter
-	// A = filter matrix (M * K)
-	// B = expanded input matrix (K * N)
-	// C = output dot products (M * N)
-	float* B_start = B;
-	float* C_start = C;
-	for (int m = 0; m < M; m++) {
-		for (int k = 0; k < K; k++) {
-			float a = *(A++);
-			for (int n = 0; n < N; n++) {
-				*(C++) = *C + a * *(B++);
-			}
-			C = C_start;
-		}
-		B = B_start;
-	}
-	printf("\nmmm done.\n");
-}
-
 void test_gemm_groups(void) {
-	// size_t M, size_t N, size_t K, float* A, float* B, float* C, size_t n_groups
 	/*
 	M = # of filters
 	N = # of outputs per filter
@@ -264,17 +241,17 @@ void test_gemm_groups(void) {
 }
 
 void test_gemm_atb(void) {
-	int M = 3;
-	int N = 4;
-	int K = 9;
-	float* A = (float*)xcalloc((size_t)(M * K), sizeof(float));
-	float* B = (float*)xcalloc((size_t)(N * K), sizeof(float));
-	float* C = (float*)xcalloc((size_t)(M * N), sizeof(float));
-	for (int i = 0; i < M * K; i++) {
+	size_t M = 3;
+	size_t N = 4;
+	size_t K = 9;
+	float* A = (float*)xcalloc(M * K, sizeof(float));
+	float* B = (float*)xcalloc(N * K, sizeof(float));
+	float* C = (float*)xcalloc(M * N, sizeof(float));
+	for (size_t i = 0; i < M * K; i++) {
 		A[i] = (float)(i + 1);
 	}
 	print_test_matrix(M, K, 1, A);
-	for (int i = 0; i < N * K; i++) {
+	for (size_t i = 0; i < N * K; i++) {
 		B[i] = (float)(i + 2);
 	}
 	print_test_matrix(N, K, 1, B);
@@ -282,22 +259,66 @@ void test_gemm_atb(void) {
 	print_test_matrix(M, N, 1, C);
 }
 
+void test_gemm_atb_groups(void) {
+	// A = M * K (dC/dz grads)
+	// B = N * K -> transpose -> K * N
+	// C = M * N
+	size_t n_groups = 2;
+	size_t M = 2;	// # of filters
+	size_t N = 16;	// # of weights per filter (as if n_groups = 1)
+	size_t K = 4;	// # of outputs per filter
+	if (M % n_groups > 0 || N % n_groups > 0) {
+		printf("Cannot divide filters or weights evenly between groups.\n");
+		(void)getchar();
+		exit(EXIT_FAILURE);
+	}
+	float* A = (float*)xcalloc(M * K, sizeof(float));
+	float* B = (float*)xcalloc(N * K, sizeof(float));
+	float* C = (float*)xcalloc(M * (N / n_groups), sizeof(float));
+	for (size_t i = 0; i < M * K; i++) A[i] = (float)(i + 1);
+	print_test_matrix(M, K, 1, A);
+	for (size_t i = 0; i < N * K; i++) B[i] = (float)(i + 2);
+	print_test_matrix(N, K, 1, B);
+	gemm_atb_groups(M, N, K, A, B, C, n_groups);
+	print_test_matrix(M, N / n_groups, 1, C);
+}
+
 void test_gemm_tab(void) {
-	int M = 2;
-	int N = 3;
-	int K = 4;
-	float* A = (float*)xcalloc((size_t)(M * N), sizeof(float));
-	float* B = (float*)xcalloc((size_t)(M * K), sizeof(float));
-	float* C = (float*)xcalloc((size_t)(N * K), sizeof(float));
-	for (int i = 0; i < M * N; i++) {
-		A[i] = (float)(i + 1);
-	}
+	size_t M = 2;
+	size_t N = 3;
+	size_t K = 4;
+	float* A = (float*)xcalloc(M * N, sizeof(float));
+	float* B = (float*)xcalloc(M * K, sizeof(float));
+	float* C = (float*)xcalloc(N * K, sizeof(float));
+	for (size_t i = 0; i < M * N; i++) A[i] = (float)(i + 1);
 	print_test_matrix(M, N, 1, A);
-	for (int i = 0; i < M * K; i++) {
-		B[i] = (float)(i + 2);
-	}
+	for (size_t i = 0; i < M * K; i++) B[i] = (float)(i + 2);
 	print_test_matrix(M, K, 1, B);
 	gemm_tab(M, N, K, A, B, C);
+	print_test_matrix(N, K, 1, C);
+}
+
+void test_gemm_tab_groups(void) {
+	// A = M * N -> transpose -> N * M (weights)
+	// B = M * K (dC/dz grads)
+	// C = N * K (col'd array to go through col2im)
+	size_t n_groups = 2;
+	size_t M = 4;	// # of filters
+	size_t N = 16;  // # of weights per filter (as if n_groups = 1)
+	size_t K = 4;	// # of outputs per filter
+	if (M % n_groups > 0 || N % n_groups > 0) {
+		printf("Cannot divide filters or weights evenly between groups.\n");
+		(void)getchar();
+		exit(EXIT_FAILURE);
+	}
+	float* A = (float*)xcalloc(M * (N / n_groups), sizeof(float));
+	float* B = (float*)xcalloc(M * K, sizeof(float));
+	float* C = (float*)xcalloc(N * K, sizeof(float));
+	for (size_t i = 0; i < M * N; i++) A[i] = (float)(i + 1);
+	print_test_matrix(M, N / n_groups, 1, A);
+	for (size_t i = 0; i < M * K; i++) B[i] = (float)(i + 2);
+	print_test_matrix(M, K, 1, B);
+	gemm_tab_groups(M, N, K, A, B, C, n_groups);
 	print_test_matrix(N, K, 1, C);
 }
 
