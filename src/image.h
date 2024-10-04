@@ -19,6 +19,7 @@ extern "C" {
     void load_image_test(void);
     image* new_image(size_t width, size_t height, size_t channels);
     void resize_image_bilinear(image* dst, image* src);
+    void transform_colorspace(image* img, float brightness_multi, float contrast_multi, float saturation_multi, float hue_multi);
     void free_image(image* img);
     void print_image_matrix(image* im);
 

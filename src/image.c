@@ -1,4 +1,5 @@
 #include "image.h"
+#include <math.h>
 #include "xallocs.h"
 #include "stdio.h"
 #include "stbimage.h"
@@ -15,6 +16,7 @@
 
 
 void rgb2hsv(image* img);
+void hsv2rgb(image* img);
 
 
 #pragma warning(disable:4100)  // 'img' unreferenced formal parameter (when OPENCV is not defined)
@@ -140,13 +142,54 @@ void resize_image_bilinear(image* dst, image* src) {
     }
 }
 
-void change_brightness(image* img, float multiplier) {
+void scale_brightness_rgb(image* img, float multiplier) {
     float* data = img->data;
     size_t n = img->w * img->h * img->c;
     for (size_t i = 0; i < n; i++) {
         data[i] *= multiplier;
         if (data[i] > 255.0F) data[i] = 255.0F;
     }
+}
+
+void scale_contrast_rgb(image* img, float multiplier) {
+    size_t w = img->w;
+    size_t h = img->h;
+    float* data = img->data;
+    size_t wh = w * h;
+    for (size_t i = 0; i < wh; i++) {
+        float red = data[i];
+        float green = data[wh + i];
+        float blue = data[wh * 2 + i];
+
+        float avg = (red + green + blue) / 3.0F;
+
+        red = avg + (red - avg) * multiplier;
+        green = avg + (green - avg) * multiplier;
+        blue = avg + (blue - avg) * multiplier;
+
+        data[i] = red;
+        data[wh + i] = green;
+        data[wh * 2 + i] = blue;
+    }
+}
+
+void randomize_colorspace(image* img, float brightness_lower, float brightness_upper, float contrast_lower, float contrast_upper, float saturation_lower, float saturation_upper, float hue_lower, float hue_upper) {
+    double mean = (brightness_upper + brightness_lower) / 2.0;
+
+}
+
+void transform_colorspace(image* img, float brightness_multi, float contrast_multi, float saturation_multi, float hue_multi) {
+    if (contrast_multi != 1.0F) scale_contrast_rgb(img, contrast_multi);
+    rgb2hsv(img);
+    float* data = img->data;
+    size_t wh = img->w * img->h;
+    size_t wh2 = wh * 2;
+    for (size_t i = 0; i < wh; i++) {
+        data[i] *= hue_multi;
+        data[wh + i] *= saturation_multi;
+        data[wh2 + i] *= brightness_multi;
+    }
+    hsv2rgb(img);
 }
 
 /* https://www.cs.rit.edu/~ncs/color/t_convert.html */
@@ -156,10 +199,11 @@ void rgb2hsv(image* img) {
     size_t c = img->c;
     float* data = img->data;
     size_t wh = w * h;
-    for (size_t s = 0; s < wh; s++) {
-        float red = data[s];
-        float green = data[wh + s];
-        float blue = data[wh * 2 + s];
+    size_t wh2 = wh * 2;
+    for (size_t i = 0; i < wh; i++) {
+        float red = data[i];
+        float green = data[wh + i];
+        float blue = data[wh2 + i];
 
         float min_val;
         float max_val;
@@ -184,9 +228,68 @@ void rgb2hsv(image* img) {
         H *= 60.0F;
         if (H < 0.0F) H += 360.0F;
 
-        data[s] = H;
-        data[wh + s] = S;
-        data[wh * 2] = V;
+        data[i] = H;
+        data[wh + i] = S;
+        data[wh2 + i] = V;
+    }
+}
+
+void hsv2rgb(image* img) {
+    size_t w = img->w;
+    size_t h = img->h;
+    size_t c = img->c;
+    float* data = img->data;
+    size_t wh = w * h;
+    for (size_t i = 0; i < wh; i++) {
+        float H = data[i];
+        float S = data[wh + i];
+        float V = data[wh * 2 + i];
+
+        if (S == 0) { // if img is achromatic
+            data[i] = data[wh + i] = data[wh * 2 + i] = V;
+            return;
+        }
+        H /= 60.0F;
+        int n = (int)floorf(H);
+        float f = H - (float)n;
+        float p = V * (1.0F - S);
+        float q = V * (1.0F - S * f);
+        float t = V * (1.0F - S * (1.0F - f));
+        float red;
+        float green;
+        float blue;
+        switch (n) {
+        case 0:
+            red = V;
+            green = t;
+            blue = p;
+            break;
+        case 1:
+            red = q;
+            green = V;
+            blue = p;
+            break;
+        case 2:
+            red = p;
+            green = V;
+            blue = t;
+            break;
+        case 3:
+            red = p;
+            green = q;
+            blue = V;
+            break;
+        case 4:
+            red = t;
+            green = p;
+            blue = V;
+            break;
+        default:
+            red = V;
+            green = p;
+            blue = q;
+            break;
+        }
     }
 }
 

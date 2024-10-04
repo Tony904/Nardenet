@@ -84,6 +84,11 @@ int char_in_string(char c, char* str) {
 	return 0;
 }
 
+float randu(float lower, float upper) {
+	float scale = rand() / (float)RAND_MAX;
+	return lower + scale * (upper - lower);
+}
+
 double randn(double mean, double stddev) {
 	static double n2 = 0.0;
 	static int n2_cached = 0;
@@ -95,8 +100,8 @@ double randn(double mean, double stddev) {
 	double y = 0.0;
 	double r = 0.0;
 	while (r == 0.0 || r > 1.0) {
-		x = 2.0 * rand() / RAND_MAX - 1;
-		y = 2.0 * rand() / RAND_MAX - 1;
+		x = 2.0 * rand() / RAND_MAX - 1.0;
+		y = 2.0 * rand() / RAND_MAX - 1.0;
 		r = x * x + y * y;
 	}
 	double d = sqrt(-2.0 * log(r) / r);
