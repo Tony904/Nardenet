@@ -17,6 +17,12 @@ int main(void) {
 	//free_network(net);
 	//print_alloc_list();
 
+	char* path = "D:\\TonyDev\\Nardenet\\data\\archive\\train\\cats\\cat_33.jpg";
+	image* img = load_image(path);
+	show_image(img);
+	transform_colorspace(img, 1, 1, 1, 1);
+	show_image_opencv(img->data, (int)img->w, (int)img->h, (int)img->c, 0);
+
 #ifndef _DEBUG
 	printf("\n\nPress ENTER to exit the program.");
 	(void)getchar();

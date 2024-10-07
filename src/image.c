@@ -161,11 +161,11 @@ void scale_contrast_rgb(image* img, float multiplier) {
         float green = data[wh + i];
         float blue = data[wh * 2 + i];
 
-        float avg = (red + green + blue) / 3.0F;
+        float mean = (red + green + blue) / 3.0F;
 
-        red = avg + (red - avg) * multiplier;
-        green = avg + (green - avg) * multiplier;
-        blue = avg + (blue - avg) * multiplier;
+        red = mean + (red - mean) * multiplier;
+        green = mean + (green - mean) * multiplier;
+        blue = mean + (blue - mean) * multiplier;
 
         data[i] = red;
         data[wh + i] = green;
@@ -174,8 +174,11 @@ void scale_contrast_rgb(image* img, float multiplier) {
 }
 
 void randomize_colorspace(image* img, float brightness_lower, float brightness_upper, float contrast_lower, float contrast_upper, float saturation_lower, float saturation_upper, float hue_lower, float hue_upper) {
-    double mean = (brightness_upper + brightness_lower) / 2.0;
-
+    float brightness_multi = randu(brightness_lower, brightness_upper);
+    float contrast_multi = randu(contrast_lower, contrast_upper);
+    float saturation_multi = randu(saturation_lower, saturation_upper);
+    float hue_multi = randu(hue_lower, hue_upper);
+    transform_colorspace(img, brightness_multi, contrast_multi, saturation_multi, hue_multi);
 }
 
 void transform_colorspace(image* img, float brightness_multi, float contrast_multi, float saturation_multi, float hue_multi) {
@@ -196,7 +199,6 @@ void transform_colorspace(image* img, float brightness_multi, float contrast_mul
 void rgb2hsv(image* img) {
     size_t w = img->w;
     size_t h = img->h;
-    size_t c = img->c;
     float* data = img->data;
     size_t wh = w * h;
     size_t wh2 = wh * 2;
@@ -217,17 +219,17 @@ void rgb2hsv(image* img) {
         float V = max_val;
         float delta = max_val - min_val;
         float S = 0.0F;
-        float H = -1.0F;
-        if (max_val) S = delta / max_val;
-        else return;
+        float H = 0.0F;
+        if (max_val) {
+            S = delta / max_val;
 
-        if (red == max_val) H = (green - blue) / delta;
-        else if (green == max_val) H = 2.0F + (blue - red) / delta;
-        else H = 4.0F + (red - green) / delta;
+            if (red == max_val) H = (green - blue) / delta;
+            else if (green == max_val) H = 2.0F + (blue - red) / delta;
+            else H = 4.0F + (red - green) / delta;
 
-        H *= 60.0F;
-        if (H < 0.0F) H += 360.0F;
-
+            H *= 60.0F;
+            if (H < 0.0F) H += 360.0F;
+        }
         data[i] = H;
         data[wh + i] = S;
         data[wh2 + i] = V;
@@ -237,19 +239,18 @@ void rgb2hsv(image* img) {
 void hsv2rgb(image* img) {
     size_t w = img->w;
     size_t h = img->h;
-    size_t c = img->c;
     float* data = img->data;
     size_t wh = w * h;
+    size_t wh2 = wh * 2;
     for (size_t i = 0; i < wh; i++) {
-        float H = data[i];
+        float H = data[i] * 6.0F;
         float S = data[wh + i];
-        float V = data[wh * 2 + i];
+        float V = data[wh2 + i];
 
         if (S == 0) { // if img is achromatic
-            data[i] = data[wh + i] = data[wh * 2 + i] = V;
+            data[i] = data[wh + i] = data[wh2 + i] = V;
             return;
         }
-        H /= 60.0F;
         int n = (int)floorf(H);
         float f = H - (float)n;
         float p = V * (1.0F - S);
@@ -260,34 +261,22 @@ void hsv2rgb(image* img) {
         float blue;
         switch (n) {
         case 0:
-            red = V;
-            green = t;
-            blue = p;
+            red = V; green = t; blue = p;
             break;
         case 1:
-            red = q;
-            green = V;
-            blue = p;
+            red = q; green = V; blue = p;
             break;
         case 2:
-            red = p;
-            green = V;
-            blue = t;
+            red = p; green = V; blue = t;
             break;
         case 3:
-            red = p;
-            green = q;
-            blue = V;
+            red = p; green = q; blue = V;
             break;
         case 4:
-            red = t;
-            green = p;
-            blue = V;
+            red = t; green = p; blue = V;
             break;
         default:
-            red = V;
-            green = p;
-            blue = q;
+            red = V; green = p; blue = q;
             break;
         }
     }

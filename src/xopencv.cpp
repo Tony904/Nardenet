@@ -33,8 +33,8 @@ extern "C" {
         //cv::namedWindow(window_name);
         cv::imshow("image", mat);
         cv::moveWindow("image", 400, 300);
-        //cv::waitKey(waitkey);
-        cv::waitKey(1);
+        cv::waitKey(waitkey);
+        //cv::waitKey(1);
         //cv::destroyWindow(window_name);
     }
 
