@@ -50,6 +50,26 @@ image* load_image(char* filename) {
     return img;
 }
 
+void normalize_image(image* img) {
+    float* data = img->data;
+    size_t n = img->w * img->h * img->c;
+    size_t i;
+#pragma omp parallel for
+    for (i = 0; i < n; i++) data[i] /= 255.0F;
+}
+
+void unnormalize_image(image* img) {
+    float* data = img->data;
+    size_t n = img->w * img->h * img->c;
+    size_t i;
+#pragma omp parallel for
+    for (i = 0; i < n; i++) {
+        if (data[i] <= 0.0F) data[i] = 0.0F;
+        else if (data[i] >= 1.0F) data[i] = 255.0F;
+        else (data[i] *= 255.0F);
+    }
+}
+
 void write_image(image* img, char* filename) {
     write_image_stbi(filename, img->data, (int)img->w, (int)img->h, (int)img->c);
 }
@@ -181,14 +201,16 @@ void randomize_colorspace(image* img, float brightness_lower, float brightness_u
     transform_colorspace(img, brightness_multi, contrast_multi, saturation_multi, hue_multi);
 }
 
-void transform_colorspace(image* img, float brightness_multi, float contrast_multi, float saturation_multi, float hue_multi) {
+void transform_colorspace(image* img, float brightness_multi, float contrast_multi, float saturation_multi, float hue_shift) {
     if (contrast_multi != 1.0F) scale_contrast_rgb(img, contrast_multi);
     rgb2hsv(img);
     float* data = img->data;
     size_t wh = img->w * img->h;
     size_t wh2 = wh * 2;
     for (size_t i = 0; i < wh; i++) {
-        data[i] *= hue_multi;
+        data[i] += hue_shift;
+        if (data[i] > 1.0F) data[i] -= 1.0F;
+        else if (data[i] < 0.0F) data[i] += 1.0F;
         data[wh + i] *= saturation_multi;
         data[wh2 + i] *= brightness_multi;
     }
@@ -227,8 +249,8 @@ void rgb2hsv(image* img) {
             else if (green == max_val) H = 2.0F + (blue - red) / delta;
             else H = 4.0F + (red - green) / delta;
 
-            H *= 60.0F;
-            if (H < 0.0F) H += 360.0F;
+            if (H < 0.0F) H += 6.0F;
+            H /= 6.0F;
         }
         data[i] = H;
         data[wh + i] = S;
@@ -247,9 +269,9 @@ void hsv2rgb(image* img) {
         float S = data[wh + i];
         float V = data[wh2 + i];
 
-        if (S == 0) { // if img is achromatic
+        if (S == 0.0F) { // if img is achromatic
             data[i] = data[wh + i] = data[wh2 + i] = V;
-            return;
+            continue;
         }
         int n = (int)floorf(H);
         float f = H - (float)n;
@@ -279,6 +301,9 @@ void hsv2rgb(image* img) {
             red = V; green = p; blue = q;
             break;
         }
+        data[i] = red;
+        data[wh + i] = green;
+        data[wh2 + i] = blue;
     }
 }
 
