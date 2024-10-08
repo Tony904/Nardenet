@@ -14,11 +14,10 @@
 void train_classifer(network* net);
 void train_detector(network* net);
 void initialize_weights_kaiming(network* net);
-void update_current_learning_rate(network* net, size_t iteration, size_t ease_in);
+void update_current_learning_rate(network* net, size_t iteration);
 
 
-#define MAX_DIR_PATH 255
-#define MIN_FILENAME_LENGTH 5
+#define MAX_DIR_PATH _MAX_PATH - 5
 
 
 void train(network* net) {
@@ -41,28 +40,18 @@ void train_classifer(network* net) {
 	strcpy(train_dir, net->dataset_dir);
 	snprintf(train_dir, sizeof(train_dir), "%s%s", train_dir, "train\\");
 	load_classifier_dataset(&net->data.clsr, train_dir, net->class_names, net->n_classes);
-	layer* prediction_layer = &net->layers[net->n_layers - 1];
-	float* truth = prediction_layer->truth;
-	size_t n_classes = net->n_classes;
-	size_t ease_in = net->ease_in;
 	size_t batch_size = net->batch_size;
 	size_t max_iterations = net->max_iterations;
 	size_t save_frequency = net->save_frequency;
-	size_t width = net->w;
-	size_t height = net->h;
-	size_t channels = net->c;
-	float* input = net->input->output;
-	//net->max_iterations = 300;  // testing
 	layer* layers = net->layers;
-	//layer* layer0 = net->layers;
 	size_t n_layers = net->n_layers;
 	print_network_summary(net, 1);
 	print_network_structure(net);
 	for (size_t iter = 0; iter < max_iterations; iter++) {
 		printf("\nIteration: %zu\n", iter + 1);
-		update_current_learning_rate(net, iter, ease_in);
+		update_current_learning_rate(net, iter);
 		printf("Learning rate: %f\n", net->current_learning_rate * (float)batch_size);
-		classifier_get_next_batch(&net->data.clsr, batch_size, input, width, height, channels, truth, n_classes);
+		classifier_get_next_batch(net);
 		for (size_t i = 0; i < n_layers; i++) {
 			layers[i].forward(&layers[i], net);
 		}
@@ -88,19 +77,17 @@ void train_classifer(network* net) {
 }
 
 void train_detector(network* net) {
-	char train_dir[MAX_DIR_PATH + MIN_FILENAME_LENGTH] = { 0 };
+	char train_dir[MAX_DIR_PATH] = { 0 };
 	memcpy(train_dir, net->dataset_dir, strlen(net->dataset_dir));
 	memcpy(&train_dir[strlen(train_dir)], "\\train\\", 7);
 	load_detector_dataset(&net->data.detr, train_dir);
-	size_t ease_in = net->ease_in;
 	size_t batch_size = net->batch_size;
-	//net->max_iterations = 300;  // testing
 	layer* layers = net->layers;
 	size_t n_layers = net->n_layers;
 	print_network_summary(net, 1);
 	for (size_t iter = 0; iter < net->max_iterations; iter++) {
 		printf("\nIteration: %zu\n", iter);
-		update_current_learning_rate(net, iter, ease_in);
+		update_current_learning_rate(net, iter);
 		printf("Learning rate: %f\n", net->current_learning_rate * (float)batch_size);
 		detector_get_next_batch(net);
 		for (size_t i = 0; i < n_layers; i++) {
@@ -137,10 +124,15 @@ void initialize_weights_kaiming(network* net) {
 	}
 }
 
-void update_current_learning_rate(network* net, size_t iteration, size_t ease_in) {
-	if (iteration > ease_in) return;
-	float power = 4.0F;
-	float rate = net->learning_rate * powf((float)iteration / (float)ease_in, power);
+void update_current_learning_rate(network* net, size_t iteration) {
+	size_t ease_in = net->ease_in;
+	float rate = net->learning_rate;
+	float max_iterations = (float)net->max_iterations;
+	for (size_t n = 0; n < net->step_percents.n; n++) {
+		if (iteration >= net->step_percents.a[n] * max_iterations) rate *= net->step_scaling.a[n];
+		else break;
+	}
+	if (iteration < ease_in) rate *= powf((float)iteration / (float)ease_in, 4.0F);
 	net->current_learning_rate = rate / (float)net->batch_size;
 }
 

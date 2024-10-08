@@ -5,8 +5,7 @@
 #include "list.h"
 
 
-#define MAX_DIR_PATH 255
-#define MIN_FILENAME_LENGTH 5
+#define MAX_DIR_PATH _MAX_PATH - 5
 
 
 void load_class_set(class_set* set, char* class_dir);

@@ -10,19 +10,12 @@
 int main(void) {
 
 	srand(7777777);
-	/*char* cfgfile = "D:\\TonyDev\\Nardenet\\cfg\\nardenet-yolov4-tiny-classifier.cfg";
+	char* cfgfile = "D:\\TonyDev\\Nardenet\\cfg\\nardenet-yolov4-tiny-classifier.cfg";
 	network* net = create_network_from_cfg(cfgfile);
-	train(net);*/
+	train(net);
 
 	//free_network(net);
 	//print_alloc_list();
-
-	char* path = "D:\\TonyDev\\Nardenet\\data\\archive\\train\\cats\\cat_33.jpg";
-	image* img = load_image(path);
-	normalize_image(img);
-	transform_colorspace(img, 1, 1, 1, 0);
-	unnormalize_image(img);
-	show_image(img);
 
 #ifndef _DEBUG
 	printf("\n\nPress ENTER to exit the program.");

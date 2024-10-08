@@ -10,10 +10,8 @@
 #include "math.h"
 
 
-
 det_sample* detector_dataset_get_next_sample(detector_dataset* dataset, image* dst);
 void classifier_dataset_get_next_image(classifier_dataset* dataset, image* dst, float* truth);
-
 
 
 void detector_get_next_batch(network* net) {
@@ -24,6 +22,14 @@ void detector_get_next_batch(network* net) {
 	size_t c = net->c;
 	size_t n = w * h * c;
 	det_sample** batch_samples = net->data.detr.current_batch;
+	float brightness_lower = net->exposure[0];
+	float brightness_upper = net->exposure[1];
+	float contrast_lower = 1.0F;
+	float contrast_upper = 1.0F;
+	float saturation_lower = net->saturation[0];
+	float saturation_upper = net->saturation[1];
+	float hue_lower = net->hue[0];
+	float hue_upper = net->hue[1];
 	for (size_t b = 0; b < batch_size; b++) {
 		image img = { 0 };
 		img.w = w;
@@ -31,6 +37,8 @@ void detector_get_next_batch(network* net) {
 		img.c = c;
 		img.data = &net->input->output[b * n];
 		batch_samples[b] = detector_dataset_get_next_sample(dataset, &img);
+		prescale_image(&img);
+		randomize_colorspace(&img, brightness_lower, brightness_upper, contrast_lower, contrast_upper, saturation_lower, saturation_upper, hue_lower, hue_upper);
 	}
 }
 
@@ -63,8 +71,24 @@ void load_detector_dataset(detector_dataset* dataset, char* dir) {
 	get_random_numbers_no_repeats(dataset->rands, count, 0, count - 1);
 }
 
-void classifier_get_next_batch(classifier_dataset* dataset, size_t batch_size, float* data, size_t w, size_t h, size_t c, float* truth, size_t n_classes) {
+void classifier_get_next_batch(network* net) {
+	classifier_dataset* dataset = &net->data.clsr;
+	float* truth = net->layers[net->n_layers - 1].truth;
+	size_t batch_size = net->batch_size;
+	size_t n_classes = net->n_classes;
+	float* data = net->input->output;
+	size_t w = net->w;
+	size_t h = net->h;
+	size_t c = net->c;
 	size_t n = w * h * c;
+	float brightness_lower = net->exposure[0];
+	float brightness_upper = net->exposure[1];
+	float contrast_lower = 1.0F;
+	float contrast_upper = 1.0F;
+	float saturation_lower = net->saturation[0];
+	float saturation_upper = net->saturation[1];
+	float hue_lower = net->hue[0];
+	float hue_upper = net->hue[1];
 	for (size_t s = 0; s < batch_size; s++) {
 		image img = { 0 };
 		img.w = w;
@@ -72,6 +96,7 @@ void classifier_get_next_batch(classifier_dataset* dataset, size_t batch_size, f
 		img.c = c;
 		img.data = &data[s * n];
 		classifier_dataset_get_next_image(dataset, &img, &truth[s * n_classes]);
+		randomize_colorspace(&img, brightness_lower, brightness_upper, contrast_lower, contrast_upper, saturation_lower, saturation_upper, hue_lower, hue_upper);
 	}
 }
 

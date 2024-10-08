@@ -5,8 +5,7 @@
 #include "utils.h"
 
 
-#define MAX_DIR_PATH 255
-#define MIN_FILENAME_LENGTH 5
+#define MAX_DIR_PATH _MAX_PATH - 5
 
 
 void load_det_sample(char* antfile, char* imgfile, det_sample* samp);
@@ -35,7 +34,7 @@ det_sample* load_det_samples(char* directory, size_t* count_dst) {
 		if (i == 0) noed = imgpaths->first;
 		else noed = noed->next;
 		char* imgfile = (char*)noed->val;
-		char antfile[MAX_DIR_PATH + MIN_FILENAME_LENGTH] = { 0 };
+		char antfile[_MAX_PATH] = { 0 };
 		char* dot = strrchr(imgfile, '.');
 		memcpy(antfile, imgfile, strlen(imgfile) - strlen(dot));
 		memcpy(&antfile[strlen(antfile)], ".txt", 4);

@@ -165,7 +165,6 @@ extern "C" {
         float* biases_velocity;  // momentum adjustment for biases
 
         intarr in_ids;
-        intarr out_ids;
         layer** in_layers;
 
         LOSS_TYPE loss_type;

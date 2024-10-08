@@ -197,9 +197,6 @@ void copy_to_cfg_layer(cfg_layer* l, char** tokens, cfg* c) {
 	else if (strcmp(k, "in_ids") == 0) {
 		l->in_ids = tokens2intarr(tokens, 1);
 	}
-	else if (strcmp(k, "out_ids") == 0) {
-		l->out_ids = tokens2intarr(tokens, 1);
-	}
 	else if (strcmp(k, "batch_norm") == 0) {
 		l->batch_norm = str2int(tokens[1]);
 	}
@@ -284,7 +281,6 @@ void copy_cfg_to_network(cfg* cfig, network* net) {
 		l->batch_norm = cl->batch_norm;
 		l->ksize = cl->kernel_size;
 		l->in_ids = cl->in_ids;
-		l->out_ids = cl->out_ids;
 		l->pad = cl->pad;
 		l->stride = cl->stride;
 		l->train = cl->train;

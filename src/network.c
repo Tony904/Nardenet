@@ -841,7 +841,6 @@ void free_layer_members(layer* l) {
 	xfree(l->variances);
 	xfree(l->errors);
 	xfree(l->in_ids.a);
-	xfree(l->out_ids.a);
 	xfree(l->in_layers);
 	if (l->type == LAYER_DETECT) {
 		xfree(l->anchors);
@@ -984,8 +983,6 @@ void print_layer_residual(layer* l) {
 	printf("# of outputs: %zu\n", l->out_n);
 	printf("in_ids: ");
 	print_intarr(&(l->in_ids));
-	printf("out_ids: ");
-	print_intarr(&(l->out_ids));
 	printf("[END LAYER]\n");
 }
 

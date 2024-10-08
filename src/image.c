@@ -50,7 +50,7 @@ image* load_image(char* filename) {
     return img;
 }
 
-void normalize_image(image* img) {
+void prescale_image(image* img) {
     float* data = img->data;
     size_t n = img->w * img->h * img->c;
     size_t i;
@@ -58,15 +58,22 @@ void normalize_image(image* img) {
     for (i = 0; i < n; i++) data[i] /= 255.0F;
 }
 
-void unnormalize_image(image* img) {
+void scale_image(image* img, float scale) {
+    float* data = img->data;
+    size_t n = img->w * img->h * img->c;
+    size_t i;
+#pragma omp parallel for
+    for (i = 0; i < n; i++) (data[i] *= scale);
+}
+
+void clamp_image(image* img) {
     float* data = img->data;
     size_t n = img->w * img->h * img->c;
     size_t i;
 #pragma omp parallel for
     for (i = 0; i < n; i++) {
-        if (data[i] <= 0.0F) data[i] = 0.0F;
-        else if (data[i] >= 1.0F) data[i] = 255.0F;
-        else (data[i] *= 255.0F);
+        if (data[i] < 0.0F) data[i] = 0.0F;
+        else if (data[i] > 255.0F) data[i] = 255.0F;
     }
 }
 
