@@ -10,7 +10,7 @@
 extern "C" {
 #endif
 	
-	class_set* load_class_sets(char* classes_dir, char** class_names, size_t n_classes);
+	class_set* load_class_sets(char* classes_dir, char** class_names, size_t n_classes, char* interpath);
 	void free_class_sets(class_set* set, size_t n);
 
 #ifdef __cplusplus

@@ -386,17 +386,17 @@ list* get_files_list(char* dir, char* extensions) {
 		perror("opendir");
 		return;
 	}
-	while ((entry = readdir(dp))) {
-		char* file_name = entry->d_name;
-		char* ext1 = strrchr(file_name, '.');
+	while (entry = readdir(dp)) {
+		char* filename = entry->d_name;
+		char* ext1 = strrchr(filename, '.');
 		if (!ext1) continue;
 		for (size_t i = 0; i < tokens_length(exts); i++) {
 			char* ext2 = strrchr(exts[i], '.');
 			if (strcmp(ext1, ext2) == 0) {
-				printf("%s\n", (char*)file_name);
-				size_t length = strlen(file_name);
+				printf("%s\n", (char*)filename);
+				size_t length = strlen(filename);
 				char* path = (char*)xcalloc(length + 1, sizeof(char));
-				strcpy(path, file_name);
+				strcpy(path, filename);
 				list_append(paths, path);
 				count++;
 				break;
@@ -407,6 +407,78 @@ list* get_files_list(char* dir, char* extensions) {
 	closedir(dp);
 #endif
 	xfree(exts);
+	return paths;
+}
+
+list* get_folders_list(char* dir, int include_path) {
+	list* paths = (list*)xcalloc(1, sizeof(list));
+	size_t count = 0;
+	char fullpath[MAX_PATH] = { 0 };
+#ifdef IS_WIN
+	WIN32_FIND_DATA filedata;
+	HANDLE handle;
+	char search_path[MAX_PATH];
+	snprintf(search_path, sizeof(search_path), "%s*", dir);
+	wchar_t* wspath = str2wstr(search_path);
+	handle = FindFirstFile(wspath, &filedata);
+	if (handle == INVALID_HANDLE_VALUE) {
+		if (GetLastError() == ERROR_NO_MORE_FILES) {
+			printf("No items found in directory %s\n", dir);
+			xfree(paths);
+			return (list*)0;
+		}
+		printf("Unexpected error occured while searching for first item in directory %s\nDirectory may be empty or does not exist.", dir);
+		printf("\nError Code: %d\n", GetLastError());
+		wait_for_key_then_exit();
+	}
+	int ret = 1;
+	while (1) {
+		if (ret == 0) {
+			if (GetLastError() == ERROR_NO_MORE_FILES) break;
+			printf("Unexpected error occured while searching for files in directory %s\nDirectory may be empty or does not exist.", dir);
+			printf("\nError Code: %d\n", GetLastError());
+			wait_for_key_then_exit();
+		}
+		if (filedata.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+			char* foldername = wstr2str(filedata.cFileName);
+			if (strcmp(foldername, ".") != 0 && strcmp(foldername, "..") != 0) {
+				if (include_path) snprintf(fullpath, sizeof(fullpath), "%s%s", dir, foldername);
+				else strcpy(fullpath, foldername);
+				size_t length = strlen(fullpath);
+				char* path = (char*)xcalloc(length + 1, sizeof(char));
+				strcpy(path, fullpath);
+				list_append(paths, path);
+				count++;
+			}
+			xfree(foldername);
+		}
+		ret = (int)FindNextFile(handle, &filedata);
+	}
+	printf("# of folders found: %zu\n", count);
+	FindClose(handle);
+	xfree(wspath);
+#else  // Unix-based systems
+	struct dirent* entry;
+	DIR* dp = opendir(dir);
+	if (dp == NULL) {
+		perror("opendir");
+		return;
+	}
+	while (entry = readdir(dp)) {
+		if (entry->d_type != DT_DIR) continue;
+		if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
+		char* foldername = (char*)entry->d_name;
+		if (include_path) snprintf(fullpath, sizeof(fullpath), "%s%s", dir, foldername);
+		else strcpy(fullpath, foldername);
+		size_t length = strlen(foldername);
+		char* path = (char*)xcalloc(length + 1, sizeof(char));
+		strcpy(path, foldername);
+		list_append(paths, path);
+		count++;
+	}
+	printf("# of folders found: %zu\n", count);
+	closedir(dp);
+#endif
 	return paths;
 }
 

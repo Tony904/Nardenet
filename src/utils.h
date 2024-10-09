@@ -41,6 +41,7 @@ extern "C" {
 	void close_filestream(FILE* filestream);
 	size_t get_line_count(FILE* file);
 	list* get_files_list(char* dir, char* extensions);
+	list* get_folders_list(char* dir, int include_path);
 	void fix_dir_str(char* dir, size_t bufsize);
 	void get_filename_from_path(char* dst, size_t dstsize, char* filepath, int remove_ext);
 	int get_filename_ext_index(char* filename);

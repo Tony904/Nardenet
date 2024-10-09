@@ -12,6 +12,7 @@
 #include "layer_detect.h"
 #include "layer_avgpool.h"
 #include "layer_upsample.h"
+#include "layer_route.h"
 #include "activations.h"
 #include "loss.h"
 #include "derivatives.h"
@@ -304,7 +305,7 @@ void build_fc_layer(int i, network* net) {
 
 // i = layer index in net->layers
 void build_classify_layer(int i, network* net) {
-	if (net->type == NET_NONE) net->type = NET_CLASSIFY;
+	if (net->type == NET_NONE || net->type == NET_CLASSIFY) net->type = NET_CLASSIFY;
 	else {
 		printf("Invalid network cfg: Cannot have a classify layer in a non-classifier network.\n");
 		wait_for_key_then_exit();
@@ -493,6 +494,72 @@ void build_residual_layer(int i, network* net) {
 
 	l->forward = forward_residual;
 	l->backward = backward_residual;
+	l->update = update_none;
+
+	set_activate(l);
+}
+
+void build_route_layer(int i, network* net) {
+	layer* l = &(net->layers[i]);
+	layer* ls = net->layers;
+	l->id = i;
+
+	// Set default in_ids if none specified.
+	if (l->in_ids.n == 0) {
+		l->in_ids.a = (int*)xcalloc(1, sizeof(int));
+		l->in_ids.a[0] = i - 1;
+		l->in_ids.n = 1;
+	}
+	else {
+		for (int j = 0; j < l->in_ids.n; j++) {
+			if (l->in_ids.a[j] < 0) l->in_ids.a[j] += i;
+			if (l->in_ids.a[j] > i || l->in_ids.a[j] < 0) {
+				printf("Invalid in_id of %d for layer %d\n", l->in_ids.a[j], i);
+				wait_for_key_then_exit();
+			}
+		}
+	}
+
+	// Build array of input layer addresses.
+	l->in_layers = (layer**)xcalloc(l->in_ids.n, sizeof(layer*));
+	if (i > 0) {
+		for (size_t j = 0; j < l->in_ids.n; j++) {
+			l->in_layers[j] = &ls[l->in_ids.a[j]];
+		}
+	}
+	else { // if first layer
+		l->in_layers[0] = net->input;
+	}
+
+	// Calculate input dimensions.
+	l->w = l->in_layers[0]->out_w;
+	l->h = l->in_layers[0]->out_h;
+	l->c = l->in_layers[0]->out_c;
+	l->n = l->w * l->h * l->c;
+
+	for (size_t j = 1; j < l->in_ids.n; j++) {
+		if (!(l->in_layers[j]->out_w == l->w && l->in_layers[j]->out_h == l->h && l->in_layers[j]->out_c == l->c)) {
+			printf("Inputs smust have matching width and height.\n"
+				"Route layer %d, Input layer %d\n", i, l->in_layers[j]->id);
+			wait_for_key_then_exit();
+		}
+	}
+
+	// Calculate output dimensions.
+	l->out_w = l->w;
+	l->out_h = l->h;
+	l->out_c = l->c;
+	l->out_n = l->out_w * l->out_h * l->out_c;
+
+	l->Z = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	l->act_inputs = l->Z;
+	l->grads = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+
+	if (l->activation) l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	else l->output = l->Z;
+
+	l->forward = forward_route;
+	l->backward = backward_route;
 	l->update = update_none;
 
 	set_activate(l);

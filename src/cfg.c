@@ -240,7 +240,6 @@ void copy_to_cfg_layer(cfg_layer* l, char** tokens, cfg* c) {
 void copy_cfg_to_network(cfg* cfig, network* net) {
 	// [data]
 	net->dataset_dir = cfig->dataset_dir;
-	load_class_names(cfig->classes_file, net, cfig->n_classes);
 	net->weights_file = cfig->weights_file;
 	net->save_dir = cfig->save_dir;
 	// [net]
@@ -301,8 +300,10 @@ void copy_cfg_to_network(cfg* cfig, network* net) {
 			net->n_anchors += l->n_anchors;
 			xfree(cl->anchors.a);
 		}
+		else if (l->type == LAYER_CLASSIFY) net->type = NET_CLASSIFY;
 		noed = noed->next;
 	}
+	load_class_names(cfig->classes_file, net, cfig->n_classes);
 }
 
 void copy_data_augment_range(float* dst, floatarr src) {
@@ -326,6 +327,7 @@ void copy_data_augment_range(float* dst, floatarr src) {
 
 void load_class_names(char* filename, network* net, size_t n_classes) {
 	if (!filename) {
+		if (net->type == NET_CLASSIFY) return;
 		printf("No classes file specified.\n");
 		wait_for_key_then_exit();
 	}

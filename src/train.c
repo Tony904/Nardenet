@@ -39,7 +39,28 @@ void train_classifer(network* net) {
 	char train_dir[MAX_DIR_PATH] = { 0 };
 	strcpy(train_dir, net->dataset_dir);
 	snprintf(train_dir, sizeof(train_dir), "%s%s", train_dir, "train\\");
-	load_classifier_dataset(&net->data.clsr, train_dir, net->class_names, net->n_classes);
+	if (!net->class_names) {
+		printf("No classes.txt file specified. Assuming each folder in %s is a class directory...\n", train_dir);
+		list* lst = get_folders_list(train_dir, 0);
+		if (lst->length != net->n_classes) {
+			printf("# of classes found does not match the # specified in the cfg file.\n");
+			wait_for_key_then_exit();
+		}
+		net->n_classes = lst->length;
+		net->class_names = (char**)xcalloc(net->n_classes, sizeof(char*));
+		node* noed = lst->first;
+		size_t n = 0;
+		printf("Discovered class directories:\n");
+		while (noed) {
+			net->class_names[n] = (char*)noed->val;
+			printf("%s\n", net->class_names[n]);
+			noed = noed->next;
+			n++;
+		}
+		free_list(lst, 0);
+		printf("# of class directories found: %zu\n", net->n_classes);
+	}
+	load_classifier_dataset(&net->data.clsr, train_dir, net->class_names, net->n_classes, "images\\");
 	size_t batch_size = net->batch_size;
 	size_t max_iterations = net->max_iterations;
 	size_t save_frequency = net->save_frequency;

@@ -133,8 +133,8 @@ void classifier_dataset_get_next_image(classifier_dataset* dataset, image* dst, 
 	set->ri = ri;
 }
 
-void load_classifier_dataset(classifier_dataset* dataset, char* classes_dir, char** class_names, size_t n_classes) {
-	dataset->sets = load_class_sets(classes_dir, class_names, n_classes);
+void load_classifier_dataset(classifier_dataset* dataset, char* classes_dir, char** class_names, size_t n_classes, char* interpath) {
+	dataset->sets = load_class_sets(classes_dir, class_names, n_classes, interpath);
 	dataset->rands = (size_t*)xcalloc(n_classes, sizeof(size_t));
 	dataset->n = n_classes;
 	dataset->ri = 0;
