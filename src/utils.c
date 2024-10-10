@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <math.h>
 #include <omp.h>
+#include <ctype.h>
 #include "xallocs.h"
 
 
@@ -25,8 +26,8 @@
 
 
 #ifdef IS_WIN
-wchar_t* str2wstr(const char* str);
-char* wstr2str(const wchar_t* wstr);
+void str2wstr(const char* str, wchar_t* buf);
+void wstr2str(const wchar_t* wstr, char* buf);
 #endif
 
 
@@ -115,6 +116,10 @@ void get_random_numbers_no_repeats(size_t* arr, size_t size, size_t range_start,
 	size_t range = range_end - range_start + 1;
 	if (size != range) {
 		printf("Error: Size of array (%zu) is not equal to range. (%zu)\n", size, range);
+		wait_for_key_then_exit();
+	}
+	if (!range) {
+		printf("Error: range equals zero.\n");
 		wait_for_key_then_exit();
 	}
 	for (size_t i = 0; i < range; i++) arr[i] = range_start + i;
@@ -287,6 +292,10 @@ int is_valid_fopen_mode(char* mode) {
 	return 0;
 }
 
+void lower_chars(char* s, size_t length) {
+	for (size_t i = 0; i < length; i++) s[i] = (char)tolower(s[i]);
+}
+
 size_t get_line_count(FILE* file) {
 	char buf[1024] = { 0 };
 	size_t counter = 0;
@@ -307,19 +316,15 @@ size_t get_line_count(FILE* file) {
 }
 
 #ifdef IS_WIN
-wchar_t* str2wstr(const char* str) {
+void str2wstr(const char* str, wchar_t* buf) {
 	size_t length = strlen(str) + 1;
-	wchar_t* wstr = (wchar_t*)xcalloc(length, sizeof(wchar_t));
-	mbstowcs(wstr, str, length);
-	return wstr;
+	mbstowcs(buf, str, length);
 }
 
-char* wstr2str(const wchar_t* wstr) {
+void wstr2str(const wchar_t* wstr, char* buf) {
 	size_t length = wcslen(wstr) + 1;
 	size_t converted = 0;
-	char* str = (char*)xcalloc(length, sizeof(char));
-	wcstombs_s(&converted, str, length, wstr, length - 1);
-	return str;
+	wcstombs_s(&converted, buf, length, wstr, length - 1);
 }
 #endif
 
@@ -333,9 +338,10 @@ list* get_files_list(char* dir, char* extensions) {
 #ifdef IS_WIN
 	WIN32_FIND_DATA filedata;
 	HANDLE handle;
-	char search_path[MAX_PATH];
+	char search_path[MAX_PATH] = { 0 };
 	snprintf(search_path, sizeof(search_path), "%s*.*", dir);
-	wchar_t* wspath = str2wstr(search_path);
+	wchar_t wspath[MAX_PATH] = { 0 };
+	str2wstr(search_path, wspath);
 	handle = FindFirstFile(wspath, &filedata);
 	if (handle == INVALID_HANDLE_VALUE) {
 		if (GetLastError() == ERROR_NO_MORE_FILES) {
@@ -349,6 +355,7 @@ list* get_files_list(char* dir, char* extensions) {
 	}
 	int ret = 1;
 	char fullpath[MAX_PATH] = { 0 };
+	char filename[MAX_PATH] = { 0 };
 	while (1) {
 		if (ret == 0) {
 			if (GetLastError() == ERROR_NO_MORE_FILES) break;
@@ -357,8 +364,10 @@ list* get_files_list(char* dir, char* extensions) {
 			wait_for_key_then_exit();
 		}
 		if (!(filedata.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
-			char* filename = wstr2str(filedata.cFileName);
+			//char* filename = wstr2str(filedata.cFileName);
+			wstr2str(filedata.cFileName, filename);
 			char* ext = strrchr(filename, '.');
+			lower_chars(ext, strlen(ext));
 			if (ext) {
 				for (size_t i = 0; i < tokens_length(exts); i++) {
 					if (strcmp(ext, exts[i]) == 0) {
@@ -372,13 +381,11 @@ list* get_files_list(char* dir, char* extensions) {
 					}
 				}
 			}
-			xfree(filename);
 		}
 		ret = (int)FindNextFile(handle, &filedata);
 	}
-	printf("# of files found: %zu\n", count);
+	//printf("# of files found in %s:\n%zu\n", dir, count);
 	FindClose(handle);
-	xfree(wspath);
 #else  // Unix-based systems
 	struct dirent* entry;
 	DIR* dp = opendir(directory);
@@ -417,9 +424,10 @@ list* get_folders_list(char* dir, int include_path) {
 #ifdef IS_WIN
 	WIN32_FIND_DATA filedata;
 	HANDLE handle;
-	char search_path[MAX_PATH];
-	snprintf(search_path, sizeof(search_path), "%s*", dir);
-	wchar_t* wspath = str2wstr(search_path);
+	char search_path[MAX_PATH] = { 0 };
+	snprintf(search_path, sizeof(search_path), "%s*.*", dir);
+	wchar_t wspath[MAX_PATH] = { 0 };
+	str2wstr(search_path, wspath);
 	handle = FindFirstFile(wspath, &filedata);
 	if (handle == INVALID_HANDLE_VALUE) {
 		if (GetLastError() == ERROR_NO_MORE_FILES) {
@@ -431,6 +439,7 @@ list* get_folders_list(char* dir, int include_path) {
 		printf("\nError Code: %d\n", GetLastError());
 		wait_for_key_then_exit();
 	}
+	char foldername[MAX_PATH] = { 0 };
 	int ret = 1;
 	while (1) {
 		if (ret == 0) {
@@ -440,7 +449,8 @@ list* get_folders_list(char* dir, int include_path) {
 			wait_for_key_then_exit();
 		}
 		if (filedata.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-			char* foldername = wstr2str(filedata.cFileName);
+			//char* foldername = wstr2str(filedata.cFileName);
+			wstr2str(filedata.cFileName, foldername);
 			if (strcmp(foldername, ".") != 0 && strcmp(foldername, "..") != 0) {
 				if (include_path) snprintf(fullpath, sizeof(fullpath), "%s%s", dir, foldername);
 				else strcpy(fullpath, foldername);
@@ -450,7 +460,6 @@ list* get_folders_list(char* dir, int include_path) {
 				list_append(paths, path);
 				count++;
 			}
-			xfree(foldername);
 		}
 		ret = (int)FindNextFile(handle, &filedata);
 	}

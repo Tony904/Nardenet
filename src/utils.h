@@ -39,6 +39,7 @@ extern "C" {
 	int file_exists(char* filename);
 	FILE* get_filestream(char* filename, char* mode);
 	void close_filestream(FILE* filestream);
+	void lower_chars(char* s, size_t length);
 	size_t get_line_count(FILE* file);
 	list* get_files_list(char* dir, char* extensions);
 	list* get_folders_list(char* dir, int include_path);

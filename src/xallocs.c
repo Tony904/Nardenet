@@ -103,16 +103,22 @@ static void print_location_and_exit(const char * const filename, const char * co
 
 void alloc_list_free_node(void* const p) {
     alloc_node* node = alloc_list_pop(p);
-    free(node);
+    if (node) free(node);
 }
 
 alloc_node* alloc_list_get_node(void* const p) {
     alloc_node* node = allocs.first;
-    for (int i = 0; i < allocs.length; i++) {
+    for (size_t i = 0; i < allocs.length; i++) {
         if (node->p == p) return node;
+        if (!node->next) {
+            printf("node->next is null\n");
+            printf(" ");
+        }
         node = node->next;
     }
-    return NULL;
+    printf("Error: allocs list node does not exit.\n");
+    (void)getchar();
+    exit(EXIT_FAILURE);
 }
 
 alloc_node* alloc_list_pop(void* const p) {
