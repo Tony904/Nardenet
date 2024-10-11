@@ -57,7 +57,13 @@ void train_classifer(network* net) {
 			noed = noed->next;
 			n++;
 		}
-		free_list(lst, 0);
+		noed = lst->first;
+		while (noed) {
+			node* next = noed->next;
+			free(noed);
+			noed = next;
+		}
+		free(lst);
 		printf("# of class directories found: %zu\n", net->n_classes);
 	}
 	load_classifier_dataset(&net->data.clsr, train_dir, net->class_names, net->n_classes, "images\\");

@@ -13,6 +13,7 @@ extern "C" {
 	typedef struct list list;
 
 	void list_append(list* lst, void* item);
+	void list_append_calloc(list* lst, void* item);
 	void* list_get_item(list* lst, size_t index);
 	void free_list(list* lst, int free_vals);
 

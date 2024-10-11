@@ -2,6 +2,8 @@
 #include "xallocs.h"
 
 
+node* new_node(void* item);
+
 
 node* new_node(void* item) {
 	node* n = (node*)xcalloc(1, sizeof(node));
@@ -11,6 +13,22 @@ node* new_node(void* item) {
 
 void list_append(list* lst, void* item) {
 	node* n = new_node(item);
+	if (lst->length == 0) {
+		lst->first = n;
+		lst->last = n;
+		lst->length++;
+		return;
+	}
+	lst->last->next = n;
+	n->prev = lst->last;
+	lst->last = n;
+	lst->length++;
+}
+
+void list_append_calloc(list* lst, void* item) {
+	node* n = (node*)calloc(1, sizeof(node));
+	if (!n) exit(EXIT_FAILURE);
+	n->val = item;
 	if (lst->length == 0) {
 		lst->first = n;
 		lst->last = n;

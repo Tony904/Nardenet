@@ -328,13 +328,16 @@ void wstr2str(const wchar_t* wstr, char* buf) {
 }
 #endif
 
-/* extensions are a list of extensions separated by a comma.i.e. ".jpg,.jpeg,.bmp" */
+/* extensions are a list of extensions separated by a comma.i.e. ".jpg,.jpeg,.bmp" 
+NOTE: All allocations are done with calloc, not xcalloc. Do not free with xfree(). */
 list* get_files_list(char* dir, char* extensions) {
-	list* paths = (list*)xcalloc(1, sizeof(list));
+	list* paths = (list*)calloc(1, sizeof(list));
+	if (!paths) exit(EXIT_FAILURE);
 	size_t count = 0;
 	char buff[100];
 	strcpy(buff, extensions);
-	char** exts = split_string(buff, ",");
+	char* exts[100];
+	split_string_to_buff(buff, ",", exts);
 #ifdef IS_WIN
 	WIN32_FIND_DATA filedata;
 	HANDLE handle;
@@ -346,7 +349,7 @@ list* get_files_list(char* dir, char* extensions) {
 	if (handle == INVALID_HANDLE_VALUE) {
 		if (GetLastError() == ERROR_NO_MORE_FILES) {
 			printf("No files found with extension %s in directory %s\n", extensions, dir);
-			xfree(paths);
+			free(paths);
 			return (list*)0;
 		}
 		printf("Unexpected error occured while searching for first file in directory %s\nDirectory may be empty or does not exist.", dir);
@@ -373,9 +376,10 @@ list* get_files_list(char* dir, char* extensions) {
 					if (strcmp(ext, exts[i]) == 0) {
 						snprintf(fullpath, sizeof(fullpath), "%s%s", dir, filename);
 						size_t length = strlen(fullpath);
-						char* path = (char*)xcalloc(length + 1, sizeof(char));
+						char* path = (char*)calloc(length + 1, sizeof(char));
+						if (!path) exit(EXIT_FAILURE);
 						strcpy(path, fullpath);
-						list_append(paths, path);
+						list_append_calloc(paths, path);
 						count++;
 						break;
 					}
@@ -402,9 +406,10 @@ list* get_files_list(char* dir, char* extensions) {
 			if (strcmp(ext1, ext2) == 0) {
 				printf("%s\n", (char*)filename);
 				size_t length = strlen(filename);
-				char* path = (char*)xcalloc(length + 1, sizeof(char));
+				char* path = (char*)calloc(length + 1, sizeof(char));
+				if (!path) exit(EXIT_FAILURE);
 				strcpy(path, filename);
-				list_append(paths, path);
+				list_append_calloc(paths, path);
 				count++;
 				break;
 			}
@@ -413,12 +418,12 @@ list* get_files_list(char* dir, char* extensions) {
 	printf("# of files found: %zu\n", count);
 	closedir(dp);
 #endif
-	xfree(exts);
 	return paths;
 }
 
 list* get_folders_list(char* dir, int include_path) {
-	list* paths = (list*)xcalloc(1, sizeof(list));
+	list* paths = (list*)calloc(1, sizeof(list));
+	if (!paths) exit(EXIT_FAILURE);
 	size_t count = 0;
 	char fullpath[MAX_PATH] = { 0 };
 #ifdef IS_WIN
@@ -432,7 +437,7 @@ list* get_folders_list(char* dir, int include_path) {
 	if (handle == INVALID_HANDLE_VALUE) {
 		if (GetLastError() == ERROR_NO_MORE_FILES) {
 			printf("No items found in directory %s\n", dir);
-			xfree(paths);
+			free(paths);
 			return (list*)0;
 		}
 		printf("Unexpected error occured while searching for first item in directory %s\nDirectory may be empty or does not exist.", dir);
@@ -455,9 +460,10 @@ list* get_folders_list(char* dir, int include_path) {
 				if (include_path) snprintf(fullpath, sizeof(fullpath), "%s%s", dir, foldername);
 				else strcpy(fullpath, foldername);
 				size_t length = strlen(fullpath);
-				char* path = (char*)xcalloc(length + 1, sizeof(char));
+				char* path = (char*)calloc(length + 1, sizeof(char));
+				if (!path) exit(EXIT_FAILURE);
 				strcpy(path, fullpath);
-				list_append(paths, path);
+				list_append_calloc(paths, path);
 				count++;
 			}
 		}
@@ -465,7 +471,6 @@ list* get_folders_list(char* dir, int include_path) {
 	}
 	printf("# of folders found: %zu\n", count);
 	FindClose(handle);
-	xfree(wspath);
 #else  // Unix-based systems
 	struct dirent* entry;
 	DIR* dp = opendir(dir);

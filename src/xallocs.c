@@ -3,6 +3,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+#include <omp.h>
+
+
 
 #pragma warning(disable : 4996)
 
@@ -29,6 +32,7 @@ typedef struct alloc_list {
 } alloc_list;
 
 static alloc_list allocs = { 0 };
+static omp_lock_t xallocs_lock;
 static void print_location_and_exit(const char* const filename, const char* const funcname, const int line);
 
 void alloc_list_free_node(void* const p);
@@ -39,58 +43,62 @@ alloc_node* new_alloc_node(void* const p, size_t n, size_t s, const char* const 
 void alloc_node_set_location_members(alloc_node* node, const char* const filename, const char* const funcname, const int line);
 
 
+
 #pragma warning (suppress: 4715)  // Not all control paths return a value. (because one exits the program)
 void* zz_xcalloc(const size_t num_elements, size_t size_per_element, const char * const filename, const char * const funcname, const int line) {
+    omp_set_lock(&xallocs_lock);
     void* p = calloc(num_elements, size_per_element);
     if (!p) {
         fprintf(stderr, "Failed to calloc %zu * %zu bytes.\n", num_elements, size_per_element);
         print_location_and_exit(filename, funcname, line);
     }
-    else {
-        alloc_node* node = new_alloc_node((void* const)p, num_elements, size_per_element, filename, funcname, line);
-        alloc_list_append(node);
-        return p;
-    }
+    alloc_node* node = new_alloc_node((void* const)p, num_elements, size_per_element, filename, funcname, line);
+    alloc_list_append(node);
+    omp_unset_lock(&xallocs_lock);
+    return p;
 }
 
 void* zz_xmalloc(const size_t num_bytes, const char * const filename, const char * const funcname, const int line) {
+    omp_set_lock(&xallocs_lock);
     void* p = malloc(num_bytes);
     if (!p) {
         fprintf(stderr, "Failed to malloc %zu bytes.\n", num_bytes);
         print_location_and_exit(filename, funcname, line);
-        return NULL;
     }
-    else {
-        alloc_node* node = new_alloc_node((void* const)p, 1, num_bytes, filename, funcname, line);
-        alloc_list_append(node);
-        return p;
-    }
+    alloc_node* node = new_alloc_node((void* const)p, 1, num_bytes, filename, funcname, line);
+    alloc_list_append(node);
+    omp_unset_lock(&xallocs_lock);
+    return p;
 }
 
 void* zz_xrealloc(void* existing_mem, const size_t new_num_bytes, const char * const filename, const char * const funcname, const int line) {
+    omp_set_lock(&xallocs_lock);
     void* x = existing_mem;
     void* p = realloc(existing_mem, new_num_bytes);
     if (!p) {
         fprintf(stderr, "Failed to realloc %zu bytes.", new_num_bytes);
         print_location_and_exit(filename, funcname, line);
-        return NULL;
     }
-    else {
-        alloc_node* node = alloc_list_get_node(x);
-        node->p = p;
-        node->n_elements = 1;
-        node->element_size = new_num_bytes;
-        alloc_node_set_location_members(node, filename, funcname, line);
-        return p;
-    }
+    alloc_node* node = alloc_list_get_node(x);
+    node->p = p;
+    node->n_elements = 1;
+    node->element_size = new_num_bytes;
+    alloc_node_set_location_members(node, filename, funcname, line);
+    omp_unset_lock(&xallocs_lock);
+    return p;
 }
 
 #pragma warning(suppress: 4100)  // C4100: Unused parameter(s).
 void zz_xfree(void* ptr, const char* const filename, const char* const funcname, const int line) {
+    omp_set_lock(&xallocs_lock);
     //print_location_and_exit(filename, funcname, line);
-    if (!ptr) return;
+    if (!ptr) {
+        omp_unset_lock(&xallocs_lock); 
+        return;
+    }
     alloc_list_free_node((void* const)ptr);
     free(ptr);
+    omp_unset_lock(&xallocs_lock);
 }
 
 static void print_location_and_exit(const char * const filename, const char * const funcname, const int line) {
@@ -110,13 +118,9 @@ alloc_node* alloc_list_get_node(void* const p) {
     alloc_node* node = allocs.first;
     for (size_t i = 0; i < allocs.length; i++) {
         if (node->p == p) return node;
-        if (!node->next) {
-            printf("node->next is null\n");
-            printf(" ");
-        }
         node = node->next;
     }
-    printf("Error: allocs list node does not exit.\n");
+    printf("\nError: allocs list node does not exit.\n");
     (void)getchar();
     exit(EXIT_FAILURE);
 }
@@ -189,6 +193,10 @@ void alloc_node_set_location_members(alloc_node* node, const char* const filenam
     if (length > ARRSIZE - 1) start = length - ARRSIZE - 1;
     strcpy(node->funcname, &funcname[start]);
     node->line = line;
+}
+
+void initialize_xallocs_lock(void) {
+    omp_init_lock(&xallocs_lock);
 }
 
 void print_alloc_list(void) {

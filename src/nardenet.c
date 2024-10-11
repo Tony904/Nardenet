@@ -9,6 +9,7 @@
 
 int main(void) {
 
+	initialize_xallocs_lock();
 	srand(7777777);
 	char* cfgfile = "D:\\TonyDev\\Nardenet\\cfg\\nardenet-yolov4-tiny-classifier-tiny-imagenet.cfg";
 	network* net = create_network_from_cfg(cfgfile);
