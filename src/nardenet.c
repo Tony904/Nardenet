@@ -31,7 +31,7 @@ BUGS:
 CHANGES:
 
 IN PROGRESS:
- learning rate policies: step, cyclic rates
+ learning rate policies: cyclic rate
  setting up yolov4 tiny classifier backbone to train on imagenet and then
 	use the weights to train an object detector.
 
