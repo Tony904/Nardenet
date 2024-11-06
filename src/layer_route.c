@@ -4,23 +4,21 @@
 
 
 void forward_route(layer* l, network* net) {
-	size_t n = l->out_n * net->batch_size;
+	size_t batch_size = net->batch_size;
 	float* Z = l->Z;
-	float* inl0_output = l->in_layers[0]->output;
-	size_t i;
-#pragma omp parallel for
-	for (i = 0; i < n; i++) {
-		Z[i] = inl0_output[i];
-	}
-	for (size_t a = 1; a < l->in_ids.n; a++) {
+	for (size_t a = 0; a < l->in_ids.n; a++) {
 		float* inl_output = l->in_layers[a]->output;
+		size_t inl_out_n = l->in_layers[a]->out_n * batch_size;
+		size_t i;
 #pragma omp parallel for
-		for (i = 0; i < n; i++) {
-			Z[i] += inl_output[i];
+		for (i = 0; i < inl_out_n; i++) {
+			Z[i] = inl_output[i];
 		}
+		Z += inl_out_n;
 	}
+	Z = l->Z;
 	if (l->activation) l->activate(Z, l->output, l->out_n, net->batch_size);
-	if (net->training) zero_array(l->grads, n);
+	if (net->training) zero_array(l->grads, l->out_n * batch_size);
 }
 
 void backward_route(layer* l, network* net) {
@@ -38,13 +36,14 @@ void backward_route(layer* l, network* net) {
 			wait_for_key_then_exit();
 		}
 	}
-	size_t N = batch_size * l->out_n;
 	for (size_t a = 0; a < l->in_ids.n; a++) {
 		float* inl_grads = l->in_layers[a]->grads;
+		size_t inl_out_n = l->in_layers[a]->out_n * batch_size;
 		size_t i;
 #pragma omp parallel for
-		for (i = 0; i < N; i++) {
-			inl_grads[i] += grads[i];
+		for (i = 0; i < inl_out_n; i++) {
+			inl_grads[i] = grads[i];
 		}
+		grads += inl_out_n;
 	}
 }
