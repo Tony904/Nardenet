@@ -157,6 +157,19 @@ void copy_to_cfg(cfg* c, char** tokens, char* header) {
 		else if (strcmp(k, "step_scaling") == 0) {
 			c->step_scaling = tokens2floatarr(tokens, 1);
 		}
+		else if (strcmp(k, "coswr_frequency") == 0) {
+			c->coswr_frequency = str2sizet(tokens[1]);
+			if (c->coswr_multi == 0.0F) c->coswr_multi = 1.0F;
+		}
+		else if (strcmp(k, "coswr_multi") == 0) {
+			c->coswr_multi = str2float(tokens[1]);
+		}
+		else if (strcmp(k, "exp_decay") == 0) {
+			c->exp_decay = str2float(tokens[1]);
+		}
+		else if (strcmp(k, "poly_pow") == 0) {
+			c->poly_pow = str2float(tokens[1]);
+		}
 		else if (strcmp(k, "ease_in") == 0) {
 			c->ease_in = str2sizet(tokens[1]);
 		}

@@ -31,15 +31,15 @@ BUGS:
 CHANGES:
 
 IN PROGRESS:
- learning rate policies: cyclic rate
+ learning rate policies
  setting up yolov4 tiny classifier backbone to train on imagenet and then
 	use the weights to train an object detector.
 
 PHASE 1:
- learning rate policies: step, adam, adagrad, rmsprop, cyclic rates maybe
+ learning rate policies: step, adam, adagrad, rmsprop
  object detection
  data augmentation:
-	mosaic, rotation (classifier only), jitter
+	mosaic, rotation & flip (classifier only), jitter
  swish activation
  ema for last X iterations (ema = exponential moving average)
 
