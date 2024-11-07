@@ -18,6 +18,7 @@ void update_current_learning_rate(network* net, size_t iteration);
 
 
 #define MAX_DIR_PATH _MAX_PATH - 5
+#define NARDE_PI 3.1415927F
 
 
 void train(network* net) {
@@ -158,6 +159,21 @@ void update_current_learning_rate(network* net, size_t iteration) {
 	for (size_t n = 0; n < net->step_percents.n; n++) {
 		if (iteration >= net->step_percents.a[n] * max_iterations) rate *= net->step_scaling.a[n];
 		else break;
+	}
+	if (net->coswr_frequency) {
+		size_t freq = net->coswr_frequency;
+		size_t t = iteration;
+		while (t >= freq) {
+			t -= freq;
+			freq *= net->coswr_multi;
+		}
+		rate *= (1.0F + cosf(NARDE_PI * (float)t / (float)freq)) * 0.5F;
+	}
+	if (net->exp_decay > 0.0F) {
+		rate *= expf(-net->exp_decay * (float)iteration);
+	}
+	if (net->poly_pow > 0.0F) {
+		rate *= powf((1.0F - ((float)iteration / (float)net->max_iterations)), net->poly_pow);
 	}
 	if (iteration < ease_in) rate *= powf((float)iteration / (float)ease_in, 4.0F);
 	net->current_learning_rate = rate / (float)net->batch_size;

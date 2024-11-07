@@ -80,6 +80,10 @@ extern "C" {
         LR_POLICY lr_policy;
         floatarr step_percents;
         floatarr step_scaling;
+        size_t coswr_frequency;
+        float coswr_multi;
+        float exp_decay;
+        float poly_pow;
         size_t ease_in;
         float momentum;
 
@@ -214,7 +218,10 @@ extern "C" {
     } LAYER_TYPE;
 
     typedef enum LR_POLICY {
-        LR_STEPS
+        LR_STEPS,
+        LR_EXPONENTIAL,
+        LR_POLYNOMIAL,
+        LR_COSWR
     } LR_POLICY;
 
     typedef enum ACTIVATION {
