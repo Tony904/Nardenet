@@ -45,7 +45,7 @@ void alloc_node_set_location_members(alloc_node* node, const char* const filenam
 
 
 #pragma warning (suppress: 4715)  // Not all control paths return a value. (because one exits the program)
-void* zz_xcalloc(const size_t num_elements, size_t size_per_element, const char * const filename, const char * const funcname, const int line) {
+void* ___xcalloc(const size_t num_elements, size_t size_per_element, const char * const filename, const char * const funcname, const int line) {
     omp_set_lock(&xallocs_lock);
     void* p = calloc(num_elements, size_per_element);
     if (!p) {
@@ -58,7 +58,7 @@ void* zz_xcalloc(const size_t num_elements, size_t size_per_element, const char 
     return p;
 }
 
-void* zz_xmalloc(const size_t num_bytes, const char * const filename, const char * const funcname, const int line) {
+void* ___xmalloc(const size_t num_bytes, const char * const filename, const char * const funcname, const int line) {
     omp_set_lock(&xallocs_lock);
     void* p = malloc(num_bytes);
     if (!p) {
@@ -71,7 +71,7 @@ void* zz_xmalloc(const size_t num_bytes, const char * const filename, const char
     return p;
 }
 
-void* zz_xrealloc(void* existing_mem, const size_t new_num_bytes, const char * const filename, const char * const funcname, const int line) {
+void* ___xrealloc(void* existing_mem, const size_t new_num_bytes, const char * const filename, const char * const funcname, const int line) {
     omp_set_lock(&xallocs_lock);
     void* x = existing_mem;
     void* p = realloc(existing_mem, new_num_bytes);
@@ -89,7 +89,7 @@ void* zz_xrealloc(void* existing_mem, const size_t new_num_bytes, const char * c
 }
 
 #pragma warning(suppress: 4100)  // C4100: Unused parameter(s).
-void zz_xfree(void* ptr, const char* const filename, const char* const funcname, const int line) {
+void ___xfree(void* ptr, const char* const filename, const char* const funcname, const int line) {
     omp_set_lock(&xallocs_lock);
     //print_location_and_exit(filename, funcname, line);
     if (!ptr) {

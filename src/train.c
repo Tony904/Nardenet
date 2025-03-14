@@ -153,29 +153,30 @@ void initialize_weights_kaiming(network* net) {
 }
 
 void update_current_learning_rate(network* net, size_t iteration) {
-	size_t ease_in = net->ease_in;
+	float iter = (float)iteration;
+	float ease_in = (float)net->ease_in;
 	float rate = net->learning_rate;
 	float max_iterations = (float)net->max_iterations;
 	for (size_t n = 0; n < net->step_percents.n; n++) {
-		if (iteration >= net->step_percents.a[n] * max_iterations) rate *= net->step_scaling.a[n];
+		if (iter >= net->step_percents.a[n] * max_iterations) rate *= net->step_scaling.a[n];
 		else break;
 	}
 	if (net->coswr_frequency) {
-		size_t freq = net->coswr_frequency;
-		size_t t = iteration;
+		float freq = (float)net->coswr_frequency;
+		float t = iter;
 		while (t >= freq) {
 			t -= freq;
 			freq *= net->coswr_multi;
 		}
-		rate *= (1.0F + cosf(NARDE_PI * (float)t / (float)freq)) * 0.5F;
+		rate *= (1.0F + cosf(NARDE_PI * t / freq)) * 0.5F;
 	}
 	if (net->exp_decay > 0.0F) {
-		rate *= expf(-net->exp_decay * (float)iteration);
+		rate *= expf(-net->exp_decay * iter);
 	}
 	if (net->poly_pow > 0.0F) {
-		rate *= powf((1.0F - ((float)iteration / (float)net->max_iterations)), net->poly_pow);
+		rate *= powf((1.0F - (iter / max_iterations)), net->poly_pow);
 	}
-	if (iteration < ease_in) rate *= powf((float)iteration / (float)ease_in, 4.0F);
+	if (iter < ease_in) rate *= powf(iter / ease_in, 4.0F);
 	net->current_learning_rate = rate / (float)net->batch_size;
 }
 

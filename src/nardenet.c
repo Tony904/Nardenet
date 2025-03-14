@@ -7,6 +7,7 @@
 #include "xallocs.h"
 
 
+
 int main(void) {
 
 	initialize_xallocs_lock();
@@ -14,7 +15,6 @@ int main(void) {
 	char* cfgfile = "D:\\TonyDev\\Nardenet\\cfg\\nardenet-yolov4-tiny-classifier-tiny-imagenet.cfg";
 	network* net = create_network_from_cfg(cfgfile);
 	train(net);
-
 
 	//free_network(net);
 	//print_alloc_list();
@@ -36,7 +36,7 @@ IN PROGRESS:
 	use the weights to train an object detector.
 
 PHASE 1:
- learning rate policies: step, adam, adagrad, rmsprop
+ learning rate policies: adam, adagrad, rmsprop
  object detection
  data augmentation:
 	mosaic, rotation & flip (classifier only), jitter

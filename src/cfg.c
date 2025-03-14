@@ -270,6 +270,9 @@ void copy_cfg_to_network(cfg* cfig, network* net) {
 	net->lr_policy = cfig->lr_policy;
 	net->step_percents = cfig->step_percents;
 	net->step_scaling = cfig->step_scaling;
+	net->poly_pow = cfig->poly_pow;
+	net->coswr_frequency = cfig->coswr_frequency;
+	net->coswr_multi = cfig->coswr_multi;
 	net->ease_in = cfig->ease_in;
 	net->momentum = cfig->momentum;
 	net->regularization = cfig->regularization;
@@ -450,6 +453,12 @@ REGULARIZATION str2regularization(char* str) {
 LR_POLICY str2lr_policy(char* str) {
 	if (strcmp(str, "steps") == 0) {
 		return LR_STEPS;
+	}
+	if (strcmp(str, "poly") == 0) {
+		return LR_POLYNOMIAL;
+	}
+	if (strcmp(str, "exp") == 0) {
+		return LR_EXPONENTIAL;
 	}
 	fprintf(stderr, "Error: No valid policy named %s.\n", str);
 	exit(EXIT_FAILURE);

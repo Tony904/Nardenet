@@ -644,7 +644,7 @@ static void print_location_and_exit(const char* const filename, const char* cons
 	exit(EXIT_FAILURE);
 }
 
-int zz_str2int(char* str, const char* const filename, const char* const funcname, const int line) {
+int ___str2int(char* str, const char* const filename, const char* const funcname, const int line) {
 	errno = 0;
 	char* p;
 	int ret = (int)strtol(str, &p, 10);
@@ -661,7 +661,7 @@ int zz_str2int(char* str, const char* const filename, const char* const funcname
 	return ret;
 }
 
-size_t zz_str2sizet(char* str, const char* const filename, const char* const funcname, const int line) {
+size_t ___str2sizet(char* str, const char* const filename, const char* const funcname, const int line) {
 	errno = 0;
 	char* p;
 	size_t ret = (size_t)strtoumax(str, &p, 10);
@@ -678,7 +678,7 @@ size_t zz_str2sizet(char* str, const char* const filename, const char* const fun
 	return ret;
 }
 
-float zz_str2float(char* str, const char* const filename, const char* const funcname, const int line) {
+float ___str2float(char* str, const char* const filename, const char* const funcname, const int line) {
 	errno = 0;
 	char* p;
 	float ret = strtof(str, &p);
