@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include "locmacro.h"
 #include <cuda_runtime.h>
+#include <device_launch_parameters.h>
 #include <cudnn.h>
 #include <cudnn_backend.h>
 
