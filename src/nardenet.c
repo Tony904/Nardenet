@@ -5,16 +5,19 @@
 #include "image.h"
 #include "xopencv.h"
 #include "xallocs.h"
+#include "xcuda.h"
 
 
 
 int main(void) {
 
-	initialize_xallocs_lock();
+	/*initialize_xallocs_lock();
 	srand(7777777);
 	char* cfgfile = "D:\\TonyDev\\Nardenet\\cfg\\nardenet-yolov4-tiny-classifier-tiny-imagenet.cfg";
 	network* net = create_network_from_cfg(cfgfile);
-	train(net);
+	train(net);*/
+
+	test_cuda();
 
 	//free_network(net);
 	//print_alloc_list();

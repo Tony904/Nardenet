@@ -6,8 +6,7 @@
 #include "locmacro.h"
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
-#include <cudnn.h>
-#include <cudnn_backend.h>
+
 
 #ifndef __TIME__
 #define __TIME__
@@ -19,11 +18,10 @@ extern "C" {
 
 
 	void ___check_cuda(cudaError_t x, const char* const filename, const char* const funcname, const int line, const char* time);
-	void ___check_cudnn(cudnnStatus_t x, const char* const filename, const char* const funcname, const int line, const char* time);
-
 
 #define CHECK_CUDA(x) ___check_cuda(x, NARDENET_LOCATION, " - " __TIME__);
-#define CHECK_CUDNN(x) ___check_cudnn(x, NARDENET_LOCATION, " - " __TIME__);
+
+	void test_cuda(void);
 
 
 #ifdef __cplusplus
