@@ -55,7 +55,7 @@ extern "C" {
 	void pprint_mat_batch(float* data, size_t width, size_t height, size_t channels, size_t batch_size);
 	void wait_for_key_then_exit(void);
 
-#ifdef _cplusplus
+#ifdef __cplusplus
 }
 #endif
 #endif

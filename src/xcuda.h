@@ -3,9 +3,9 @@
 
 
 #include <stdlib.h>
-#include "locmacro.h"
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
+#include "locmacro.h"
 
 
 #ifndef __TIME__
@@ -21,7 +21,10 @@ extern "C" {
 
 #define CHECK_CUDA(x) ___check_cuda(x, NARDENET_LOCATION, " - " __TIME__);
 
-	void test_cuda(void);
+	/*void test_cuda(void);*/
+	void cuda_test_im2col(void);
+	void cuda_test_im2col_shared(void);
+	void print_gpu_props(void);
 
 
 #ifdef __cplusplus

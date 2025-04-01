@@ -17,7 +17,9 @@ int main(void) {
 	network* net = create_network_from_cfg(cfgfile);
 	train(net);*/
 
-	test_cuda();
+	cuda_test_im2col();
+	cuda_test_im2col_shared();
+	print_gpu_props();
 
 	//free_network(net);
 	//print_alloc_list();
