@@ -17,8 +17,8 @@ int main(void) {
 	network* net = create_network_from_cfg(cfgfile);
 	train(net);*/
 
-	cuda_test_im2col();
-	cuda_test_im2col_shared();
+	cuda_test_col2im();
+
 	print_gpu_props();
 
 	//free_network(net);
@@ -36,6 +36,27 @@ BUGS:
 CHANGES:
 
 IN PROGRESS:
+ GPU support:
+	- im2col (done)
+	- col2im (done)
+	- gemm (look into fused axpy)
+		- tranposes
+	- activations
+	- batchnorm
+	- loss
+	- training param data copies
+	- derivatives
+	- loading training images?
+	- data augmentation
+	- l1/l2 normalizations
+	- residual layer adds
+	- route layer copies?
+	- avgpool
+	- maxpool
+	- upsample
+	- classification
+	- object detection prediction stuff
+
  learning rate policies
  setting up yolov4 tiny classifier backbone to train on imagenet and then
 	use the weights to train an object detector.
