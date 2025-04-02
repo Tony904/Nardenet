@@ -225,7 +225,7 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <CudaCompile Include="src\kernels.cu">
+    <CudaCompile Include="src\im2col.cu">
       <Filter>Source Files</Filter>
     </CudaCompile>
   </ItemGroup>
