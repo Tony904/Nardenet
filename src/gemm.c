@@ -45,13 +45,13 @@ void gemm_groups(size_t M, size_t N, size_t K, float* A, float* B, float* C, siz
 	size_t MK = M * K;
 	size_t MN = M * N;
 	size_t NK = N * K;
-	size_t g;
-#pragma omp parallel for firstprivate(MK, MN, NK)
-	for (g = 0; g < n_groups; g++) {
+	for (size_t g = 0; g < n_groups; g++) {
 		size_t gMK = g * MK;
 		size_t gMN = g * MN;
 		size_t gNK = g * NK;
-		for (size_t m = 0; m < M; m++) {
+		size_t m;
+#pragma omp parallel for
+		for (m = 0; m < M; m++) {
 			size_t gMNmN = gMN + m * N;
 			size_t gMKmK = gMK + m * K;
 			for (size_t k = 0; k < K; k++) {

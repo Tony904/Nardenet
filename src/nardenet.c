@@ -17,10 +17,10 @@ int main(void) {
 	network* net = create_network_from_cfg(cfgfile);
 	train(net);*/
 
+	cuda_test_gemm();
 	//cuda_test_col2im();
 	//cuda_test_im2col();
-	cuda_test_im2col_shared_custom();
-	cuda_test_im2col_shared_claude();
+
 	//print_gpu_props();
 
 	//free_network(net);

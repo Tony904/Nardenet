@@ -21,10 +21,10 @@ extern "C" {
 
 #define CHECK_CUDA(x) ___check_cuda(x, NARDENET_LOCATION, " - " __TIME__);
 
-	void cuda_test_im2col(void);
+	void cuda_test_im2col_no_share(void);
 	void cuda_test_im2col_shared(void);
-	void cuda_test_im2col_shared_claude(void);
-	void cuda_test_im2col_shared_custom(void);
+	void cuda_test_gemm(void);
+
 	void cuda_test_col2im(void);
 	void print_gpu_props(void);
 
