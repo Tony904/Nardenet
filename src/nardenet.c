@@ -6,20 +6,22 @@
 #include "xopencv.h"
 #include "xallocs.h"
 #include "xcuda.h"
+#include "gemm.h"
 
 
 
 int main(void) {
 
-	/*initialize_xallocs_lock();
+	/*activate_xalloc_tracking();
 	srand(7777777);
 	char* cfgfile = "D:\\TonyDev\\Nardenet\\cfg\\nardenet-yolov4-tiny-classifier-tiny-imagenet.cfg";
 	network* net = create_network_from_cfg(cfgfile);
 	train(net);*/
 
 	cuda_test_gemm();
+	//cuda_test_gemm();
 	//cuda_test_col2im();
-	//cuda_test_im2col();
+	//cuda_test_im2col_shared();
 
 	//print_gpu_props();
 
@@ -42,12 +44,11 @@ IN PROGRESS:
 	- im2col (done)
 	- col2im (done)
 	- gemm (look into fused axpy)
-		- tranposes
+		- transposes
 	- activations
 	- batchnorm
 	- loss
 	- training param data copies
-	- derivatives
 	- loading training images?
 	- data augmentation
 	- l1/l2 normalizations

@@ -100,13 +100,13 @@ void gemm_atb_groups(size_t M, size_t N, size_t K, float* A, float* B, float* C,
 	size_t MN = M * N;
 	size_t NK = N * K;
 	size_t MK = M * K;
-	size_t g;
-#pragma omp parallel for firstprivate(MN, NK, MK)
-	for (g = 0; g < n_groups; g++) {
+	for (size_t g = 0; g < n_groups; g++) {
 		size_t gMN = g * MN;
 		size_t gNK = g * NK;
 		size_t gMK = g * MK;
-		for (size_t m = 0; m < M; m++) {
+		size_t m;
+#pragma omp parallel for firstprivate(K, N, gMN, gNK, gMK)
+		for (m = 0; m < M; m++) {
 			size_t gMKmK = gMK + m * K;
 			size_t gMNmN = gMN + m * N;
 			for (size_t k = 0; k < K; k++) {
@@ -155,16 +155,16 @@ void gemm_tab_groups(size_t M, size_t N, size_t K, float* A, float* B, float* C,
 	size_t MN = M * N;
 	size_t NK = N * K;
 	size_t MK = M * K;
-	size_t g;
-#pragma omp parallel for firstprivate(MN, NK, MK)
-	for (g = 0; g < n_groups; g++) {
+	for (size_t g = 0; g < n_groups; g++) {
 		size_t gMN = g * MN;
 		size_t gNK = g * NK;
 		size_t gMK = g * MK;
 		for (size_t m = 0; m < M; m++) {
 			size_t gMNmN = gMN + m * N;
 			size_t gMKmK = gMK + m * K;
-			for (size_t n = 0; n < N; n++) {
+			size_t n;
+#pragma omp parallel for firstprivate(K, gNK, gMNmN, gMKmK)
+			for (n = 0; n < N; n++) {
 				float a = A[gMNmN + n];
 				size_t gNKnK = gNK + n * K;
 				for (size_t k = 0; k < K; k++) {
@@ -228,16 +228,16 @@ void test_gemm_groups(void) {
 	float* A = (float*)xcalloc((size_t)(M * K / n_groups), sizeof(float));
 	float* B = (float*)xcalloc((size_t)(N * K), sizeof(float));
 	float* C = (float*)xcalloc((size_t)(M * N), sizeof(float));
-	for (size_t i = 0; i < M * K; i++) {
+	for (size_t i = 0; i < M * K / n_groups; i++) {
 		A[i] = (float)(i + 1);
 	}
-	print_test_matrix(M, K / n_groups, 1, A);
+	print_test_matrix(M / n_groups, K / n_groups, n_groups, A);
 	for (size_t i = 0; i < N * K; i++) {
 		B[i] = (float)(i + 2);
 	}
-	print_test_matrix(K, N, 1, B);
+	print_test_matrix(K / n_groups, N, n_groups, B);
 	gemm_groups(M, N, K, A, B, C, n_groups);
-	print_test_matrix(M, N, 1, C);
+	print_test_matrix(M / n_groups, N, n_groups, C);
 }
 
 void test_gemm_atb(void) {

@@ -24,6 +24,8 @@ extern "C" {
 	void cuda_test_im2col_no_share(void);
 	void cuda_test_im2col_shared(void);
 	void cuda_test_gemm(void);
+	void cuda_test_gemm_atb(void);
+	void cuda_test_gemm_tab(void);
 
 	void cuda_test_col2im(void);
 	void print_gpu_props(void);

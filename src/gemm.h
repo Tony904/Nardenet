@@ -26,6 +26,8 @@ extern "C" {
 	/*M = # of filters, K = out_w * out_h*/
 	void get_bias_grads(float* bias_grads, float* grads, size_t M, size_t K, size_t batch_size);
 
+	void test_gemm_groups(void);
+
 #ifdef __cplusplus
 }
 #endif

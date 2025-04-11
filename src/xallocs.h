@@ -14,7 +14,7 @@ extern "C" {
 	void* ___xmalloc(const size_t num_bytes, const char * filename, const char * const funcname, const int line);
 	void* ___xrealloc(void* existing_mem, const size_t new_num_bytes, const char * const filename, const char * const funcname, const int line);
 	void ___xfree(void* ptr, const char* const filename, const char* const funcname, const int line);
-	void initialize_xallocs_lock(void);
+	void activate_xalloc_tracking(void);
 
 	#define xcalloc(n, s) ___xcalloc(n, s, NARDENET_LOCATION)
 	#define xmalloc(ns) ___xmalloc(ns, NARDENET_LOCATION)
