@@ -193,7 +193,7 @@ void build_conv_layer(int i, network* net) {
 	l->bias_grads = (float*)xcalloc(l->n_filters, sizeof(float));
 	l->weights_velocity = (float*)xcalloc(l->weights.n, sizeof(float));
 	l->biases_velocity = (float*)xcalloc(l->n_filters, sizeof(float));
-	if (l->batch_norm) {
+	if (l->batchnorm) {
 		l->Z_norm = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 		l->act_inputs = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 		l->means = (float*)xcalloc(l->out_c, sizeof(float));
@@ -278,7 +278,7 @@ void build_fc_layer(int i, network* net) {
 	l->bias_grads = (float*)xcalloc(l->n_filters, sizeof(float));
 	l->weights_velocity = (float*)xcalloc(l->weights.n, sizeof(float));
 	l->biases_velocity = (float*)xcalloc(l->n_filters, sizeof(float));
-	if (l->batch_norm) {
+	if (l->batchnorm) {
 		l->Z_norm = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 		l->act_inputs = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 		l->means = (float*)xcalloc(l->out_c, sizeof(float));
@@ -929,7 +929,7 @@ size_t get_train_params_count(network* net) {
 size_t get_layer_param_count(layer* l) {
 	size_t N = l->weights.n;
 	N += l->n_filters;  // # of biases
-	if (l->batch_norm) N += l->out_c * 3;  // gammas, rolling means & variances
+	if (l->batchnorm) N += l->out_c * 3;  // gammas, rolling means & variances
 	return N;
 }
 
@@ -985,7 +985,7 @@ void print_layer_conv(layer* l) {
 	print_layertype(l->type);
 	printf("activation: ");
 	print_activation(l->activation);
-	printf("batch_norm: %d\n", l->batch_norm);
+	printf("batchnorm: %d\n", l->batchnorm);
 	printf("w, h, c: %zu, %zu, %zu\n", l->w, l->h, l->c);
 	printf("n_filters: %zu\n", l->n_filters);
 	printf("ksize: %zu\n", l->ksize);

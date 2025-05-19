@@ -55,7 +55,7 @@ void save_state(network* net) {
 		total_vals += write_floats(l->biases, l->n_filters, file, "biases", id);
 		total_vals += write_floats(l->weights_velocity, l->weights.n, file, "weights_velocity", id);
 		total_vals += write_floats(l->biases_velocity, l->n_filters, file, "biases_velocity", id);
-		if (l->batch_norm) {
+		if (l->batchnorm) {
 			total_vals += write_floats(l->gammas, l->n_filters, file, "gammas", id);
 			total_vals += write_floats(l->rolling_means, l->n_filters, file, "rolling_means", id);
 			total_vals += write_floats(l->rolling_variances, l->n_filters, file, "rolling_variances", id);
@@ -138,7 +138,7 @@ void load_state(network* net) {
 		total_vals += read_floats(l->biases, l->n_filters, file, "biases", id);
 		total_vals += read_floats(l->weights_velocity, l->weights.n, file, "weights_velocity", id);
 		total_vals += read_floats(l->biases_velocity, l->n_filters, file, "biases_velocity", id);
-		if (l->batch_norm) {
+		if (l->batchnorm) {
 			total_vals += read_floats(l->gammas, l->n_filters, file, "gammas", id);
 			total_vals += read_floats(l->rolling_means, l->n_filters, file, "rolling_means", id);
 			total_vals += read_floats(l->rolling_variances, l->n_filters, file, "rolling_variances", id);

@@ -6,7 +6,7 @@
 #define MAX_FILTERS 10240
 
 
-void forward_batch_norm(layer* l, size_t batch_size) {
+void forward_batchnorm(layer* l, size_t batch_size) {
 	float* Z = l->Z;
 	float* Z_norm = l->Z_norm;
 	float* act_inputs = l->act_inputs;
@@ -70,7 +70,7 @@ void forward_batch_norm(layer* l, size_t batch_size) {
 	}
 }
 
-void backward_batch_norm(layer* l, size_t batch_size) {
+void backward_batchnorm(layer* l, size_t batch_size) {
 	float* grads = l->grads;
 	float* Z = l->Z;
 	float* Z_norm = l->Z_norm;

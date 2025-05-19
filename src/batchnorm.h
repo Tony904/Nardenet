@@ -7,8 +7,8 @@
 extern "C" {
 #endif
 
-	void forward_batch_norm(layer* l, size_t batch_size);
-	void backward_batch_norm(layer* l, size_t batch_size);
+	void forward_batchnorm(layer* l, size_t batch_size);
+	void backward_batchnorm(layer* l, size_t batch_size);
 
 #ifdef __cplusplus
 }

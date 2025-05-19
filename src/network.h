@@ -90,7 +90,7 @@ extern "C" {
         REGULARIZATION regularization;
         void(*reg_loss)             (network*);
         void(*regularize_weights)   (float*, float*, size_t, float);
-        int batch_norm;  // 1 if any layer has batch norm enabled
+        int batchnorm;  // 1 if any layer has batch norm enabled
         float loss;
         float decay;
         size_t iteration;  // current iteration, one iteration = one batch processed
@@ -148,7 +148,7 @@ extern "C" {
         float* biases;
         float* act_inputs;  // activation function inputs
 
-        int batch_norm;
+        int batchnorm;
         float* Z;  // results of weights * inputs (when batchnorm enabled)
         float* Z_norm;  // Normalized Z
         float* means;

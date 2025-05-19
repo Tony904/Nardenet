@@ -13,6 +13,10 @@
 #include "batchnorm.h"
 
 
+void forward_conv_gpu(layer* l, network* net) {
+
+}
+
 void forward_conv(layer* l, network* net) {
 	size_t out_n = l->out_n;
 	size_t batch_size = net->batch_size;
@@ -38,8 +42,8 @@ void forward_conv(layer* l, network* net) {
 		if (n_groups > 1) gemm_groups(M, N, K, A, B0, C, n_groups);
 		else gemm(M, N, K, A, B0, C);
 	}
-	if (l->batch_norm) {
-		forward_batch_norm(l, batch_size);
+	if (l->batchnorm) {
+		forward_batchnorm(l, batch_size);
 		l->activate(l->act_inputs, l->output, out_n, batch_size);
 	}
 	else {
@@ -76,7 +80,7 @@ void backward_conv(layer* l, network* net) {
 	// sum dC/dz for each filter to get it's bias gradients.
 	get_bias_grads(l->bias_grads, grads, M, K, batch_size);  // note: biases = betas for batch norm
 
-	if (l->batch_norm) backward_batch_norm(l, batch_size);
+	if (l->batchnorm) backward_batchnorm(l, batch_size);
 
 	size_t n_groups = l->n_groups;
 	size_t w = l->w;
@@ -160,7 +164,7 @@ void update_conv(layer* l, network* net) {
 		weight_grads[i] = 0.0F;
 	}
 
-	if (l->batch_norm) {
+	if (l->batchnorm) {
 		float* gammas = l->gammas;
 		float* gamma_grads = l->gamma_grads;
 		float* gammas_velocity = l->gammas_velocity;

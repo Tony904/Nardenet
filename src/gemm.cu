@@ -19,12 +19,13 @@ void print_test_matrix(size_t rows, size_t cols, size_t channels, float* matrix)
 
 #define TILE_SIZE 16
 
-__global__ void gemm_shared(
+
+__global__ void gemm_kernel_shared(
 	const float* __restrict__ A,
 	const float* __restrict__ B,
 	float* __restrict__ C,
 	int M, int N, int K,
-	size_t A_offset, size_t B_offset, size_t C_offset)
+	int A_offset, int B_offset, int C_offset)
 {
 	// Shared memory for A and B tiles
 	__shared__ float A_shared[TILE_SIZE][TILE_SIZE];
@@ -63,8 +64,6 @@ __global__ void gemm_shared(
 		C[C_offset + row * N + col] += c_partial;
 	}
 }
-
-
 
 void cuda_test_gemm(void) {
 	/*
@@ -131,10 +130,10 @@ void cuda_test_gemm(void) {
 	cudaEventRecord(start);
 
 	for (int g = 0; g < n_groups; g++) {
-		size_t a_offset = g * M * K;
-		size_t b_offset = g * N * K;
-		size_t c_offset = g * M * N;
-		gemm_shared KARGS(blocks, threads) (d_a, d_b, d_c, M, N, K, a_offset, b_offset, c_offset);
+		int a_offset = g * M * K;
+		int b_offset = g * N * K;
+		int c_offset = g * M * N;
+		gemm_kernel_shared KARGS(blocks, threads) (d_a, d_b, d_c, M, N, K, a_offset, b_offset, c_offset);
 	}
 
 	cudaEventRecord(stop);
@@ -146,7 +145,6 @@ void cuda_test_gemm(void) {
 	cudaEventDestroy(stop);
 
 	CHECK_CUDA(cudaGetLastError());
-
 	CHECK_CUDA(cudaDeviceSynchronize());
 
 	M = M * n_groups;
@@ -157,7 +155,6 @@ void cuda_test_gemm(void) {
 	CHECK_CUDA(cudaFree(d_b));
 	CHECK_CUDA(cudaFree(d_c));
 
-	
 	float* gemm_cpu = (float*)xcalloc(M * N, sizeof(float));
 	gemm_groups(M, N, K, A, B, gemm_cpu, n_groups);
 	free(A);
@@ -174,7 +171,7 @@ void cuda_test_gemm(void) {
 }
 
 /*A[M*K], B[N*K], BT[K*N], C[M*N]*/
-__global__ void gemm_atb_shared(
+__global__ void gemm_atb_kernel_shared(
 	const float* __restrict__ A,
 	const float* __restrict__ B,
 	float* __restrict__ C,
@@ -218,8 +215,6 @@ __global__ void gemm_atb_shared(
 		C[row * N + col] = c_partial + C[row * N + col];
 	}
 }
-
-
 
 void cuda_test_gemm_atb(void) {
 	int width = 128;
@@ -283,7 +278,7 @@ void cuda_test_gemm_atb(void) {
 	cudaEventCreate(&stop);
 	cudaEventRecord(start);
 
-	gemm_atb_shared KARGS(blocks, threads) (d_a, d_b, d_c, M, N, K);
+	gemm_atb_kernel_shared KARGS(blocks, threads) (d_a, d_b, d_c, M, N, K);
 
 	cudaEventRecord(stop);
 	cudaEventSynchronize(stop);
@@ -318,7 +313,7 @@ void cuda_test_gemm_atb(void) {
 	printf("Verifiction Success!!!\n");
 }
 
-__global__ void gemm_tab_shared(
+__global__ void gemm_tab_kernel_shared(
 	const float* __restrict__ A,
 	const float* __restrict__ B,
 	float* __restrict__ C,
@@ -420,7 +415,7 @@ void cuda_test_gemm_tab(void) {
 	cudaEventCreate(&stop);
 	cudaEventRecord(start);
 
-	gemm_tab_shared KARGS(blocks, threads) (d_a, d_b, d_c, M, N, K);
+	gemm_tab_kernel_shared KARGS(blocks, threads) (d_a, d_b, d_c, M, N, K);
 
 	cudaEventRecord(stop);
 	cudaEventSynchronize(stop);
@@ -453,6 +448,8 @@ void cuda_test_gemm_tab(void) {
 	}
 	printf("Verifiction Success!!!\n");
 }
+
+
 
 void print_test_matrix(size_t rows, size_t cols, size_t channels, float* matrix) {
 	for (size_t ch = 0; ch < channels; ch++) {
