@@ -14,7 +14,7 @@
 
 
 void forward_conv_gpu(layer* l, network* net) {
-
+	l; net;
 }
 
 void forward_conv(layer* l, network* net) {

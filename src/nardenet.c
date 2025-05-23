@@ -18,7 +18,8 @@ int main(void) {
 	network* net = create_network_from_cfg(cfgfile);
 	train(net);*/
 
-	cuda_test_gemm();
+	test_forward_batchnorm_gpu();
+	//cuda_test_gemm();
 	//cuda_test_gemm();
 	//cuda_test_col2im();
 	//cuda_test_im2col_shared();
