@@ -126,11 +126,11 @@ __global__ void batchnorm_kernel_warp_shuffle(float* gammas, float* betas, float
 	// First warp reduces warp_sums[] to get block total
 	float block_sum = 0.0F;
 	if (warp_id == 0) {
-		if (threadIdx.x < (BLOCKSIZE >> 5)) { // one thread per warp
+		if (tid < (BLOCKSIZE >> 5)) { // one thread per warp
 			block_sum = warp_sums[tid];
-			for (int offset = 16; offset > 0; offset >>= 1) {
-				block_sum += __shfl_down_sync(0xffffffff, block_sum, offset);
-			}
+		}
+		for (int offset = 16; offset > 0; offset >>= 1) {
+			block_sum += __shfl_down_sync(0xffffffff, block_sum, offset);
 		}
 	}
 	float mean = block_sum / (float)(spatial * batch_size);
@@ -159,9 +159,9 @@ __global__ void batchnorm_kernel_warp_shuffle(float* gammas, float* betas, float
 	if (warp_id == 0) {
 		if (tid < (BLOCKSIZE >> 5)) { // one thread per warp
 			block_sum = warp_sums[tid];
-			for (int offset = 16; offset > 0; offset >>= 1) {
-				block_sum += __shfl_down_sync(0xffffffff, block_sum, offset);
-			}
+		}
+		for (int offset = 16; offset > 0; offset >>= 1) {
+			block_sum += __shfl_down_sync(0xffffffff, block_sum, offset);
 		}
 	}
 	float variance = block_sum / (float)(spatial * batch_size);
