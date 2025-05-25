@@ -97,6 +97,8 @@ __global__ void batchnorm_kernel(float* gammas, float* betas, float* means, floa
 __global__ void batchnorm_kernel_warp_shuffle(float* gammas, float* betas, float* means, float* variances, float* rolling_means, float* rolling_variances, float* Z, float* Z_norm, float* act_inputs, int spatial, int batch_size, int out_n) {
 
 	__shared__ float warp_sums[BLOCKSIZE >> 5]; // # of warps per block
+	__shared__ float sh_mean;
+	__shared__ float sh_variance;
 
 	int tid = threadIdx.x;
 	int filter = blockIdx.x;
@@ -124,20 +126,23 @@ __global__ void batchnorm_kernel_warp_shuffle(float* gammas, float* betas, float
 	if (lane == 0) warp_sums[warp_id] = thread_sum;
 	__syncthreads();
 	// First warp reduces warp_sums[] to get block total
-	float block_sum = 0.0F;
 	if (warp_id == 0) {
+		float block_sum = 0.0F;
 		if (tid < (BLOCKSIZE >> 5)) { // one thread per warp
 			block_sum = warp_sums[tid];
 		}
 		for (int offset = 16; offset > 0; offset >>= 1) {
 			block_sum += __shfl_down_sync(0xffffffff, block_sum, offset);
 		}
+		if (tid == 0) {
+			float mean_tmp = block_sum / (float)(spatial * batch_size);
+			sh_mean = mean_tmp;
+			means[filter] = mean_tmp;
+			rolling_means[filter] = mean_tmp * 0.01F + rolling_means[filter] * 0.99F;
+		}
 	}
-	float mean = block_sum / (float)(spatial * batch_size);
-	if (tid == 0) {
-		means[filter] = mean;
-		rolling_means[filter] = mean * 0.01F + rolling_means[filter] * 0.99F;
-	}
+	__syncthreads();
+	float mean = sh_mean;
 
 	// VARIANCES
 	thread_sum = 0.0F;
@@ -155,20 +160,23 @@ __global__ void batchnorm_kernel_warp_shuffle(float* gammas, float* betas, float
 	if (lane == 0) warp_sums[warp_id] = thread_sum;
 	__syncthreads();
 	// First warp reduces warp_sums[] to get block total
-	block_sum = 0.0F;
 	if (warp_id == 0) {
+		float block_sum = 0.0F;
 		if (tid < (BLOCKSIZE >> 5)) { // one thread per warp
 			block_sum = warp_sums[tid];
 		}
 		for (int offset = 16; offset > 0; offset >>= 1) {
 			block_sum += __shfl_down_sync(0xffffffff, block_sum, offset);
 		}
+		if (tid == 0) {
+			float variance_tmp = block_sum / (float)(spatial * batch_size);
+			sh_variance = variance_tmp;
+			variances[filter] = variance_tmp;
+			rolling_variances[filter] = variance_tmp * 0.01F + rolling_variances[filter] * 0.99F;
+		}
 	}
-	float variance = block_sum / (float)(spatial * batch_size);
-	if (tid == 0) {
-		variances[filter] = variance;
-		rolling_variances[filter] = (variance * 0.01F) + (rolling_variances[filter] * 0.99F);
-	}
+	__syncthreads();
+	float variance = sh_variance;
 
 	// NORMALIZE AND AFFINE
 	float gamma = gammas[filter];
