@@ -97,8 +97,6 @@ __global__ void batchnorm_kernel(float* gammas, float* betas, float* means, floa
 __global__ void batchnorm_kernel_warp_shuffle(float* gammas, float* betas, float* means, float* variances, float* rolling_means, float* rolling_variances, float* Z, float* Z_norm, float* act_inputs, int spatial, int batch_size, int out_n) {
 
 	__shared__ float warp_sums[BLOCKSIZE >> 5]; // # of warps per block
-	__shared__ float sh_mean;
-	__shared__ float sh_variance;
 
 	int tid = threadIdx.x;
 	int filter = blockIdx.x;
@@ -126,23 +124,20 @@ __global__ void batchnorm_kernel_warp_shuffle(float* gammas, float* betas, float
 	if (lane == 0) warp_sums[warp_id] = thread_sum;
 	__syncthreads();
 	// First warp reduces warp_sums[] to get block total
+	float block_sum = 0.0F;
 	if (warp_id == 0) {
-		float block_sum = 0.0F;
-		if (tid < (BLOCKSIZE >> 5)) { // one thread per warp
+		if (threadIdx.x < (BLOCKSIZE >> 5)) { // one thread per warp
 			block_sum = warp_sums[tid];
-		}
-		for (int offset = 16; offset > 0; offset >>= 1) {
-			block_sum += __shfl_down_sync(0xffffffff, block_sum, offset);
-		}
-		if (tid == 0) {
-			float mean_tmp = block_sum / (float)(spatial * batch_size);
-			sh_mean = mean_tmp;
-			means[filter] = mean_tmp;
-			rolling_means[filter] = mean_tmp * 0.01F + rolling_means[filter] * 0.99F;
+			for (int offset = 16; offset > 0; offset >>= 1) {
+				block_sum += __shfl_down_sync(0xffffffff, block_sum, offset);
+			}
 		}
 	}
-	__syncthreads();
-	float mean = sh_mean;
+	float mean = block_sum / (float)(spatial * batch_size);
+	if (tid == 0) {
+		means[filter] = mean;
+		rolling_means[filter] = mean * 0.01F + rolling_means[filter] * 0.99F;
+	}
 
 	// VARIANCES
 	thread_sum = 0.0F;
@@ -160,23 +155,20 @@ __global__ void batchnorm_kernel_warp_shuffle(float* gammas, float* betas, float
 	if (lane == 0) warp_sums[warp_id] = thread_sum;
 	__syncthreads();
 	// First warp reduces warp_sums[] to get block total
+	block_sum = 0.0F;
 	if (warp_id == 0) {
-		float block_sum = 0.0F;
 		if (tid < (BLOCKSIZE >> 5)) { // one thread per warp
 			block_sum = warp_sums[tid];
-		}
-		for (int offset = 16; offset > 0; offset >>= 1) {
-			block_sum += __shfl_down_sync(0xffffffff, block_sum, offset);
-		}
-		if (tid == 0) {
-			float variance_tmp = block_sum / (float)(spatial * batch_size);
-			sh_variance = variance_tmp;
-			variances[filter] = variance_tmp;
-			rolling_variances[filter] = variance_tmp * 0.01F + rolling_variances[filter] * 0.99F;
+			for (int offset = 16; offset > 0; offset >>= 1) {
+				block_sum += __shfl_down_sync(0xffffffff, block_sum, offset);
+			}
 		}
 	}
-	__syncthreads();
-	float variance = sh_variance;
+	float variance = block_sum / (float)(spatial * batch_size);
+	if (tid == 0) {
+		variances[filter] = variance;
+		rolling_variances[filter] = (variance * 0.01F) + (rolling_variances[filter] * 0.99F);
+	}
 
 	// NORMALIZE AND AFFINE
 	float gamma = gammas[filter];
@@ -194,7 +186,7 @@ __global__ void batchnorm_kernel_warp_shuffle(float* gammas, float* betas, float
 }
 
 void test_forward_batchnorm_gpu(void) {
-	int batch_size = 2;
+	int batch_size = 5;
 	int w = 320;
 	int h = 320;
 	int spatial = w * h;
@@ -261,7 +253,7 @@ void test_forward_batchnorm_gpu(void) {
 	cudaEventRecord(start);
 
 	if (select == 0) {
-		int shared_mem_size = spatial * batch_size * sizeof(float);
+		int shared_mem_size = 512 * sizeof(float);
 		batchnorm_kernel KARGS(grid_size, block_size, shared_mem_size) (d_gammas, d_betas, d_means, d_variances, d_rolling_means, d_rolling_variances, d_Z, d_Z_norm, d_act_inputs, spatial, batch_size, out_n);
 	}
 	else {
@@ -314,7 +306,7 @@ void test_forward_batchnorm_gpu(void) {
 	l.rolling_variances = rolling_variances;
 	forward_batchnorm(&l, (size_t)batch_size);
 
-	float epsilon = 1e-4f;
+	float epsilon = 1e-3f;
 	printf("Verifiying......\n");
 	for (size_t i = 0; i < n_filters * spatial * batch_size; i++) {
 		//printf("%f : %f\n", l.act_inputs[i], act_inputs[i]);

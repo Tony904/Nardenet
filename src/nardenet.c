@@ -23,7 +23,6 @@ int main(void) {
 	//cuda_test_gemm();
 	//cuda_test_col2im();
 	//cuda_test_im2col_shared();
-
 	//print_gpu_props();
 
 	//free_network(net);
