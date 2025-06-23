@@ -97,7 +97,6 @@ __global__ void batchnorm_kernel(float* gammas, float* betas, float* means, floa
 __global__ void batchnorm_kernel_warp_shuffle(float* gammas, float* betas, float* means, float* variances, float* rolling_means, float* rolling_variances, float* Z, float* Z_norm, float* act_inputs, int spatial, int batch_size, int out_n) {
 
 	__shared__ float warp_sums[BLOCKSIZE >> 5]; // # of warps per block
-
 	int tid = threadIdx.x;
 	int filter = blockIdx.x;
 	
@@ -116,6 +115,7 @@ __global__ void batchnorm_kernel_warp_shuffle(float* gammas, float* betas, float
 			if (s < spatial) thread_sum += Z[offset + s];
 		}
 	}
+
 	// In-warp reduction using shuffle
 	for (int offset = 16; offset > 0; offset >>= 1) {
 		thread_sum += __shfl_down_sync(0xffffffff, thread_sum, offset);
@@ -123,22 +123,23 @@ __global__ void batchnorm_kernel_warp_shuffle(float* gammas, float* betas, float
 	// Warp leaders write to shared memory
 	if (lane == 0) warp_sums[warp_id] = thread_sum;
 	__syncthreads();
+
 	// First warp reduces warp_sums[] to get block total
 	float block_sum = 0.0F;
 	if (warp_id == 0) {
-		if (threadIdx.x < (BLOCKSIZE >> 5)) { // one thread per warp
-			block_sum = warp_sums[tid];
-			for (int offset = 16; offset > 0; offset >>= 1) {
-				block_sum += __shfl_down_sync(0xffffffff, block_sum, offset);
-			}
+		block_sum = (tid < (BLOCKSIZE >> 5)) ? warp_sums[tid] : 0.0f;
+		for (int offset = 16; offset > 0; offset >>= 1) {
+			block_sum += __shfl_down_sync(0xffffffff, block_sum, offset);
+		}
+		if (tid == 0) {
+			float mean = block_sum / (float)(spatial * batch_size);
+			warp_sums[0] = mean;
+			means[filter] = mean;
+			rolling_means[filter] = mean * 0.01F + rolling_means[filter] * 0.99F;
 		}
 	}
-	float mean = block_sum / (float)(spatial * batch_size);
-	if (tid == 0) {
-		means[filter] = mean;
-		rolling_means[filter] = mean * 0.01F + rolling_means[filter] * 0.99F;
-	}
-
+	__syncthreads();
+	float mean = warp_sums[0];
 	// VARIANCES
 	thread_sum = 0.0F;
 	for (int b = 0; b < batch_size; b++) {
@@ -148,6 +149,7 @@ __global__ void batchnorm_kernel_warp_shuffle(float* gammas, float* betas, float
 			thread_sum += dev * dev;
 		}
 	}
+	
 	// In-warp reduction using shuffle
 	for (int offset = 16; offset > 0; offset >>= 1) {
 		thread_sum += __shfl_down_sync(0xffffffff, thread_sum, offset);
@@ -157,18 +159,19 @@ __global__ void batchnorm_kernel_warp_shuffle(float* gammas, float* betas, float
 	// First warp reduces warp_sums[] to get block total
 	block_sum = 0.0F;
 	if (warp_id == 0) {
-		if (tid < (BLOCKSIZE >> 5)) { // one thread per warp
-			block_sum = warp_sums[tid];
-			for (int offset = 16; offset > 0; offset >>= 1) {
-				block_sum += __shfl_down_sync(0xffffffff, block_sum, offset);
-			}
+		block_sum = (tid < (BLOCKSIZE >> 5)) ? warp_sums[tid] : 0.0f;
+		for (int offset = 16; offset > 0; offset >>= 1) {
+			block_sum += __shfl_down_sync(0xffffffff, block_sum, offset);
+		}
+		if (tid == 0) {
+			float variance = block_sum / (float)(spatial * batch_size);
+			warp_sums[0] = variance;
+			variances[filter] = variance;
+			rolling_variances[filter] = (variance * 0.01F) + (rolling_variances[filter] * 0.99F);
 		}
 	}
-	float variance = block_sum / (float)(spatial * batch_size);
-	if (tid == 0) {
-		variances[filter] = variance;
-		rolling_variances[filter] = (variance * 0.01F) + (rolling_variances[filter] * 0.99F);
-	}
+	__syncthreads();
+	float variance = warp_sums[0];
 
 	// NORMALIZE AND AFFINE
 	float gamma = gammas[filter];
@@ -222,13 +225,14 @@ void test_forward_batchnorm_gpu(void) {
 	CHECK_CUDA(cudaMalloc(&d_variances, n_filters * spatial * sizeof(float)));
 	CHECK_CUDA(cudaMemcpy(d_variances, variances, n_filters * batch_size * sizeof(float), cudaMemcpyHostToDevice));
 
-	fill_array_rand_float(gammas, n_filters * batch_size, 0.0F, 1.0F);
+	//fill_array_rand_float(gammas, n_filters * batch_size, 0.0F, 1.0F);
+	fill_array(gammas, n_filters * batch_size, 1.0F);
 	float* d_gammas = 0;
 	CHECK_CUDA(cudaMalloc(&d_gammas, n_filters * batch_size * sizeof(float)));
 	CHECK_CUDA(cudaMemcpy(d_gammas, gammas, n_filters * batch_size * sizeof(float), cudaMemcpyHostToDevice));
 
-
-	fill_array_rand_float(betas, n_filters * batch_size, 0.0F, 1.0F);
+	//fill_array_rand_float(betas, n_filters * batch_size, 0.0F, 1.0F);
+	zero_array(betas, n_filters * batch_size);
 	float* d_betas = 0;
 	CHECK_CUDA(cudaMalloc(&d_betas, n_filters * batch_size * sizeof(float)));
 	CHECK_CUDA(cudaMemcpy(d_betas, betas, n_filters * batch_size * sizeof(float), cudaMemcpyHostToDevice));
@@ -245,15 +249,15 @@ void test_forward_batchnorm_gpu(void) {
 
 	int grid_size = n_filters;
 	int block_size = BLOCKSIZE;
-	int select = 0;
+	int select = 2;
 
 	cudaEvent_t start, stop;
 	cudaEventCreate(&start);
 	cudaEventCreate(&stop);
 	cudaEventRecord(start);
 
-	if (select == 0) {
-		int shared_mem_size = 512 * sizeof(float);
+	if (select == 1) {
+		int shared_mem_size = block_size * sizeof(float);
 		batchnorm_kernel KARGS(grid_size, block_size, shared_mem_size) (d_gammas, d_betas, d_means, d_variances, d_rolling_means, d_rolling_variances, d_Z, d_Z_norm, d_act_inputs, spatial, batch_size, out_n);
 	}
 	else {
