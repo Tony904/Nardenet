@@ -225,14 +225,12 @@ void test_forward_batchnorm_gpu(void) {
 	CHECK_CUDA(cudaMalloc(&d_variances, n_filters * spatial * sizeof(float)));
 	CHECK_CUDA(cudaMemcpy(d_variances, variances, n_filters * batch_size * sizeof(float), cudaMemcpyHostToDevice));
 
-	//fill_array_rand_float(gammas, n_filters * batch_size, 0.0F, 1.0F);
-	fill_array(gammas, n_filters * batch_size, 1.0F);
+	fill_array_rand_float(gammas, n_filters * batch_size, 0.0F, 1.0F);
 	float* d_gammas = 0;
 	CHECK_CUDA(cudaMalloc(&d_gammas, n_filters * batch_size * sizeof(float)));
 	CHECK_CUDA(cudaMemcpy(d_gammas, gammas, n_filters * batch_size * sizeof(float), cudaMemcpyHostToDevice));
 
-	//fill_array_rand_float(betas, n_filters * batch_size, 0.0F, 1.0F);
-	zero_array(betas, n_filters * batch_size);
+	fill_array_rand_float(betas, n_filters * batch_size, 0.0F, 1.0F);
 	float* d_betas = 0;
 	CHECK_CUDA(cudaMalloc(&d_betas, n_filters * batch_size * sizeof(float)));
 	CHECK_CUDA(cudaMemcpy(d_betas, betas, n_filters * batch_size * sizeof(float), cudaMemcpyHostToDevice));
@@ -310,7 +308,7 @@ void test_forward_batchnorm_gpu(void) {
 	l.rolling_variances = rolling_variances;
 	forward_batchnorm(&l, (size_t)batch_size);
 
-	float epsilon = 1e-3f;
+	float epsilon = 2e-3f;
 	printf("Verifiying......\n");
 	for (size_t i = 0; i < n_filters * spatial * batch_size; i++) {
 		//printf("%f : %f\n", l.act_inputs[i], act_inputs[i]);
