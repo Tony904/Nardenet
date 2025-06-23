@@ -43,10 +43,10 @@ IN PROGRESS:
  GPU support:
 	- im2col (done)
 	- col2im (done)
-	- gemm (look into fused axpy)
-		- transposes
+	- gemm (done)
+		- transposes (done)
 	- activations
-	- batchnorm
+	- batchnorm (forward done)
 	- loss
 	- training param data copies
 	- loading training images?

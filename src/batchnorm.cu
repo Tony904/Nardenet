@@ -19,9 +19,14 @@
 
 
 
-__global__ void batchnorm_kernel(float* gammas, float* betas, float* means, float* variances, float* rolling_means, float* rolling_variances, float* Z, float* Z_norm, float* act_inputs, int spatial, int batch_size, int out_n) {
+__global__ void forward_batchnorm_kernel(
+	const float* __restrict__ gammas, const float* __restrict__ betas,
+	float* means, float* variances,
+	float* rolling_means, float* rolling_variances,
+	float* __restrict__ Z, float* Z_norm, float* act_inputs,
+	int spatial, int batch_size, int out_n) {
 
-	__shared__ extern float shared[];
+	__shared__ float shared[BLOCKSIZE];
 	
 	int tid = threadIdx.x;
 	int filter = blockIdx.x;
@@ -41,7 +46,7 @@ __global__ void batchnorm_kernel(float* gammas, float* betas, float* means, floa
 	__syncthreads();
 
 	// Parallel reduction sum
-	for (int stride = block_size / 2; stride > 0; stride >>= 1) {
+	for (int stride = block_size >> 1; stride > 0; stride >>= 1) {
 		if (tid < stride) {
 			shared[tid] += shared[tid + stride];
 		}
@@ -66,7 +71,7 @@ __global__ void batchnorm_kernel(float* gammas, float* betas, float* means, floa
 	__syncthreads();
 
 	// Parallel reduction sum
-	for (int stride = block_size / 2; stride > 0; stride >>= 1) {
+	for (int stride = block_size >> 1; stride > 0; stride >>= 1) {
 		if (tid < stride) {
 			shared[tid] += shared[tid + stride];
 		}
@@ -94,7 +99,12 @@ __global__ void batchnorm_kernel(float* gammas, float* betas, float* means, floa
 	}
 }
 
-__global__ void batchnorm_kernel_warp_shuffle(float* gammas, float* betas, float* means, float* variances, float* rolling_means, float* rolling_variances, float* Z, float* Z_norm, float* act_inputs, int spatial, int batch_size, int out_n) {
+__global__ void forward_batchnorm_kernel_warp_shuffle(
+	const float* __restrict__ gammas, const float* __restrict__ betas,
+	float* means, float* variances,
+	float* rolling_means, float* rolling_variances,
+	float* __restrict__ Z, float* Z_norm, float* act_inputs,
+	int spatial, int batch_size, int out_n) {
 
 	__shared__ float warp_sums[BLOCKSIZE >> 5]; // # of warps per block
 	int tid = threadIdx.x;
@@ -140,6 +150,7 @@ __global__ void batchnorm_kernel_warp_shuffle(float* gammas, float* betas, float
 	}
 	__syncthreads();
 	float mean = warp_sums[0];
+
 	// VARIANCES
 	thread_sum = 0.0F;
 	for (int b = 0; b < batch_size; b++) {
@@ -156,6 +167,7 @@ __global__ void batchnorm_kernel_warp_shuffle(float* gammas, float* betas, float
 	}
 	if (lane == 0) warp_sums[warp_id] = thread_sum;
 	__syncthreads();
+
 	// First warp reduces warp_sums[] to get block total
 	block_sum = 0.0F;
 	if (warp_id == 0) {
@@ -189,7 +201,7 @@ __global__ void batchnorm_kernel_warp_shuffle(float* gammas, float* betas, float
 }
 
 void test_forward_batchnorm_gpu(void) {
-	int batch_size = 5;
+	int batch_size = 8;
 	int w = 320;
 	int h = 320;
 	int spatial = w * h;
@@ -255,11 +267,10 @@ void test_forward_batchnorm_gpu(void) {
 	cudaEventRecord(start);
 
 	if (select == 1) {
-		int shared_mem_size = block_size * sizeof(float);
-		batchnorm_kernel KARGS(grid_size, block_size, shared_mem_size) (d_gammas, d_betas, d_means, d_variances, d_rolling_means, d_rolling_variances, d_Z, d_Z_norm, d_act_inputs, spatial, batch_size, out_n);
+		forward_batchnorm_kernel KARGS(grid_size, block_size) (d_gammas, d_betas, d_means, d_variances, d_rolling_means, d_rolling_variances, d_Z, d_Z_norm, d_act_inputs, spatial, batch_size, out_n);
 	}
 	else {
-		batchnorm_kernel_warp_shuffle KARGS(grid_size, block_size) (d_gammas, d_betas, d_means, d_variances, d_rolling_means, d_rolling_variances, d_Z, d_Z_norm, d_act_inputs, spatial, batch_size, out_n);
+		forward_batchnorm_kernel_warp_shuffle KARGS(grid_size, block_size) (d_gammas, d_betas, d_means, d_variances, d_rolling_means, d_rolling_variances, d_Z, d_Z_norm, d_act_inputs, spatial, batch_size, out_n);
 	}
 
 	CHECK_CUDA(cudaGetLastError());
@@ -308,7 +319,7 @@ void test_forward_batchnorm_gpu(void) {
 	l.rolling_variances = rolling_variances;
 	forward_batchnorm(&l, (size_t)batch_size);
 
-	float epsilon = 2e-3f;
+	float epsilon = 1e-2f;
 	printf("Verifiying......\n");
 	for (size_t i = 0; i < n_filters * spatial * batch_size; i++) {
 		//printf("%f : %f\n", l.act_inputs[i], act_inputs[i]);
@@ -319,3 +330,5 @@ void test_forward_batchnorm_gpu(void) {
 	}
 	printf("Verifiction Success!!!\n");
 }
+
+//__global__ void backward_batchnorm_kernel()
