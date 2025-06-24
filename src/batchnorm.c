@@ -99,8 +99,8 @@ void backward_batchnorm(layer* l, size_t batch_size) {
 		gamma_grads[f] = sum;  // dL/dgammas
 	}
 
-	// Get d(act_inputs)/dZnorm
 	zero_array(Z_norm, out_n * batch_size);
+	// Get d(act_inputs)/dZnorm
 #pragma omp parallel for firstprivate(out_n)
 	for (f = 0; f < F; f++) {
 		size_t fS = f * S;
@@ -140,7 +140,7 @@ void backward_batchnorm(layer* l, size_t batch_size) {
 				sum += grads[i] * (Z[i] - means[f]);
 			}
 		}
-		variance_grads[f] *= -0.5F * powf(variances[f] + 0.00001F, (float)(-3.0F / 2.0F));
+		variance_grads[f] = sum * -0.5F * powf(variances[f] + 0.00001F, (float)(-3.0F / 2.0F));
 	}
 
 #pragma omp parallel for firstprivate(out_n)
