@@ -331,4 +331,130 @@ void test_forward_batchnorm_gpu(void) {
 	printf("Verifiction Success!!!\n");
 }
 
-//__global__ void backward_batchnorm_kernel()
+
+
+
+__global__ void backward_batchnorm_kernel(
+	float* grads,
+	float* Z, float* Z_norm,
+	float* means, float* variances,
+	float* gammas, float* gamma_grads,
+	int spatial, int out_n, int batch_size)
+	{
+
+	__shared__ float warp_sums[BLOCKSIZE >> 5];
+	__shared__ float gamma;
+	__shared__ float mean;
+	__shared__ float variance;
+	__shared__ float mean_grad;
+	__shared__ float variance_grad;
+
+	int tid = threadIdx.x;
+	int filter = blockIdx.x;
+
+	int lane = threadIdx.x & 31;
+	int warp_id = threadIdx.x >> 5;
+
+	int fs = filter * spatial;
+
+	// --- GAMMA_GRADS ---
+	float thread_sum = 0.0F;
+	for (int b = 0; b < batch_size; b++) {
+		int offset = b * out_n + fs;
+		for (int s = tid; s < spatial; s += BLOCKSIZE) {
+			int i = offset + s;
+			thread_sum += grads[i] * Z_norm[i];
+			Z_norm[i] = 0.0F;
+		}
+	}
+
+	for (int offset = 16; offset > 0; offset >>= 1) {
+		thread_sum += __shfl_down_sync(0xffffffff, thread_sum, offset);
+	}
+
+	if (lane == 0) warp_sums[warp_id] = thread_sum;
+	if (tid == 0) {
+		gamma = gammas[filter];
+		mean = means[filter];
+		variance = variances[filter];
+	}
+	__syncthreads();
+
+	if (warp_id == 0) {
+		float block_sum = (tid < BLOCKSIZE >> 5) ? warp_sums[tid] : 0.0F;
+		for (int offset = 16; offset > 0; offset >>= 1) {
+			block_sum += __shfl_down_sync(0xffffffff, block_sum, offset);
+		}
+		if (tid == 0) {
+			gamma_grads[filter] = block_sum;
+		}
+	}
+	
+	// --- MEAN_GRADS ---
+	thread_sum = 0.0F;
+	for (int b = 0; b < batch_size; b++) {
+		int offset = b * out_n + fs;
+		for (int s = tid; s < spatial; s += BLOCKSIZE) {
+			float grad = grads[offset + s] * gamma;
+			grads[offset + s] = grad;
+			thread_sum += grad;
+		}
+	}
+
+	for (int offset = 16; offset > 0; offset >>= 1) {
+		thread_sum += __shfl_down_sync(0xffffffff, thread_sum, offset);
+	}
+
+	if (lane == 0) warp_sums[warp_id] = thread_sum;
+	__syncthreads();
+
+	if (warp_id == 0) {
+		float block_sum = (tid < BLOCKSIZE >> 5) ? warp_sums[tid] : 0.0F;
+		for (int offset = 16; offset > 0; offset >>= 1) {
+			block_sum += __shfl_down_sync(0xffffffff, block_sum, offset);
+		}
+		if (tid == 0) {
+			mean_grad = block_sum * (-1.0F / sqrtf(variance + 0.00001F));
+		}
+	}
+	__syncthreads();
+
+	// --- VARIANCE_GRADS ---
+	thread_sum = 0.0F;
+	for (int b = 0; b < batch_size; b++) {
+		int offset = b * out_n + fs;
+		for (int s = tid; s < spatial; s += BLOCKSIZE) {
+			int i = offset + s;
+			thread_sum += grads[i] * (Z[i] - mean);
+		}
+	}
+
+	for (int offset = 16; offset > 0; offset >>= 1) {
+		thread_sum += __shfl_down_sync(0xffffffff, thread_sum, offset);
+	}
+
+	if (lane == 0) warp_sums[warp_id] = thread_sum;
+	__syncthreads();
+
+	if (warp_id == 0) {
+		float block_sum = (tid < BLOCKSIZE >> 5) ? warp_sums[tid] : 0.0F;
+		for (int offset = 16; offset > 0; offset >>= 1) {
+			block_sum += __shfl_down_sync(0xffffffff, block_sum, offset);
+		}
+		if (tid == 0) {
+			variance_grad = block_sum * -0.5F * powf(variance + 0.00001F, (float)(-3.0F / 2.0F));
+		}
+	}
+	__syncthreads();
+
+	// --- GRADS ---
+	float sb = (float)(spatial * batch_size);
+	for (int b = 0; b < batch_size; b++) {
+		int offset = b * out_n + fs;
+		for (int s = tid; s < spatial; s += BLOCKSIZE) {
+			int i = offset + s;
+			float grad = grads[i];
+			grads[i] = grad * 1.0F / (sqrtf(variance) + 0.00001F) + variance_grad * 2.0F * (grad - mean) / sb + mean_grad / sb;
+		}
+	}
+}

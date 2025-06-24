@@ -125,7 +125,7 @@ void backward_batchnorm(layer* l, size_t batch_size) {
 				sum += grads[offset + s];
 			}
 		}
-		mean_grads[f] = sum * (-1.0F/sqrt(variances[f] + 0.00001F));
+		mean_grads[f] = sum * (-1.0F/sqrtf(variances[f] + 0.00001F));
 	}
 
 	float variance_grads[MAX_FILTERS] = { 0 };
@@ -151,7 +151,7 @@ void backward_batchnorm(layer* l, size_t batch_size) {
 			size_t offset = b * out_n + fS;
 			for (size_t s = 0; s < S; s++) {
 				size_t i = offset + s;
-				grads[i] = grads[i] * 1.0F / (sqrt(variances[f]) + 0.00001F) + variance_grads[f] * 2.0F * (grads[i] - means[f]) / SB + mean_grads[f] /SB;
+				grads[i] = grads[i] * 1.0F / (sqrtf(variances[f]) + 0.00001F) + variance_grads[f] * 2.0F * (grads[i] - means[f]) / SB + mean_grads[f] /SB;
 			}
 		}
 	}
