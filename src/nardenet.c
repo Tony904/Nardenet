@@ -13,12 +13,13 @@
 int main(void) {
 
 	/*activate_xalloc_tracking();
-	srand(7777777);
+	
 	char* cfgfile = "D:\\TonyDev\\Nardenet\\cfg\\nardenet-yolov4-tiny-classifier-tiny-imagenet.cfg";
 	network* net = create_network_from_cfg(cfgfile);
 	train(net);*/
-
-	test_forward_batchnorm_gpu();
+	srand(7777777);
+	test_backward_batchnorm_gpu();
+	//test_forward_batchnorm_gpu();
 	//cuda_test_gemm();
 	//cuda_test_gemm();
 	//cuda_test_col2im();
@@ -46,7 +47,7 @@ IN PROGRESS:
 	- gemm (done)
 		- transposes (done)
 	- activations
-	- batchnorm (forward done)
+	- batchnorm (done)
 	- loss
 	- training param data copies
 	- loading training images?
