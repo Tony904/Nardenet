@@ -22,7 +22,7 @@ int main(void) {
 	test_activate_softmax_gpu();
 	//print_gpu_props();
 
-	//free_network(net);
+	//free_network(net);(
 	//print_alloc_list();
 
 #ifndef _DEBUG
@@ -43,6 +43,8 @@ IN PROGRESS:
 	- gemm (done)
 		- transposes (done)
 	- activations
+		- forward (done)
+		- backward
 	- batchnorm (done)
 	- loss
 	- training param data copies
