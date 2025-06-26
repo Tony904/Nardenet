@@ -32,6 +32,8 @@ extern "C" {
 	void test_forward_batchnorm_gpu(void);
 	void test_backward_batchnorm_gpu(void);
 	
+	void test_activate_softmax_gpu(void);
+	
 	void print_gpu_props(void);
 
 

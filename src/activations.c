@@ -68,7 +68,6 @@ void activate_softmax(float* Z, float* output, size_t out_n, size_t batch_size) 
 	}
 }
 
-#pragma warning(suppress:4100)  // unreferenced formal parameter
 void activate_none(float* Z, float* output, size_t out_n, size_t batch_size) {
 	out_n;
 }
