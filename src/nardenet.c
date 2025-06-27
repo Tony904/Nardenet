@@ -18,8 +18,7 @@ int main(void) {
 	network* net = create_network_from_cfg(cfgfile);
 	train(net);*/
 	srand(7777777);
-	
-	test_activate_softmax_gpu();
+	//test_activate_softmax_gpu();
 	//print_gpu_props();
 
 	//free_network(net);(
@@ -42,17 +41,17 @@ IN PROGRESS:
 	- col2im (done)
 	- gemm (done)
 		- transposes (done)
-	- activations
+	- activations (didn't test the simple ones cus i'm lazy)
 		- forward (done)
-		- backward
+		- backward (done)
 	- batchnorm (done)
-	- loss
+	- loss (done except l1 and l2 loss cus i'm guna decide how to deal with them later)
 	- training param data copies
 	- loading training images?
 	- data augmentation
-	- l1/l2 normalizations
-	- residual layer adds
-	- route layer copies?
+	- l1/l2 normalizations (done)
+	- residual layer adds (done, blas)
+	- route layer copies? (done, blas)
 	- avgpool
 	- maxpool
 	- upsample

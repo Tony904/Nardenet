@@ -16,8 +16,6 @@
 #define KARGS(...) <<< __VA_ARGS__ >>>
 #endif
 
-#define BLOCKSIZE 512
-
 
 
 __device__ __forceinline__ float sigmoid_x_kernel(float x) { return 1.0F / (1.0F + expf(-x)); }
@@ -35,9 +33,8 @@ __global__ void activate_relu_kernel(float* Z, float* output, int n) {
 }
 void activate_relu_gpu(float* Z, float* output, size_t out_n, size_t batch_size) {
 	int n = (int)(out_n * batch_size);
-	int block_size = BLOCKSIZE;
-	int grid_size = ((n / block_size) + (((n % block_size) > 0) ? 1 : 0));
-	activate_relu_kernel KARGS(grid_size, block_size) (Z, output, n);
+	int grid_size = GET_GRIDSIZE(n, BLOCKSIZE);
+	activate_relu_kernel KARGS(grid_size, BLOCKSIZE) (Z, output, n);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
@@ -48,9 +45,8 @@ __global__ void activate_leaky_relu_kernel(float* Z, float* output, int n) {
 }
 void activate_leaky_relu_gpu(float* Z, float* output, size_t out_n, size_t batch_size) {
 	int n = (int)(out_n * batch_size);
-	int block_size = BLOCKSIZE;
-	int grid_size = ((n / block_size) + (((n % block_size) > 0) ? 1 : 0));
-	activate_leaky_relu_kernel KARGS(grid_size, block_size) (Z, output, n);
+	int grid_size = GET_GRIDSIZE(n, BLOCKSIZE);
+	activate_leaky_relu_kernel KARGS(grid_size, BLOCKSIZE) (Z, output, n);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
@@ -61,9 +57,8 @@ __global__ void activate_mish_kernel(float* Z, float* output, int n) {
 }
 void activate_mish_gpu(float* Z, float* output, size_t out_n, size_t batch_size) {
 	int n = (int)(out_n * batch_size);
-	int block_size = BLOCKSIZE;
-	int grid_size = ((n / block_size) + (((n % block_size) > 0) ? 1 : 0));
-	activate_mish_kernel KARGS(grid_size, block_size) (Z, output, n);
+	int grid_size = GET_GRIDSIZE(n, BLOCKSIZE);
+	activate_mish_kernel KARGS(grid_size, BLOCKSIZE) (Z, output, n);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
@@ -74,9 +69,8 @@ __global__ void activate_sigmoid_kernel(float* Z, float* output, int n) {
 }
 void activate_sigmoid_gpu(float* Z, float* output, size_t out_n, size_t batch_size) {
 	int n = (int)(out_n * batch_size);
-	int block_size = BLOCKSIZE;
-	int grid_size = ((n / block_size) + (((n % block_size) > 0) ? 1 : 0));
-	activate_sigmoid_kernel KARGS(grid_size, block_size) (Z, output, n);
+	int grid_size = GET_GRIDSIZE(n, BLOCKSIZE);
+	activate_sigmoid_kernel KARGS(grid_size, BLOCKSIZE) (Z, output, n);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
@@ -87,9 +81,8 @@ __global__ void activate_tanh_kernel(float* Z, float* output, int n) {
 }
 void activate_tanh_gpu(float* Z, float* output, size_t out_n, size_t batch_size) {
 	int n = (int)(out_n * batch_size);
-	int block_size = BLOCKSIZE;
-	int grid_size = ((n / block_size) + (((n % block_size) > 0) ? 1 : 0));
-	activate_sigmoid_kernel KARGS(grid_size, block_size) (Z, output, n);
+	int grid_size = GET_GRIDSIZE(n, BLOCKSIZE);
+	activate_sigmoid_kernel KARGS(grid_size, BLOCKSIZE) (Z, output, n);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
@@ -97,9 +90,9 @@ void activate_tanh_gpu(float* Z, float* output, size_t out_n, size_t batch_size)
 // Each block handles one batch
 __global__ void activate_softmax_kernel(float* Z, float* output, int out_n) {
 
-	extern __shared__ float shared[];
+	__shared__ float shared[BLOCKSIZE >> 5];
 
-	int blocksize = blockDim.x; // must be multiple of 32
+	int blocksize = blockDim.x;
 	int tid = threadIdx.x;
 	int lane = threadIdx.x & 31;
 	int warp_id = threadIdx.x >> 5;
@@ -147,10 +140,7 @@ __global__ void activate_softmax_kernel(float* Z, float* output, int out_n) {
 }
 
 void activate_softmax_gpu(float* Z, float* output, size_t out_n, size_t batch_size) {
-	int block_size = 256;
-	int grid_size = (int)batch_size;
-	size_t shared_memory_size = ((out_n >> 5) + (((out_n & 31) > 0) ? 1 : 0)) * sizeof(float);
-	activate_softmax_kernel KARGS(grid_size, block_size, shared_memory_size) (Z, output, (int)out_n);
+	activate_softmax_kernel KARGS((int)batch_size, BLOCKSIZE) (Z, output, (int)out_n);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 

@@ -59,7 +59,7 @@ void regularize_l1(float* weight_grads, float* weights, size_t size, float decay
 	size_t i;
 #pragma omp parallel for firstprivate(decay)
 	for (i = 0; i < size; i++) {
-		weight_grads[i] -= ((weights[i] > 0.0F) ? decay : -decay);
+		weight_grads[i] -= (weights[i] > 0.0F) ? decay : -decay;
 	}
 }
 

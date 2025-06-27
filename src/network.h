@@ -172,6 +172,7 @@ extern "C" {
         layer** in_layers;
 
         LOSS_TYPE loss_type;
+        float* loss_gpu;
         float loss;
         float obj_loss;
         float cls_loss;

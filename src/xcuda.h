@@ -19,7 +19,9 @@ extern "C" {
 
 	void ___check_cuda(cudaError_t x, const char* const filename, const char* const funcname, const int line, const char* time);
 
-#define CHECK_CUDA(x) ___check_cuda(x, NARDENET_LOCATION, " - " __TIME__);
+#define CHECK_CUDA(x) ___check_cuda(x, NARDENET_LOCATION, " - " __TIME__)
+#define BLOCKSIZE 512
+#define GET_GRIDSIZE(n, blocksize) (n / blocksize) + (((n % blocksize) > 0) ? 1 : 0)
 
 	void cuda_test_im2col_no_share(void);
 	void cuda_test_im2col_shared(void);

@@ -15,9 +15,6 @@
 #define KARGS(...) <<< __VA_ARGS__ >>>
 #endif
 
-#define BLOCKSIZE 512
-
-
 
 __global__ void forward_batchnorm_kernel_no_shuffle(
 	const float* __restrict__ gammas, const float* __restrict__ betas,
@@ -137,7 +134,7 @@ __global__ void forward_batchnorm_kernel(
 	// First warp reduces warp_sums[] to get block total
 	float block_sum = 0.0F;
 	if (warp_id == 0) {
-		block_sum = (tid < (BLOCKSIZE >> 5)) ? warp_sums[tid] : 0.0f;
+		block_sum = (tid < (BLOCKSIZE >> 5)) ? warp_sums[tid] : 0.0F;
 		for (int offset = 16; offset > 0; offset >>= 1) {
 			block_sum += __shfl_down_sync(0xffffffff, block_sum, offset);
 		}
@@ -471,7 +468,7 @@ void test_backward_batchnorm_gpu(void) {
 	float* gammas = (float*)xcalloc(n_filters, sizeof(float));
 	float* gamma_grads = (float*)xcalloc(n_filters, sizeof(float));
 	float* grads = (float*)xcalloc(out_n * batch_size, sizeof(float));
-
+	
 	fill_array_rand_float(Z, out_n * batch_size, 0.0F, 0.5F);
 	float* d_Z = 0;
 	CHECK_CUDA(cudaMalloc(&d_Z, out_n * batch_size * sizeof(float)));
