@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <math.h>
+#include <float.h>
 #include "xcuda.h"
 #include "utils.h"
 
@@ -12,13 +13,119 @@
 #define KARGS(...) <<< __VA_ARGS__ >>>
 #endif
 
+// ksize = 2, stride = 2, dst_w and dst_h must be a power of 2
+__global__ void forward_maxpool_kernel_outwh_pow2(float* src, float* dst, int* max_indexes, int dst_w, int dst_h, int n) {
+	int gtid = threadIdx.x + blockIdx.x * blockDim.x;
 
-__global__ void maxpool_kernel(float* A, float* B, int n) {
-	int index = threadIdx.x + blockIdx.x * blockDim.x;
-	A[index] += B[index];
+	if (gtid < n) {
+		const int ksize = 2;
+
+		int ch = gtid / (dst_w * dst_h);
+		int sp = gtid & (dst_w * dst_h - 1);
+		int dst_row = sp / dst_w;
+		int dst_col = sp & (dst_w - 1);
+
+		int src_w = dst_w * ksize;
+		int src_h = dst_h * ksize;
+		int src_row = dst_row * ksize;
+		int src_col = dst_col * ksize;
+		int src_index = ch * (src_w * src_h) + src_w * src_row + src_col;
+
+		float max_val = src[src_index];
+		int max_index = src_index;
+
+		float tmp = src[src_index + 1];
+		if (tmp > max_val) {
+			max_val = tmp;
+			max_index = src_index + 1;
+		}
+
+		tmp = src[src_index + src_w];
+		if (tmp > max_val) {
+			max_val = tmp;
+			max_index = src_index + src_w;
+		}
+
+		tmp = src[src_index + src_w + 1];
+		if (tmp > max_val) {
+			max_val = tmp;
+			max_index = src_index + src_w + 1;
+		}
+
+		dst[gtid] = max_val;
+		max_indexes[gtid] = max_index;
+	}
 }
-void maxpool_gpu(float* A, float* B, int n) {
+
+// ksize = 2, stride = 2
+__global__ void forward_maxpool_kernel(float* src, float* dst, int* max_indexes, int dst_w, int dst_h, int n) {
+	int gtid = threadIdx.x + blockIdx.x * blockDim.x;
+
+	if (gtid < n) {
+		const int ksize = 2;
+
+		int ch = gtid / (dst_w * dst_h);
+		int sp = gtid % (dst_w * dst_h);
+		int dst_row = sp / dst_w;
+		int dst_col = sp % dst_w;
+
+		int src_w = dst_w * ksize;
+		int src_h = dst_h * ksize;
+		int src_row = dst_row * ksize;
+		int src_col = dst_col * ksize;
+		int src_index = ch * (src_w * src_h) + src_w * src_row + src_col;
+
+		float max_val = src[src_index];
+		int max_index = src_index;
+		float tmp;
+
+		if (src_col < src_w) {
+			tmp = src[src_index + 1];
+			if (tmp > max_val) {
+				max_val = tmp;
+				max_index = src_index + 1;
+			}
+
+			tmp = src[src_index + src_w + 1];
+			if (tmp > max_val) {
+				max_val = tmp;
+				max_index = src_index + src_w + 1;
+			}
+		}
+
+		if (src_row < src_h) {
+			tmp = src[src_index + src_w];
+			if (tmp > max_val) {
+				max_val = tmp;
+				max_index = src_index + src_w;
+			}
+		}
+
+		dst[gtid] = max_val;
+		max_indexes[gtid] = max_index;
+	}
+}
+
+void forward_maxpool_gpu(float* src, float* dst, int* max_indexes, int dst_w, int dst_h, int dst_n, int batch_size) {
+	int n = dst_n * batch_size;
 	int grid_size = GET_GRIDSIZE(n, BLOCKSIZE);
-	maxpool_kernel KARGS(grid_size, BLOCKSIZE) (A, B, n);
+	forward_maxpool_kernel KARGS(grid_size, BLOCKSIZE) (src, dst, max_indexes, dst_w, dst_h, n);
+	CHECK_CUDA(cudaPeekAtLastError());
+}
+
+// grads_x = grads array of shallower layer, grads_y = grads array of deeper layer
+__global__ void backward_maxpool_kernel(float* grads_x, float* grads_y, int* max_indexes, int n) {
+	int gtid = threadIdx.x + blockIdx.x * blockDim.x;
+
+	if (gtid < n) {
+		int max_index = max_indexes[gtid];
+		grads_x[max_index] += grads_y[gtid];
+	}
+}
+
+// n = grads_y size
+void backward_maxpool_gpu(float* grads_x, float* grads_y, int* max_indexes, int n) {
+	int grid_size = GET_GRIDSIZE(n, BLOCKSIZE);
+	backward_maxpool_kernel KARGS(grid_size, BLOCKSIZE) (grads_x, grads_y, max_indexes, n);
 	CHECK_CUDA(cudaPeekAtLastError());
 }

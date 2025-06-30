@@ -42,19 +42,17 @@ IN PROGRESS:
 	- gemm (done)
 		- transposes (done)
 	- activations (didn't test the simple ones cus i'm lazy)
-		- forward (done)
-		- backward (done)
+		- forward (done*)
+		- backward (done*)
 	- batchnorm (done)
-	- loss (done except l1 and l2 loss cus i'm guna decide how to deal with them later)
-	- training param data copies
-	- loading training images?
+	- loss (done* except l1 and l2 loss cus i'm guna decide how to deal with them later)
+	- l1/l2 normalizations (done*)
+	- residual layer adds (done*, blas)
+	- route layer copies? (done*, blas)
+	- avgpool (done*)
+	- maxpool (done*)
+	- upsample (done*)
 	- data augmentation
-	- l1/l2 normalizations (done)
-	- residual layer adds (done, blas)
-	- route layer copies? (done, blas)
-	- avgpool
-	- maxpool
-	- upsample
 	- classification
 	- object detection prediction stuff
 
