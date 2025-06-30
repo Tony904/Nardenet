@@ -109,7 +109,16 @@
     <None Include="src\cpp.hint" />
   </ItemGroup>
   <ItemGroup>
+    <CudaCompile Include="src\activations.cu" />
+    <CudaCompile Include="src\avgpool.cu" />
+    <CudaCompile Include="src\batchnorm.cu" />
+    <CudaCompile Include="src\blas.cu" />
+    <CudaCompile Include="src\derivatives.cu" />
+    <CudaCompile Include="src\gemm.cu" />
     <CudaCompile Include="src\im2col.cu" />
+    <CudaCompile Include="src\loss.cu" />
+    <CudaCompile Include="src\maxpool.cu" />
+    <CudaCompile Include="src\upsample.cu" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
@@ -306,6 +315,8 @@
       <AdditionalOptions>/openmp:llvm</AdditionalOptions>
       <OpenMPSupport>
       </OpenMPSupport>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <Optimization>Disabled</Optimization>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -354,7 +365,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>OPENCV;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -365,13 +376,15 @@
       <AdditionalOptions>/openmp:llvm</AdditionalOptions>
       <OpenMPSupport>
       </OpenMPSupport>
+      <Optimization>MaxSpeed</Optimization>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>cudnn.lib;opencv_world450.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8\include;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <DelayLoadDLLs>
       </DelayLoadDLLs>
