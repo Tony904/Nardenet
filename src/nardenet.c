@@ -36,6 +36,8 @@ BUGS:
 CHANGES:
 
 IN PROGRESS:
+ Add OpenMP support to functions in image.c
+
  GPU support:
 	- im2col (done)
 	- col2im (done)
