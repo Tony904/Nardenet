@@ -13,20 +13,17 @@
 #define KARGS(...) <<< __VA_ARGS__ >>>
 #endif
 
-// ksize = 2, stride = 2, dst_w and dst_h must be a power of 2
-__global__ void forward_maxpool_kernel_outwh_pow2(float* src, float* dst, int* max_indexes, int dst_w, int dst_h, int n) {
+// ksize = 2, stride = 2, dst_w and dst_h must be even
+__global__ void forward_maxpool_kernel_even_dst_wh(float* src, float* dst, int* max_indexes, int src_w, int src_h, int dst_w, int dst_h, int n) {
 	int gtid = threadIdx.x + blockIdx.x * blockDim.x;
 
 	if (gtid < n) {
 		const int ksize = 2;
 
 		int ch = gtid / (dst_w * dst_h);
-		int sp = gtid & (dst_w * dst_h - 1);
-		int dst_row = sp / dst_w;
-		int dst_col = sp & (dst_w - 1);
-
-		int src_w = dst_w * ksize;
-		int src_h = dst_h * ksize;
+		int s = gtid % (dst_w * dst_h);
+		int dst_row = s / dst_w;
+		int dst_col = s % dst_w;
 		int src_row = dst_row * ksize;
 		int src_col = dst_col * ksize;
 		int src_index = ch * (src_w * src_h) + src_w * src_row + src_col;
@@ -57,20 +54,17 @@ __global__ void forward_maxpool_kernel_outwh_pow2(float* src, float* dst, int* m
 	}
 }
 
-// ksize = 2, stride = 2
-__global__ void forward_maxpool_kernel(float* src, float* dst, int* max_indexes, int dst_w, int dst_h, int n) {
+// ksize = 2, stride = 2, n = batch_size * dst_n
+__global__ void forward_maxpool_kernel(float* src, float* dst, int* max_indexes, int src_w, int src_h, int dst_w, int dst_h, int n) {
 	int gtid = threadIdx.x + blockIdx.x * blockDim.x;
 
 	if (gtid < n) {
 		const int ksize = 2;
 
 		int ch = gtid / (dst_w * dst_h);
-		int sp = gtid % (dst_w * dst_h);
-		int dst_row = sp / dst_w;
-		int dst_col = sp % dst_w;
-
-		int src_w = dst_w * ksize;
-		int src_h = dst_h * ksize;
+		int s = gtid % (dst_w * dst_h);
+		int dst_row = s / dst_w;
+		int dst_col = s % dst_w;
 		int src_row = dst_row * ksize;
 		int src_col = dst_col * ksize;
 		int src_index = ch * (src_w * src_h) + src_w * src_row + src_col;

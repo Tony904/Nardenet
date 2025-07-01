@@ -50,13 +50,13 @@ image* load_image(char* filename) {
     return img;
 }
 
-void prescale_image(image* img) {
-    float* data = img->data;
-    size_t n = img->w * img->h * img->c;
-    size_t i;
-#pragma omp parallel for
-    for (i = 0; i < n; i++) data[i] /= 255.0F;
-}
+//void prescale_image(image* img) {
+//    float* data = img->data;
+//    size_t n = img->w * img->h * img->c;
+//    size_t i;
+//#pragma omp parallel for
+//    for (i = 0; i < n; i++) data[i] /= 255.0F;
+//}
 
 void scale_image(image* img, float scale) {
     float* data = img->data;
@@ -169,16 +169,16 @@ void resize_image_bilinear(image* dst, image* src) {
     }
 }
 
-void scale_brightness_rgb(image* img, float multiplier) {
+void scale_brightness_rgb(image* img, float scalar) {
     float* data = img->data;
     size_t n = img->w * img->h * img->c;
     for (size_t i = 0; i < n; i++) {
-        data[i] *= multiplier;
+        data[i] *= scalar;
         if (data[i] > 255.0F) data[i] = 255.0F;
     }
 }
 
-void scale_contrast_rgb(image* img, float multiplier) {
+void scale_contrast_rgb(image* img, float scalar) {
     size_t w = img->w;
     size_t h = img->h;
     float* data = img->data;
@@ -190,9 +190,9 @@ void scale_contrast_rgb(image* img, float multiplier) {
 
         float mean = (red + green + blue) / 3.0F;
 
-        red = mean + (red - mean) * multiplier;
-        green = mean + (green - mean) * multiplier;
-        blue = mean + (blue - mean) * multiplier;
+        red = mean + (red - mean) * scalar;
+        green = mean + (green - mean) * scalar;
+        blue = mean + (blue - mean) * scalar;
 
         data[i] = red;
         data[wh + i] = green;
@@ -201,15 +201,15 @@ void scale_contrast_rgb(image* img, float multiplier) {
 }
 
 void randomize_colorspace(image* img, float brightness_lower, float brightness_upper, float contrast_lower, float contrast_upper, float saturation_lower, float saturation_upper, float hue_lower, float hue_upper) {
-    float brightness_multi = randu(brightness_lower, brightness_upper);
-    float contrast_multi = randu(contrast_lower, contrast_upper);
-    float saturation_multi = randu(saturation_lower, saturation_upper);
-    float hue_multi = randu(hue_lower, hue_upper);
-    transform_colorspace(img, brightness_multi, contrast_multi, saturation_multi, hue_multi);
+    float brightness_scalar = randu(brightness_lower, brightness_upper);
+    float contrast_scalar = randu(contrast_lower, contrast_upper);
+    float saturation_scalar = randu(saturation_lower, saturation_upper);
+    float hue_scalar = randu(hue_lower, hue_upper);
+    transform_colorspace(img, brightness_scalar, contrast_scalar, saturation_scalar, hue_scalar);
 }
 
-void transform_colorspace(image* img, float brightness_multi, float contrast_multi, float saturation_multi, float hue_shift) {
-    if (contrast_multi != 1.0F) scale_contrast_rgb(img, contrast_multi);
+void transform_colorspace(image* img, float brightness_scalar, float contrast_scalar, float saturation_scalar, float hue_shift) {
+    if (contrast_scalar != 1.0F) scale_contrast_rgb(img, contrast_scalar);
     rgb2hsv(img);
     float* data = img->data;
     size_t wh = img->w * img->h;
@@ -218,8 +218,8 @@ void transform_colorspace(image* img, float brightness_multi, float contrast_mul
         data[i] += hue_shift;
         if (data[i] > 1.0F) data[i] -= 1.0F;
         else if (data[i] < 0.0F) data[i] += 1.0F;
-        data[wh + i] *= saturation_multi;
-        data[wh2 + i] *= brightness_multi;
+        data[wh + i] *= saturation_scalar;
+        data[wh2 + i] *= brightness_scalar;
     }
     hsv2rgb(img);
 }

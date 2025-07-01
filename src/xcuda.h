@@ -6,6 +6,7 @@
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 #include "locmacro.h"
+#include "image.h"
 
 
 #ifndef __TIME__
@@ -22,21 +23,14 @@ extern "C" {
 #define CHECK_CUDA(x) ___check_cuda(x, NARDENET_LOCATION, " - " __TIME__)
 #define BLOCKSIZE 512
 #define GET_GRIDSIZE(n, blocksize) (n / blocksize) + (((n % blocksize) > 0) ? 1 : 0)
-
-	void cuda_test_im2col_no_share(void);
-	void cuda_test_im2col_shared(void);
-	void cuda_test_col2im(void);
-
-	void cuda_test_gemm(void);
-	void cuda_test_gemm_atb(void);
-	void cuda_test_gemm_tab(void);
-
-	void test_forward_batchnorm_gpu(void);
-	void test_backward_batchnorm_gpu(void);
-	
-	void test_activate_softmax_gpu(void);
 	
 	void print_gpu_props(void);
+
+	void sum_arrays_gpu(float* A, float* B, int n);
+	void copy_array_gpu(float* src, float* dst, int n);
+	void scale_array_gpu(float* A, float scalar, int n);
+	void clamp_array_gpu(float* A, float upper, float lower, int n);
+	void transform_colorspace_gpu(image* img, float brightness_scalar, float contrast_scalar, float saturation_scalar, float hue_shift);
 
 
 #ifdef __cplusplus

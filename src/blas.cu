@@ -26,11 +26,37 @@ void sum_arrays_gpu(float* A, float* B, int n) {
 
 
 __global__ void copy_array_kernel(float* src, float* dst, int n) {
-	int index = threadIdx.x + blockIdx.x * blockDim.x;
-	dst[index] = src[index];
+	int i = threadIdx.x + blockIdx.x * blockDim.x;
+	dst[i] = src[i];
 }
 void copy_array_gpu(float* src, float* dst, int n) {
 	int grid_size = GET_GRIDSIZE(n, BLOCKSIZE);
 	copy_array_kernel KARGS(grid_size, BLOCKSIZE) (src, dst, n);
+	CHECK_CUDA(cudaPeekAtLastError());
+}
+
+
+__global__ void scale_array_kernel(float* A, float scalar, int n) {
+	int i = threadIdx.x + blockIdx.x * blockDim.x;
+	if (i < n) A[i] *= scalar;
+}
+void scale_array_gpu(float* A, float scalar, int n) {
+	int grid_size = GET_GRIDSIZE(n, BLOCKSIZE);
+	scale_array_kernel KARGS(grid_size, BLOCKSIZE) (A, scalar, n);
+	CHECK_CUDA(cudaPeekAtLastError());
+}
+
+
+__global__ void clamp_array_kernel(float* A, float upper, float lower, int n) {
+	int i = threadIdx.x + blockIdx.x * blockDim.x;
+	if (i < n) {
+		float val = A[i];
+		if (val < 0.0F) A[i] = 0.0F;
+		else if (val > 255.0F) A[i] = 255.0F;
+	}
+}
+void clamp_array_gpu(float* A, float upper, float lower, int n) {
+	int grid_size = GET_GRIDSIZE(n, BLOCKSIZE);
+	clamp_array_gpu KARGS(grid_size, BLOCKSIZE) (A, upper, lower, n);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
