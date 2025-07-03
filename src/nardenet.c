@@ -6,7 +6,6 @@
 #include "xopencv.h"
 #include "xallocs.h"
 #include "xcuda.h"
-#include "gemm.h"
 
 
 
@@ -17,7 +16,7 @@ int main(void) {
 	char* cfgfile = "D:\\TonyDev\\Nardenet\\cfg\\nardenet-yolov4-tiny-classifier-tiny-imagenet.cfg";
 	network* net = create_network_from_cfg(cfgfile);
 	train(net);*/
-	srand(7777777);
+	//srand(7777777);
 	//test_activate_softmax_gpu();
 	//print_gpu_props();
 
@@ -43,7 +42,7 @@ IN PROGRESS:
 	- col2im (done)
 	- gemm (done)
 		- transposes (done)
-	- activations (didn't test the simple ones cus i'm lazy)
+	- activations (done*)
 		- forward (done*)
 		- backward (done*)
 	- batchnorm (done)
@@ -54,7 +53,11 @@ IN PROGRESS:
 	- avgpool (done*)
 	- maxpool (done*)
 	- upsample (done*)
-	- data augmentation
+	- data augmentation (done*)
+	- layers
+		- forward
+		- backward
+		- update
 	- classification
 	- object detection prediction stuff
 

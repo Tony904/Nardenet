@@ -24,6 +24,11 @@ extern "C" {
 #define BLOCKSIZE 512
 #define GET_GRIDSIZE(n, blocksize) (n / blocksize) + (((n % blocksize) > 0) ? 1 : 0)
 	
+	void cuda_test_gemm(void);
+	void cuda_test_gemm_atb(void);
+	void cuda_test_gemm_tab(void);
+	void cuda_test_all_gemms(void);
+
 	void print_gpu_props(void);
 
 	void sum_arrays_gpu(float* A, float* B, int n);
