@@ -17,7 +17,7 @@ int main(void) {
 	network* net = create_network_from_cfg(cfgfile);
 	train(net);*/
 	//srand(7777777);
-	//test_activate_softmax_gpu();
+	
 	//print_gpu_props();
 
 	//free_network(net);(

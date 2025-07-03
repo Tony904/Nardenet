@@ -22,12 +22,7 @@ extern "C" {
 
 #define CHECK_CUDA(x) ___check_cuda(x, NARDENET_LOCATION, " - " __TIME__)
 #define BLOCKSIZE 512
-#define GET_GRIDSIZE(n, blocksize) (n / blocksize) + (((n % blocksize) > 0) ? 1 : 0)
-	
-	void cuda_test_gemm(void);
-	void cuda_test_gemm_atb(void);
-	void cuda_test_gemm_tab(void);
-	void cuda_test_all_gemms(void);
+#define GET_GRIDSIZE(n, blocksize) (n + blocksize - 1) / blocksize
 
 	void print_gpu_props(void);
 
