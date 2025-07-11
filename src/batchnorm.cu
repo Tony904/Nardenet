@@ -21,7 +21,7 @@ __global__ void forward_batchnorm_kernel_no_shuffle(
 	float* means, float* variances,
 	float* rolling_means, float* rolling_variances,
 	float* __restrict__ Z, float* Z_norm, float* act_inputs,
-	int spatial, int batch_size, int out_n) {
+	int spatial, int n, int batch_size) {
 
 	__shared__ float shared[BLOCKSIZE];
 	
@@ -35,7 +35,7 @@ __global__ void forward_batchnorm_kernel_no_shuffle(
 	shared[tid] = 0.0F;
 	// Copy/Add data to shared memory
 	for (int b = 0; b < batch_size; b++) {
-		int offset = b * out_n + fs;
+		int offset = b * n + fs;
 		for (int s = tid; s < spatial; s += block_size) {
 			shared[tid] += Z[offset + s];
 		}
@@ -59,7 +59,7 @@ __global__ void forward_batchnorm_kernel_no_shuffle(
 	// Calculate variances
 	shared[tid] = 0.0F;
 	for (int b = 0; b < batch_size; b++) {
-		int offset = b * out_n + fs;
+		int offset = b * n + fs;
 		for (int s = tid; s < spatial; s += block_size) {
 			float dev = Z[offset + s] - mean;
 			shared[tid] += dev * dev;
@@ -86,7 +86,7 @@ __global__ void forward_batchnorm_kernel_no_shuffle(
 	float beta = betas[filter];
 	float sddev = sqrtf(variance + 0.00001F);
 	for (int b = 0; b < batch_size; b++) {
-		int offset = b * out_n + fs;
+		int offset = b * n + fs;
 		for (int s = tid; s < spatial; s += block_size) {
 			int z = offset + s;
 			float znorm = (Z[z] - mean) / sddev;
@@ -101,7 +101,7 @@ __global__ void forward_batchnorm_kernel(
 	float* means, float* variances,
 	float* rolling_means, float* rolling_variances,
 	float* __restrict__ Z, float* Z_norm, float* act_inputs,
-	int spatial, int batch_size, int out_n) {
+	int spatial, int n, int batch_size) {
 
 	__shared__ float warp_sums[BLOCKSIZE >> 5]; // # of warps per block
 	int tid = threadIdx.x;
@@ -117,7 +117,7 @@ __global__ void forward_batchnorm_kernel(
 	// MEANS
 	// Each thread computes a partial sum
 	for (int b = 0; b < batch_size; b++) {
-		int offset = b * out_n + fs;
+		int offset = b * n + fs;
 		for (int s = tid; s < spatial; s += BLOCKSIZE) {
 			if (s < spatial) thread_sum += Z[offset + s];
 		}
@@ -151,7 +151,7 @@ __global__ void forward_batchnorm_kernel(
 	// VARIANCES
 	thread_sum = 0.0F;
 	for (int b = 0; b < batch_size; b++) {
-		int offset = b * out_n + fs;
+		int offset = b * n + fs;
 		for (int s = tid; s < spatial; s += BLOCKSIZE) {
 			float dev = Z[offset + s] - mean;
 			thread_sum += dev * dev;
@@ -187,7 +187,7 @@ __global__ void forward_batchnorm_kernel(
 	float beta = betas[filter];
 	float sddev = sqrtf(variance + 0.00001F);
 	for (int b = 0; b < batch_size; b++) {
-		int offset = b * out_n + fs;
+		int offset = b * n + fs;
 		for (int s = tid; s < spatial; s += BLOCKSIZE) {
 			int z = offset + s;
 			float znorm = (Z[z] - mean) / sddev;
@@ -195,6 +195,17 @@ __global__ void forward_batchnorm_kernel(
 			act_inputs[z] = znorm * gamma + beta;
 		}
 	}
+}
+
+void forward_batchnorm_gpu(float* gammas, float* betas,
+	float* means, float* variances,
+	float* rolling_means, float* rolling_variances,
+	float* Z, float* Z_norm, float* act_inputs,
+	int spatial, int n_filters, int batch_size) {
+
+	int n = spatial * n_filters;
+	forward_batchnorm_kernel KARGS(n_filters, BLOCKSIZE) (gammas, betas, means, variances, rolling_means, rolling_variances, Z, Z_norm, act_inputs, spatial, batch_size, n);
+	CHECK_CUDA(cudaPeekAtLastError());
 }
 
 void test_forward_batchnorm_gpu(void) {
@@ -334,7 +345,7 @@ __global__ void backward_batchnorm_kernel(
 	float* Z, float* Z_norm,
 	float* means, float* variances,
 	float* gammas, float* gamma_grads,
-	int spatial, int out_n, int batch_size)
+	int spatial, int n, int batch_size)
 	{
 
 	__shared__ float warp_sums[BLOCKSIZE >> 5];
@@ -355,7 +366,7 @@ __global__ void backward_batchnorm_kernel(
 	// --- GAMMA_GRADS ---
 	float thread_sum = 0.0F;
 	for (int b = 0; b < batch_size; b++) {
-		int offset = b * out_n + fs;
+		int offset = b * n + fs;
 		for (int s = tid; s < spatial; s += BLOCKSIZE) {
 			int i = offset + s;
 			thread_sum += grads[i] * Z_norm[i];
@@ -388,7 +399,7 @@ __global__ void backward_batchnorm_kernel(
 	// --- MEAN_GRADS ---
 	thread_sum = 0.0F;
 	for (int b = 0; b < batch_size; b++) {
-		int offset = b * out_n + fs;
+		int offset = b * n + fs;
 		for (int s = tid; s < spatial; s += BLOCKSIZE) {
 			float grad = grads[offset + s] * gamma;
 			grads[offset + s] = grad;
@@ -417,7 +428,7 @@ __global__ void backward_batchnorm_kernel(
 	// --- VARIANCE_GRADS ---
 	thread_sum = 0.0F;
 	for (int b = 0; b < batch_size; b++) {
-		int offset = b * out_n + fs;
+		int offset = b * n + fs;
 		for (int s = tid; s < spatial; s += BLOCKSIZE) {
 			int i = offset + s;
 			thread_sum += grads[i] * (Z[i] - mean);
@@ -445,13 +456,25 @@ __global__ void backward_batchnorm_kernel(
 	// --- GRADS ---
 	float sb = (float)(spatial * batch_size);
 	for (int b = 0; b < batch_size; b++) {
-		int offset = b * out_n + fs;
+		int offset = b * n + fs;
 		for (int s = tid; s < spatial; s += BLOCKSIZE) {
 			int i = offset + s;
 			float grad = grads[i];
 			grads[i] = grad * 1.0F / sqrtf(variance + 0.00001F) + variance_grad * 2.0F * (grad - mean) / sb + mean_grad / sb;
 		}
 	}
+}
+
+void backward_batchnorm_gpu(float* grads,
+	float* Z, float* Z_norm,
+	float* means, float* variances,
+	float* gammas, float* gamma_grads,
+	int spatial, int n_filters, int batch_size) {
+
+	int n = spatial * n_filters;
+	int grid_size = n_filters;
+	backward_batchnorm_kernel KARGS(grid_size, BLOCKSIZE) (grads, Z, Z_norm, means, variances, gammas, gamma_grads, spatial, n, batch_size);
+	CHECK_CUDA(cudaPeekAtLastError());
 }
 
 void test_backward_batchnorm_gpu(void) {
@@ -477,7 +500,7 @@ void test_backward_batchnorm_gpu(void) {
 	fill_array_rand_float(Z_norm, out_n * batch_size, 0.0F, 0.1F);
 	float* d_Z_norm = 0;
 	CHECK_CUDA(cudaMalloc(&d_Z_norm, out_n * batch_size * sizeof(float)));
-	CHECK_CUDA(cudaMemcpy(d_Z_norm, Z_norm, out_n * batch_size * sizeof(float), cudaMemcpyHostToDevice))
+	CHECK_CUDA(cudaMemcpy(d_Z_norm, Z_norm, out_n * batch_size * sizeof(float), cudaMemcpyHostToDevice));
 
 	fill_array_rand_float(means, n_filters, 0.0F, 0.1F);
 	float* d_means = 0;

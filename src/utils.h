@@ -28,6 +28,7 @@ extern "C" {
 	void fill_array_rand_float(float* arr, size_t size, double mean, double sdev);
 	void zero_array(float* arr, size_t size);
 	float sum_array(float* arr, size_t size);
+	void scale_array(float* arr, size_t size, float scalar);
 	float randu(float lower, float upper);
 	double randn(double mean, double stddev);
 	void get_random_numbers_no_repeats(size_t* arr, size_t size, size_t range_start, size_t range_end);

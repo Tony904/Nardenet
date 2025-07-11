@@ -535,6 +535,27 @@ void cuda_test_all_gemms(void) {
 	cuda_test_gemm_tab();
 }
 
+// *** OTHER STUFF ***
+
+void add_biases_kernel(float* arr, int spatial, float* biases) {
+
+	__shared__ float bias;
+
+	int channel = blockIdx.x;
+	if (threadIdx.x == 0) bias = biases[channel];
+	__syncthreads();
+
+	int offset = channel * spatial;
+	int i = threadIdx.x + blockIdx.x * blockDim.x;
+	for (; i < spatial; i += blockDim.x) arr[offset + i] += bias;
+}
+void add_biases_gpu(float* arr, int spatial, float* biases, int channels, int batch_size) {
+	channels = channels * batch_size;
+	add_biases_kernel KARGS(channels, BLOCKSIZE) (arr, spatial, biases);
+	CHECK_CUDA(cudaPeekAtLastError());
+}
+
+
 
 void print_test_matrix(size_t rows, size_t cols, size_t channels, float* matrix) {
 	for (size_t ch = 0; ch < channels; ch++) {

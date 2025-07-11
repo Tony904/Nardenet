@@ -54,7 +54,7 @@ void zero_array(float* arr, size_t size) {
 
 void fill_array_increment(float* arr, size_t size, float start_val, float increment) {
 	size_t i;
-#pragma omp parallel for firstprivate(start_val, increment)
+#pragma omp parallel for
 	for (i = 0; i < size; i++) {
 		arr[i] = start_val + (float)i * increment;
 	}
@@ -70,10 +70,20 @@ void fill_array_rand_float(float* arr, size_t size, double mean, double sdev) {
 
 float sum_array(float* arr, size_t size) {
 	float sum = 0.0F;
-	for (size_t i = 0; i < size; i++) {
+	size_t i;
+#pragma omp parallel for reduction(+:sum)
+	for (i = 0; i < size; i++) {
 		sum += arr[i];
 	}
 	return sum;
+}
+
+void scale_array(float* arr, size_t size, float scalar) {
+	size_t i;
+#pragma omp parallel for
+	for (i = 0; i < size; i++) {
+		arr[i] *= scalar;
+	}
 }
 
 int char_in_string(char c, char* str) {

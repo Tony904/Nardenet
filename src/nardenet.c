@@ -35,7 +35,6 @@ BUGS:
 CHANGES:
 
 IN PROGRESS:
- Add OpenMP support to functions in image.c
 
  GPU support:
 	- im2col (done)
@@ -55,7 +54,7 @@ IN PROGRESS:
 	- upsample (done*)
 	- data augmentation (done*)
 	- layers
-		- forward
+		- forward - done: conv
 		- backward
 		- update
 	- classification

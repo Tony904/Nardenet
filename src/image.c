@@ -50,20 +50,20 @@ image* load_image(char* filename) {
     return img;
 }
 
-//void prescale_image(image* img) {
-//    float* data = img->data;
-//    size_t n = img->w * img->h * img->c;
-//    size_t i;
-//#pragma omp parallel for
-//    for (i = 0; i < n; i++) data[i] /= 255.0F;
-//}
-
-void scale_image(image* img, float scale) {
+void prescale_image(image* img) {
     float* data = img->data;
     size_t n = img->w * img->h * img->c;
     size_t i;
 #pragma omp parallel for
-    for (i = 0; i < n; i++) (data[i] *= scale);
+    for (i = 0; i < n; i++) data[i] /= 255.0F;
+}
+
+void scale_image(image* img, float scalar) {
+    float* data = img->data;
+    size_t n = img->w * img->h * img->c;
+    size_t i;
+#pragma omp parallel for
+    for (i = 0; i < n; i++) (data[i] *= scalar);
 }
 
 void clamp_image(image* img) {
@@ -141,7 +141,9 @@ void resize_image_bilinear(image* dst, image* src) {
     float w_ratio = (float)(src_w - 1) / (float)(dst_w - 1);
     float h_ratio = (float)(src_h - 1) / (float)(dst_h - 1);
 
-    for (size_t y = 0; y < dst_h; y++) {
+    size_t y;
+#pragma omp parallel for firstprivate(dst_w, dst_h, src_w, src_h, c, src_wh, dst_wh, w_ratio, h_ratio)
+    for (y = 0; y < dst_h; y++) {
         for (size_t x = 0; x < dst_w; x++) {
             float px = x * w_ratio;
             float py = y * h_ratio;
@@ -172,7 +174,9 @@ void resize_image_bilinear(image* dst, image* src) {
 void scale_brightness_rgb(image* img, float scalar) {
     float* data = img->data;
     size_t n = img->w * img->h * img->c;
-    for (size_t i = 0; i < n; i++) {
+    size_t i;
+#pragma omp parallel for
+    for (i = 0; i < n; i++) {
         data[i] *= scalar;
         if (data[i] > 255.0F) data[i] = 255.0F;
     }
@@ -183,7 +187,9 @@ void scale_contrast_rgb(image* img, float scalar) {
     size_t h = img->h;
     float* data = img->data;
     size_t wh = w * h;
-    for (size_t i = 0; i < wh; i++) {
+    size_t i;
+#pragma omp parallel for firstprivate(wh, scalar)
+    for (i = 0; i < wh; i++) {
         float red = data[i];
         float green = data[wh + i];
         float blue = data[wh * 2 + i];
@@ -214,7 +220,9 @@ void transform_colorspace(image* img, float brightness_scalar, float contrast_sc
     float* data = img->data;
     size_t wh = img->w * img->h;
     size_t wh2 = wh * 2;
-    for (size_t i = 0; i < wh; i++) {
+    size_t i;
+#pragma omp parallel for firstprivate(hue_shift, saturation_scalar, brightness_scalar, wh, wh2)
+    for (i = 0; i < wh; i++) {
         data[i] += hue_shift;
         if (data[i] > 1.0F) data[i] -= 1.0F;
         else if (data[i] < 0.0F) data[i] += 1.0F;
@@ -231,7 +239,9 @@ void rgb2hsv(image* img) {
     float* data = img->data;
     size_t wh = w * h;
     size_t wh2 = wh * 2;
-    for (size_t i = 0; i < wh; i++) {
+    size_t i;
+#pragma omp parallel for firstprivate(wh, wh2)
+    for (i = 0; i < wh; i++) {
         float red = data[i];
         float green = data[wh + i];
         float blue = data[wh2 + i];
@@ -271,7 +281,9 @@ void hsv2rgb(image* img) {
     float* data = img->data;
     size_t wh = w * h;
     size_t wh2 = wh * 2;
-    for (size_t i = 0; i < wh; i++) {
+    size_t i;
+#pragma omp parallel for firstprivate(wh, wh2)
+    for (i = 0; i < wh; i++) {
         float H = data[i] * 6.0F;
         float S = data[wh + i];
         float V = data[wh2 + i];

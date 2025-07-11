@@ -11,10 +11,48 @@
 #include "xarrays.h"
 #include "utils.h"
 #include "batchnorm.h"
+#include "xcuda.h"
 
 
 void forward_conv_gpu(layer* l, network* net) {
-	l; net;
+	size_t out_n = l->out_n;
+	size_t batch_size = net->batch_size;
+	zero_array_gpu(l->Z, out_n * batch_size);
+	size_t n_groups = l->n_groups;
+	size_t w = l->w;
+	size_t h = l->h;
+	size_t out_w = l->out_w;
+	size_t out_h = l->out_h;
+	size_t ksize = l->ksize;
+	size_t stride = l->stride;
+	size_t pad = l->pad;
+	size_t M = l->n_filters;
+	size_t N = l->out_w * l->out_h;
+	size_t K = l->ksize * l->ksize * l->c;
+	float* A = l->weights.a;  // M * K
+	for (size_t b = 0; b < batch_size; b++) {
+		float* B = net->workspace.a;  // K * N
+		float* B0 = B;
+		for (size_t i = 0; i < l->in_ids.n; i++) {
+			layer* inl = l->in_layers[i];
+			size_t c = inl->out_c;
+			float* im = &inl->output[b * inl->out_n];
+			im2col_gpu(im, B, c, h, w, ksize, stride, pad, out_w, out_h);
+			B += K * l->ksize * l->ksize * c;
+		}
+		float* C = &l->Z[b * M * N];  // M * N
+		gemm_gpu(M, N, K, A, B0, C, n_groups);
+	}
+	if (l->batchnorm) {
+		forward_batchnorm_gpu(l->gammas, l->biases, l->means, l->variances, l->rolling_means, l->rolling_variances, l->Z, l->Z_norm, l->act_inputs, w * h, l->n_filters, batch_size);
+		l->activate(l->act_inputs, l->output, out_n, batch_size);
+	}
+	else {
+		// note: l->Z = l->act_inputs when batchnorm disabled
+		add_biases_gpu(l->Z, N, l->biases, M, batch_size);
+		l->activate(l->Z, l->output, out_n, batch_size);
+	}
+	if (net->training) zero_array_gpu(l->grads, out_n * batch_size);
 }
 
 void forward_conv(layer* l, network* net) {
@@ -52,6 +90,10 @@ void forward_conv(layer* l, network* net) {
 		l->activate(l->Z, l->output, out_n, batch_size);
 	}
 	if (net->training) zero_array(l->grads, out_n * batch_size);
+}
+
+void backward_conv_gpu(layer* l, network* net) {
+
 }
 
 void backward_conv(layer* l, network* net) {

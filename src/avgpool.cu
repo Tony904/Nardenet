@@ -22,8 +22,6 @@ __global__ void forward_avgpool_kernel(float* input, float* output, int spatial)
 	int lane = threadIdx.x & 31;
 	int warp_id = threadIdx.x >> 5;
 
-	int cs = channel * spatial;
-
 	float thread_sum = 0.0F;
 	int offset = channel * spatial;
 	for (int s = tid; s < spatial; s += BLOCKSIZE) {
@@ -49,7 +47,7 @@ __global__ void forward_avgpool_kernel(float* input, float* output, int spatial)
 	}
 }
 
-void forward_avgpool_gpu(float* input, float* output, int spatial, int c, int batch_size) {
+void launch_forward_avgpool_kernel(float* input, float* output, int spatial, int c, int batch_size) {
 	int n = spatial * c * batch_size;
 	int grid_size = GET_GRIDSIZE(n, BLOCKSIZE);
 	forward_avgpool_kernel KARGS(grid_size, BLOCKSIZE) (input, output, spatial);
@@ -66,9 +64,9 @@ __global__ void backward_avgpool_kernel(float* grads_x, float* grads_y, int spat
 	}
 }
 
-void backward_avgpool_gpu(float* grads_x, float* grads_y, int spatial, int c, int batch_size) {
+void launch_backward_avgpool_kernel(float* grads_x, float* grads_y, int spatial, int c, int batch_size) {
 	int n = spatial * c * batch_size;
 	int grid_size = GET_GRIDSIZE(n, BLOCKSIZE);
-	forward_avgpool_kernel KARGS(grid_size, BLOCKSIZE) (grads_x, grads_y, spatial);
+	backward_avgpool_kernel KARGS(grid_size, BLOCKSIZE) (grads_x, grads_y, spatial);
 	CHECK_CUDA(cudaPeekAtLastError());
 }

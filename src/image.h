@@ -19,7 +19,7 @@ extern "C" {
     void load_image_test(void);
     image* new_image(size_t width, size_t height, size_t channels);
     void prescale_image(image* img);
-    void scale_image(image* img, float scale);
+    void scale_image(image* img, float scalar);
     void clamp_image(image* img);
     void resize_image_bilinear(image* dst, image* src);
     void randomize_colorspace(image* img, float brightness_lower, float brightness_upper, float contrast_lower, float contrast_upper, float saturation_lower, float saturation_upper, float hue_lower, float hue_upper);
