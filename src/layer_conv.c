@@ -12,6 +12,7 @@
 #include "utils.h"
 #include "batchnorm.h"
 #include "xcuda.h"
+#include "blas.h"
 
 
 void forward_conv_gpu(layer* l, network* net) {
@@ -93,7 +94,56 @@ void forward_conv(layer* l, network* net) {
 }
 
 void backward_conv_gpu(layer* l, network* net) {
+	size_t batch_size = net->batch_size;
+	float* grads = l->grads;
 
+	get_activation_grads_gpu(l, batch_size);
+
+	size_t M = l->n_filters;
+	size_t N = l->ksize * l->ksize * l->c; // weights per filter
+	size_t K = l->out_w * l->out_h; // # of patches
+
+	get_bias_grads_gpu(l->bias_grads, grads, M, K, batch_size);
+
+	if (l->batchnorm) backward_batchnorm(l, batch_size);
+
+	size_t n_groups = l->n_groups;
+	size_t w = l->w;
+	size_t h = l->h;
+	for (size_t s = 0; s < batch_size; s++) {
+		float* A = &grads[s * M * K];  // M * K
+		float* B = net->workspace.a;  // N * K
+		zero_array(B, N * K);
+		float* B0 = B;
+		float* C = l->weight_grads;  // M * N
+		for (size_t i = 0; i < l->in_ids.n; i++) {
+			layer* inl = l->in_layers[i];
+			size_t c = inl->out_c;
+			float* im = &inl->output[s * inl->out_n];
+			im2col(im, (int)c, (int)h, (int)w, (int)l->ksize, (int)l->pad, (int)l->stride, B);
+			B += N * l->ksize * l->ksize * c;
+		}
+		B = B0;
+		if (n_groups > 1) gemm_atb_groups(M, N, K, A, B, C, n_groups);
+		else gemm_atb(M, N, K, A, B, C);
+	}
+
+	if (l->id == 0) return;
+	for (size_t s = 0; s < batch_size; s++) {
+		float* A = l->weights.a;  // M * N / n_groups
+		float* B = &grads[s * M * K];  // M * K
+		float* C = net->workspace.a;  // N * K
+		zero_array(C, N * K);
+		if (n_groups > 1) gemm_tab_groups(M, N, K, A, B, C, n_groups);
+		else gemm_tab(M, N, K, A, B, C);
+
+		for (size_t i = 0; i < l->in_ids.n; i++) {
+			layer* inl = l->in_layers[i];
+			size_t c = inl->out_c;
+			float* im = &inl->grads[s * w * h * c];
+			col2im(C, (int)c, (int)h, (int)w, (int)l->ksize, (int)l->pad, (int)l->stride, im);
+		}
+	}
 }
 
 void backward_conv(layer* l, network* net) {
@@ -101,17 +151,7 @@ void backward_conv(layer* l, network* net) {
 	float* grads = l->grads;  // propogated gradients up to this layer
 	// dz/dw = previous layer (shallower layer) input
 	// da/dz = activation derivative
-	if (l->activation == ACT_MISH) get_grads_mish(grads, l->act_inputs, l->out_n, batch_size);  // dC/da * da/dz
-	else if (l->activation == ACT_RELU) get_grads_relu(grads, l->act_inputs, l->out_n, batch_size);
-	else if (l->activation == ACT_LEAKY) get_grads_leaky_relu(grads, l->act_inputs, l->out_n, batch_size);
-	else if (l->activation == ACT_SIGMOID) get_grads_sigmoid(grads, l->output, l->out_n, batch_size);
-	else if (l->activation == ACT_SOFTMAX);
-	else if (l->activation == ACT_TANH) get_grads_tanh(grads, l->act_inputs, l->out_n, batch_size);
-	else if (l->activation == ACT_NONE);
-	else {
-		printf("Incorrect or unsupported activation function.\n");
-		wait_for_key_then_exit();
-	}
+	get_activation_grads(l, batch_size); // dC/da * da/dz
 	// grads[] is now dC/dz.
 	
 	// now get dz/dw for each weight (it's just the input from the previous layer in the forward pass).

@@ -13,6 +13,63 @@
 #endif
 
 
+
+void add_biases_kernel(float* arr, int spatial, float* biases) {
+
+	__shared__ float bias;
+
+	int channel = blockIdx.x;
+	if (threadIdx.x == 0) bias = biases[channel];
+	__syncthreads();
+
+	int offset = channel * spatial;
+	int i = threadIdx.x + blockIdx.x * blockDim.x;
+	for (; i < spatial; i += blockDim.x) arr[offset + i] += bias;
+}
+void add_biases_gpu(float* arr, int spatial, float* biases, int n_filters, int batch_size) {
+	add_biases_kernel KARGS(n_filters * batch_size, BLOCKSIZE) (arr, spatial, biases);
+	CHECK_CUDA(cudaPeekAtLastError());
+}
+
+
+void get_bias_grads_kernel(float* bias_grads, float* grads, int spatial) {
+	__shared__ float shared[BLOCKSIZE];
+
+	int tid = threadIdx.x;
+	int channel = blockIdx.x;
+	int lane = threadIdx.x & 31;
+	int warp_id = threadIdx.x >> 5;
+
+	float thread_sum = 0.0F;
+	int offset = channel * spatial;
+	for (int s = tid; s < spatial; s += BLOCKSIZE) {
+		if (s < spatial) thread_sum += grads[offset + s];
+	}
+
+	for (int offset = 16; offset > 0; offset >>= 1) {
+		thread_sum += __shfl_down_sync(0xffffffff, thread_sum, offset);
+	}
+
+	if (lane == 0) shared[warp_id] = thread_sum;
+	__syncthreads();
+
+	float sum = 0.0F;
+	if (warp_id == 0) {
+		sum = (tid < (BLOCKSIZE >> 5)) ? shared[tid] : 0.0F;
+		for (int offset = 16; offset > 0; offset >>= 1) {
+			sum += __shfl_down_sync(0xffffffff, sum, offset);
+		}
+		if (tid == 0) {
+			bias_grads[channel] = sum;
+		}
+	}
+}
+void get_bias_grads_gpu(float* bias_grads, float* grads, int n_filters, int spatial, int batch_size) {
+	get_bias_grads_kernel KARGS(n_filters * batch_size, BLOCKSIZE) (bias_grads, grads, spatial);
+	CHECK_CUDA(cudaPeekAtLastError());
+}
+
+
 // A += B
 __global__ void add_arrays_kernel(float* A, float* B, int n) {
 	int index = threadIdx.x + blockIdx.x * blockDim.x;

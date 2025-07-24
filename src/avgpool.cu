@@ -48,9 +48,7 @@ __global__ void forward_avgpool_kernel(float* input, float* output, int spatial)
 }
 
 void launch_forward_avgpool_kernel(float* input, float* output, int spatial, int c, int batch_size) {
-	int n = spatial * c * batch_size;
-	int grid_size = GET_GRIDSIZE(n, BLOCKSIZE);
-	forward_avgpool_kernel KARGS(grid_size, BLOCKSIZE) (input, output, spatial);
+	forward_avgpool_kernel KARGS(c * batch_size, BLOCKSIZE) (input, output, spatial);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
@@ -65,8 +63,6 @@ __global__ void backward_avgpool_kernel(float* grads_x, float* grads_y, int spat
 }
 
 void launch_backward_avgpool_kernel(float* grads_x, float* grads_y, int spatial, int c, int batch_size) {
-	int n = spatial * c * batch_size;
-	int grid_size = GET_GRIDSIZE(n, BLOCKSIZE);
-	backward_avgpool_kernel KARGS(grid_size, BLOCKSIZE) (grads_x, grads_y, spatial);
+	backward_avgpool_kernel KARGS(c * batch_size, BLOCKSIZE) (grads_x, grads_y, spatial);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
