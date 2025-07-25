@@ -1,6 +1,6 @@
 #include "batchnorm.h"
 #include <math.h>
-#include "utils.h"
+#include "blas.h"
 
 
 #define MAX_FILTERS 1024

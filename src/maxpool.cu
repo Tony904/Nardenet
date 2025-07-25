@@ -2,7 +2,6 @@
 #include <math.h>
 #include <float.h>
 #include "xcuda.h"
-#include "utils.h"
 
 
 #ifdef __INTELLISENSE__
@@ -12,6 +11,7 @@
 #else
 #define KARGS(...) <<< __VA_ARGS__ >>>
 #endif
+
 
 // ksize = 2, stride = 2, dst_w and dst_h must be even
 __global__ void forward_maxpool_kernel_even_dst_wh(float* src, float* dst, int* max_indexes, int src_w, int src_h, int dst_w, int dst_h, int n) {
@@ -100,10 +100,10 @@ __global__ void forward_maxpool_kernel(float* src, float* dst, int* max_indexes,
 	}
 }
 
-void forward_maxpool_gpu(float* src, float* dst, int* max_indexes, int dst_w, int dst_h, int dst_n, int batch_size) {
+void launch_forward_maxpool_kernel(float* src, float* dst, int* max_indexes, int src_w, int src_h, int dst_w, int dst_h, int dst_n, int batch_size) {
 	int n = dst_n * batch_size;
 	int grid_size = GET_GRIDSIZE(n, BLOCKSIZE);
-	forward_maxpool_kernel KARGS(grid_size, BLOCKSIZE) (src, dst, max_indexes, dst_w, dst_h, n);
+	forward_maxpool_kernel KARGS(grid_size, BLOCKSIZE) (src, dst, max_indexes, src_w, src_h, dst_w, dst_h, n);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
@@ -118,7 +118,7 @@ __global__ void backward_maxpool_kernel(float* grads_x, float* grads_y, int* max
 }
 
 // n = grads_y size
-void backward_maxpool_gpu(float* grads_x, float* grads_y, int* max_indexes, int n) {
+void launch_backward_maxpool_kernel(float* grads_x, float* grads_y, int* max_indexes, int n) {
 	int grid_size = GET_GRIDSIZE(n, BLOCKSIZE);
 	backward_maxpool_kernel KARGS(grid_size, BLOCKSIZE) (grads_x, grads_y, max_indexes, n);
 	CHECK_CUDA(cudaPeekAtLastError());

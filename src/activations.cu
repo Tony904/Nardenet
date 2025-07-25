@@ -6,6 +6,7 @@
 #include <float.h>
 #include "network.h"
 #include "activations.h"
+#include "blas.h"
 
 
 #ifdef __INTELLISENSE__
@@ -15,7 +16,6 @@
 #else
 #define KARGS(...) <<< __VA_ARGS__ >>>
 #endif
-
 
 
 __device__ __forceinline__ float sigmoid_x_kernel(float x) { return 1.0F / (1.0F + expf(-x)); }

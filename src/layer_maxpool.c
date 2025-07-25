@@ -5,14 +5,19 @@
 #include <assert.h>
 #include "utils.h"
 #include "xallocs.h"
-
-
+#include "blas.h"
+#include "xcuda.h"
 
 
 
 // https://github.com/BVLC/caffe/blob/master/src/caffe/util/im2col.cpp
-inline static int is_a_ge_zero_and_a_lt_b(int aa, int bb) {
-	return (unsigned)(aa) < (unsigned)(bb);
+inline static int is_a_ge_zero_and_a_lt_b(int a, int b) {
+	return (unsigned)(a) < (unsigned)(b);
+}
+
+void forward_maxpool_gpu(layer* l, network* net) {
+
+	launch_forward_maxpool_kernel(src, dst, max_indexes, src_w, src_h, dst_w, dst_h, dst_n, batch_size)
 }
 
 /* Standard maxpool operation with ksize = 2, pad = 0, stride = 2 */

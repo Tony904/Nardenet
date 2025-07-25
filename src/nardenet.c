@@ -17,7 +17,9 @@ int main(void) {
 	network* net = create_network_from_cfg(cfgfile);
 	train(net);*/
 	//srand(7777777);
-	
+
+
+
 	//print_gpu_props();
 
 	//free_network(net);(
@@ -44,7 +46,7 @@ IN PROGRESS:
 	- activations (done*)
 		- forward (done*)
 		- backward (done*)
-	- batchnorm (done)
+	- batchnorm (need to add the rolling mean stuff so that it "works" with batch sizes of 1)
 	- loss (done* except l1 and l2 loss cus i'm guna decide how to deal with them later)
 	- l1/l2 normalizations (done*)
 	- residual layer adds (done*, blas)
@@ -54,8 +56,8 @@ IN PROGRESS:
 	- upsample (done*)
 	- data augmentation (done*)
 	- layers
-		- forward - done: conv
-		- backward
+		- forward - done: conv, avgpool
+		- backward - done: conv, avgpool
 		- update
 	- classification
 	- object detection prediction stuff

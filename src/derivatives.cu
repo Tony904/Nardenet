@@ -17,6 +17,7 @@ __device__ __forceinline__ float softplus_x_kernel(float x, float t) { return (x
 __device__ __forceinline__ float tanh_x_kernel(float x) { return (2.0F / (1.0F + expf(-2.0F * x)) - 1.0F); }
 
 
+
 __global__ void grads_sigmoid_kernel(float* grads, float* act_output, int n) {
 	int i = threadIdx.x + blockIdx.x * blockDim.x;
 	float x = act_output[i];

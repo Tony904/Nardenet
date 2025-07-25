@@ -17,6 +17,8 @@
 #include "loss.h"
 #include "derivatives.h"
 #include "data.h"
+#include "xcuda.h"
+#include "blas.h"
 
 
 void build_input_layer(network* net);
@@ -32,6 +34,9 @@ void build_detect_layer(int i, network* net);
 
 void set_activate(layer* l);
 void set_loss(layer* l);
+
+void backward_none(layer* l, network* net);
+void update_none(layer* l, network* net);
 
 size_t get_train_params_count(network* net);
 size_t get_layer_param_count(layer* l);
@@ -839,6 +844,34 @@ void set_activate(layer* l) {
 		break;
 	default:
 		l->activate = activate_none;
+	}
+}
+
+void get_activation_grads(layer* l, size_t batch_size) {
+	if (l->activation == ACT_MISH) get_grads_mish(l->grads, l->act_inputs, l->out_n, batch_size);
+	else if (l->activation == ACT_RELU) get_grads_relu(l->grads, l->act_inputs, l->out_n, batch_size);
+	else if (l->activation == ACT_LEAKY) get_grads_leaky_relu(l->grads, l->act_inputs, l->out_n, batch_size);
+	else if (l->activation == ACT_SIGMOID) get_grads_sigmoid(l->grads, l->output, l->out_n, batch_size);
+	else if (l->activation == ACT_SOFTMAX);
+	else if (l->activation == ACT_TANH) get_grads_tanh(l->grads, l->act_inputs, l->out_n, batch_size);
+	else if (l->activation == ACT_NONE);
+	else {
+		printf("Invalid activation function.");
+		wait_for_key_then_exit();
+	}
+}
+
+void get_activation_grads_gpu(layer* l, size_t batch_size) {
+	if (l->activation == ACT_MISH) get_grads_mish_gpu(l->grads, l->act_inputs, l->out_n, batch_size);
+	else if (l->activation == ACT_RELU) get_grads_relu_gpu(l->grads, l->act_inputs, l->out_n, batch_size);
+	else if (l->activation == ACT_LEAKY) get_grads_leaky_relu_gpu(l->grads, l->act_inputs, l->out_n, batch_size);
+	else if (l->activation == ACT_SIGMOID) get_grads_sigmoid_gpu(l->grads, l->output, l->out_n, batch_size);
+	else if (l->activation == ACT_SOFTMAX);
+	else if (l->activation == ACT_TANH) get_grads_tanh_gpu(l->grads, l->act_inputs, l->out_n, batch_size);
+	else if (l->activation == ACT_NONE);
+	else {
+		printf("Invalid activation function.");
+		wait_for_key_then_exit();
 	}
 }
 

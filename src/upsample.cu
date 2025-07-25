@@ -34,7 +34,6 @@ __global__ void forward_upsample_kernel(float* input, float* output, int spatial
 	}
 	
 }
-
 void forward_upsample_gpu(float* input, float* output, int w, int h, int c, int ksize, int batch_size) {
 	int n = w * h * c * batch_size;
 	int grid_size = GET_GRIDSIZE(n, BLOCKSIZE);
@@ -63,7 +62,6 @@ __global__ void backward_upsample_kernel(float* grads_x, float* grads_y, int spa
 		}
 	}
 }
-
 void backward_upsample_gpu(float* grads_x, float* grads_y, int w, int h, int c, int ksize, int batch_size) {
 	int n = w * h * c * batch_size;
 	int grid_size = GET_GRIDSIZE(n, BLOCKSIZE);

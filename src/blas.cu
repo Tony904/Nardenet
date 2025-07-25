@@ -1,6 +1,6 @@
 #include <stdio.h>
-#include <math.h>
 #include "xcuda.h"
+#include <math.h>
 #include "utils.h"
 
 
@@ -14,8 +14,7 @@
 
 
 
-void add_biases_kernel(float* arr, int spatial, float* biases) {
-
+__global__ void add_biases_kernel(float* arr, int spatial, float* biases) {
 	__shared__ float bias;
 
 	int channel = blockIdx.x;
@@ -32,7 +31,7 @@ void add_biases_gpu(float* arr, int spatial, float* biases, int n_filters, int b
 }
 
 
-void get_bias_grads_kernel(float* bias_grads, float* grads, int spatial) {
+__global__ void get_bias_grads_kernel(float* bias_grads, float* grads, int spatial) {
 	__shared__ float shared[BLOCKSIZE];
 
 	int tid = threadIdx.x;

@@ -4,19 +4,21 @@
 #include "utils.h"
 #include "im2col.h"
 #include <math.h>
+#include "blas.h"
 
 
 #ifdef __INTELLISENSE__
 #define KARGS(...)
 #define __syncthreads()
+#define __shfl_down_sync(...) ( __VA_ARGS__ )
 #else
 #define KARGS(...) <<< __VA_ARGS__ >>>
 #endif
 
+
 #ifndef min
 #define min(x, y) ((x > y) ? y : x)
 #endif
-
 
 
 
@@ -221,7 +223,7 @@ __global__ void col2im_kernel(const float* __restrict__ data_col,
     }
 }
 
-void col2im_gpu(float* data_col, int channels, int ksize, int pad, int stride, int width, int height, float* data_im, int n) {
+void col2im_gpu(float* data_col, float* data_im, int channels, int height, int width, int ksize, int stride, int pad, int n) {
     int out_size = (width + 2 * pad - ksize) / stride + 1;
     int grid_size = GET_GRIDSIZE(n, BLOCKSIZE);
     col2im_kernel KARGS(grid_size, BLOCKSIZE) (data_col, out_size, out_size,
@@ -265,7 +267,7 @@ void cuda_test_col2im(void) {
     cudaEventCreate(&stop);
     cudaEventRecord(start);
 
-    col2im_gpu(d_col, channels, ksize, pad, stride, width, height, d_im, im_n);
+    col2im_gpu(d_col, d_im, height, width, channels, ksize, stride, pad, im_n);
 
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);

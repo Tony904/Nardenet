@@ -4,11 +4,13 @@
 #include "utils.h"
 #include "gemm.h"
 #include <math.h>
+#include "blas.h"
 
 
 #ifdef __INTELLISENSE__
 #define KARGS(...)
 #define __syncthreads()
+#define __shfl_down_sync(...) ( __VA_ARGS__ )
 #else
 #define KARGS(...) <<< __VA_ARGS__ >>>
 #endif
@@ -533,26 +535,6 @@ void cuda_test_all_gemms(void) {
 	cuda_test_gemm();
 	cuda_test_gemm_atb();
 	cuda_test_gemm_tab();
-}
-
-// *** OTHER STUFF ***
-
-void add_biases_kernel(float* arr, int spatial, float* biases) {
-
-	__shared__ float bias;
-
-	int channel = blockIdx.x;
-	if (threadIdx.x == 0) bias = biases[channel];
-	__syncthreads();
-
-	int offset = channel * spatial;
-	int i = threadIdx.x + blockIdx.x * blockDim.x;
-	for (; i < spatial; i += blockDim.x) arr[offset + i] += bias;
-}
-void add_biases_gpu(float* arr, int spatial, float* biases, int channels, int batch_size) {
-	channels = channels * batch_size;
-	add_biases_kernel KARGS(channels, BLOCKSIZE) (arr, spatial, biases);
-	CHECK_CUDA(cudaPeekAtLastError());
 }
 
 

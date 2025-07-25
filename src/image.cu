@@ -39,7 +39,6 @@ void scale_contrast_rgb_gpu(image* img, float scalar) {
 }
 
 
-
 __global__ void rgb2hsv_kernel(float* data, int spatial) {
     int i = threadIdx.x + blockIdx.x * blockDim.x;
     if (i < spatial) {
@@ -154,6 +153,7 @@ void hsv_apply_changes_gpu(image* img, float brightness_scalar, float saturation
     hsv_apply_changes_kernel KARGS(grid_size, BLOCKSIZE) (img->data, spatial, brightness_scalar, saturation_scalar, hue_shift);
     CHECK_CUDA(cudaPeekAtLastError());
 }
+
 
 void transform_colorspace_gpu(image* img, float brightness_scalar, float contrast_scalar, float saturation_scalar, float hue_shift) {
     if (contrast_scalar != 1.0F) scale_contrast_rgb_gpu(img, contrast_scalar);

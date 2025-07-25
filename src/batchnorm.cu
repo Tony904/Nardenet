@@ -5,6 +5,7 @@
 #include <math.h>
 #include "network.h"
 #include "batchnorm.h"
+#include "blas.h"
 
 
 #ifdef __INTELLISENSE__
@@ -472,8 +473,7 @@ void backward_batchnorm_gpu(float* grads,
 	int spatial, int n_filters, int batch_size) {
 
 	int n = spatial * n_filters;
-	int grid_size = n_filters;
-	backward_batchnorm_kernel KARGS(grid_size, BLOCKSIZE) (grads, Z, Z_norm, means, variances, gammas, gamma_grads, spatial, n, batch_size);
+	backward_batchnorm_kernel KARGS(n_filters, BLOCKSIZE) (grads, Z, Z_norm, means, variances, gammas, gamma_grads, spatial, n, batch_size);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
