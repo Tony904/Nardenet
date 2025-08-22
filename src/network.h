@@ -28,10 +28,10 @@ extern "C" {
 
     network* new_network(size_t num_of_layers);
     void build_network(network* net);
-    void backward_none(layer* l, network* net);
-    void update_none(layer* l, network* net);
-
     void free_network(network* net);
+
+    void get_activation_grads(layer* l, size_t batch_size);
+    void get_activation_grads_gpu(layer* l, size_t batch_size);
 
     void print_layers(network* net);
     void print_layer(layer* l);

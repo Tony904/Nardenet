@@ -69,7 +69,7 @@ void get_bias_grads_gpu(float* bias_grads, float* grads, int n_filters, int spat
 }
 
 
-// A += B
+
 __global__ void add_arrays_kernel(float* A, float* B, int n) {
 	int index = threadIdx.x + blockIdx.x * blockDim.x;
 	A[index] += B[index];

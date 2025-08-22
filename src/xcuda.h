@@ -32,6 +32,7 @@ extern "C" {
 	// blas.cu
 	void add_biases_gpu(float* arr, int spatial, float* biases, int n_filters, int batch_size);
 	void get_bias_grads_gpu(float* bias_grads, float* grads, int n_filters, int spatial, int batch_size);
+	// A += B
 	void add_arrays_gpu(float* A, float* B, int n);
 	void copy_array_gpu(float* src, float* dst, int n);
 	void scale_array_gpu(float* A, float scalar, int n);
@@ -46,7 +47,8 @@ extern "C" {
 	void launch_backward_avgpool_kernel(float* grads_x, float* grads_y, int spatial, int c, int batch_size);
 
 	// maxpool.cu
-	void launch_forward_maxpool_kernel(float* src, float* dst, int* max_indexes, int src_w, int src_h, int dst_w, int dst_h, int dst_n, int batch_size);
+	void launch_forward_maxpool_kernel(float* src, float* dst, float** max_ptrs, int src_w, int src_h, int dst_w, int dst_h, int dst_n, int batch_size);
+	void launch_backward_maxpool_kernel(float* grads, float** max_ptrs, int n);
 
 	// derivatives.cu
 	void get_grads_sigmoid_gpu(float* grads, float* act_output, size_t out_n, size_t batch_size);
@@ -81,6 +83,9 @@ extern "C" {
 	void get_grads_tanh_gpu(float* grads, float* act_inputs, size_t out_n, size_t batch_size);
 	void regularize_l1_gpu(float* weight_grads, float* weights, size_t size, float decay);
 	void regularize_l2_gpu(float* weight_grads, float* weights, size_t size, float decay);
+
+	//loss.cu
+	TODO
 
 
 #ifdef __cplusplus

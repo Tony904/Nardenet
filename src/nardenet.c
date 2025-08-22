@@ -20,7 +20,7 @@ int main(void) {
 
 
 
-	//print_gpu_props();
+	print_gpu_props();
 
 	//free_network(net);(
 	//print_alloc_list();
@@ -56,8 +56,8 @@ IN PROGRESS:
 	- upsample (done*)
 	- data augmentation (done*)
 	- layers
-		- forward - done: conv, avgpool
-		- backward - done: conv, avgpool
+		- forward - done: conv, avgpool, maxpool, residual, route
+		- backward - done: conv, avgpool, maxpool, residual, route
 		- update
 	- classification
 	- object detection prediction stuff
