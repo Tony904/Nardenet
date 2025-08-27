@@ -214,6 +214,18 @@ void backward_conv(layer* l, network* net) {
 	}
 }
 
+void update_conv_gpu(layer* l, network* net) {
+	float rate = net->current_learning_rate;
+	float momentum = net->momentum;
+
+	float* biases = l->biases;
+	float* bias_grads = l->bias_grads;
+	float* biases_velocity = l->biases_velocity;
+	size_t n = l->n_filters;
+
+
+}
+
 void update_conv(layer* l, network* net) {
 	float rate = net->current_learning_rate;	
 	float momentum = net->momentum;

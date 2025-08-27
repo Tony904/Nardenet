@@ -31,12 +31,13 @@ void forward_maxpool_gpu(layer* l, network* net) {
 	float** l_max_ptrs = l->maxpool_addresses;
 	for (size_t b = 0; b < batch_size; b++) {
 		float* b_output = &l_output[b * out_n];
-		float* b_max_ptrs = &l_max_ptrs[b * out_n];
+		float** b_max_ptrs = &l_max_ptrs[b * out_n];
 		size_t bwh = b * wh;
 		for (size_t i = 0; i < l->in_ids.n; i++) {
 			layer* inl = l->in_layers[i];
 			size_t inl_out_c = inl->out_c;
 			float* inl_output = &inl->output[bwh * inl_out_c];
+			//float* src, float* dst, float** max_ptrs, int src_w, int src_h, int dst_w, int dst_h, int dst_n, int batch_size
 			launch_forward_maxpool_kernel(inl_output, b_output, b_max_ptrs, w, h, out_w, out_h, out_n, batch_size);
 			// shift pointers by the size of the output of the input layer that was just processed
 			b_output += out_wh * inl_out_c;

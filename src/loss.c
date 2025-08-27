@@ -59,7 +59,7 @@ void loss_cce(layer* l, network* net) {
 	size_t n = l->n_classes;
 	float loss = 0.0F;
 	size_t b;
-//#pragma omp parallel for reduction(+:loss) firstprivate(n)
+#pragma omp parallel for reduction(+:loss) firstprivate(n)
 	for (b = 0; b < batch_size; b++) {
 		size_t offset = b * n;
 		for (size_t i = 0; i < n; ++i) {
@@ -70,9 +70,9 @@ void loss_cce(layer* l, network* net) {
 			errors[index] = (t) ? -logf(p) : 0.0F;  // Errors are only used for reporting performance, not for backprop
 			loss += errors[index];
 		}
-		print_top_class_name(&truth[offset], n, net->class_names, 0, 0);
-		printf(" : ");
-		print_top_class_name(&output[offset], n, net->class_names, 1, 1);
+		//print_top_class_name(&truth[offset], n, net->class_names, 0, 0);
+		//printf(" : ");
+		//print_top_class_name(&output[offset], n, net->class_names, 1, 1);
 	}
 	l->loss = loss / (float)batch_size;
 	printf("Avg class loss:      %f\n", l->loss);
