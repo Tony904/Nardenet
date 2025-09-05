@@ -32,8 +32,8 @@ extern "C" {
 	// blas.cu
 	void add_biases_gpu(float* arr, int spatial, float* biases, int n_filters, int batch_size);
 	void get_bias_grads_gpu(float* bias_grads, float* grads, int n_filters, int spatial, int batch_size);
-	// A += B
-	void add_arrays_gpu(float* A, float* B, int n);
+	float sum_array_gpu(float* A, int n);
+	void add_arrays_gpu(float* X, float* Y, int n);
 	void copy_array_gpu(float* src, float* dst, int n);
 	void scale_array_gpu(float* A, float scalar, int n);
 	void clamp_array_gpu(float* A, float upper, float lower, int n);
@@ -85,11 +85,17 @@ extern "C" {
 	void get_grads_relu_gpu(float* grads, float* act_inputs, size_t out_n, size_t batch_size);
 	void get_grads_leaky_relu_gpu(float* grads, float* act_inputs, size_t out_n, size_t batch_size);
 	void get_grads_tanh_gpu(float* grads, float* act_inputs, size_t out_n, size_t batch_size);
-	void regularize_l1_gpu(float* weight_grads, float* weights, size_t size, float decay);
-	void regularize_l2_gpu(float* weight_grads, float* weights, size_t size, float decay);
+	void regularize_l1_gpu(float* weight_grads, float* weights, size_t n_weights, float decay);
+	void regularize_l2_gpu(float* weight_grads, float* weights, size_t n_weights, float decay);
 
-	//loss.cu
-	//TODO
+	// loss.cu
+	void launch_loss_mae_kernel(float* grads, float* output, float* truth, float* errors, int n, int batch_size);
+	void launch_loss_mse_kernel(float* grads, float* output, float* truth, float* errors, int n, int batch_size);
+	void launch_loss_cce_kernel(float* grads, float* output, float* truth, float* errors, int n, int batch_size);
+	void launch_loss_bce_kernel(float* grads, float* output, float* truth, float* errors, int n, int batch_size);
+
+	// update.cu
+	void launch_update_kernel(float* vals, float* grads, float* velocities, int n_vals, int batch_size, float momentum, float rate);
 
 
 #ifdef __cplusplus

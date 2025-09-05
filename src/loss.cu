@@ -1,9 +1,9 @@
 #include <stdio.h>
+#include <math.h>
 #include "xcuda.h"
 #include "xallocs.h"
 #include "utils.h"
-#include "activations.h"
-#include "loss.h"
+
 
 
 #ifdef __INTELLISENSE__
@@ -23,10 +23,10 @@ __global__ void loss_mae_kernel(float* grads, float* output, float* truth, float
 		grads[index] = ((delta > 0.0F) ? 1.0F : 0.0F) + ((delta < 0.0F) ? -1.0F : 0.0F);  // no branching
 	}
 }
-void loss_mae_gpu(layer* l, network* net) {
-	int n = (int)(l->out_n * net->batch_size);
+void launch_loss_mae_kernel(float* grads, float* output, float* truth, float* errors, int n, int batch_size) {
+	n = n * batch_size;
 	int grid_size = GET_GRIDSIZE(n, BLOCKSIZE);
-	loss_mae_kernel KARGS(grid_size, BLOCKSIZE) (l->grads, l->output, l->truth, l->errors, n);
+	loss_mae_kernel KARGS(grid_size, BLOCKSIZE) (grads, output, truth, errors, n);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
@@ -39,10 +39,10 @@ __global__ void loss_mse_kernel(float* grads, float* output, float* truth, float
 		grads[index] = delta;
 	}
 }
-void loss_mse_gpu(layer* l, network* net) {
-	int n = (int)(l->out_n * net->batch_size);
+void launch_loss_mse_kernel(float* grads, float* output, float* truth, float* errors, int n, int batch_size) {
+	n = n * batch_size;
 	int grid_size = GET_GRIDSIZE(n, BLOCKSIZE);
-	loss_mse_kernel KARGS(grid_size, BLOCKSIZE) (l->grads, l->output, l->truth, l->errors, n);
+	loss_mse_kernel KARGS(grid_size, BLOCKSIZE) (grads, output, truth, errors, n);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
@@ -56,10 +56,10 @@ __global__ void loss_cce_kernel(float* grads, float* output, float* truth, float
 		errors[index] = (t) ? -logf(p) : 0.0F;
 	}
 }
-void loss_cce_gpu(layer* l, network* net) {
-	int n = (int)(l->out_n * net->batch_size);
+void launch_loss_cce_kernel(float* grads, float* output, float* truth, float* errors, int n, int batch_size) {
+	n = n * batch_size;
 	int grid_size = GET_GRIDSIZE(n, BLOCKSIZE);
-	loss_cce_kernel KARGS(grid_size, BLOCKSIZE) (l->grads, l->output, l->truth, l->errors, n);
+	loss_cce_kernel KARGS(grid_size, BLOCKSIZE) (grads, output, truth, errors, n);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
@@ -73,9 +73,9 @@ __global__ void loss_bce_kernel(float* grads, float* output, float* truth, float
 		errors[index] = -t * logf(p) - (1.0F - t) * logf(1.0F - p);
 	}
 }
-void loss_bce_gpu(layer* l, network* net) {
-	int n = (int)(l->out_n * net->batch_size);
+void launch_loss_bce_kernel(float* grads, float* output, float* truth, float* errors, int n, int batch_size) {
+	n = n * batch_size;
 	int grid_size = GET_GRIDSIZE(n, BLOCKSIZE);
-	loss_cce_kernel KARGS(grid_size, BLOCKSIZE) (l->grads, l->output, l->truth, l->errors, n);
+	loss_cce_kernel KARGS(grid_size, BLOCKSIZE) (grads, output, truth, errors, n);
 	CHECK_CUDA(cudaPeekAtLastError());
 }

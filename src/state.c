@@ -5,6 +5,7 @@
 #include "locmacro.h"
 #include "utils.h"
 #include "xallocs.h"
+#include "blas.h"
 
 
 size_t write_floats(float* data, size_t n, FILE* file, char* data_name, int layer_id);
@@ -53,13 +54,13 @@ void save_state(network* net) {
 		int id = l->id;
 		total_vals += write_floats(l->weights.a, l->weights.n, file, "weights", id);
 		total_vals += write_floats(l->biases, l->n_filters, file, "biases", id);
-		total_vals += write_floats(l->weights_velocity, l->weights.n, file, "weights_velocity", id);
-		total_vals += write_floats(l->biases_velocity, l->n_filters, file, "biases_velocity", id);
+		total_vals += write_floats(l->weight_velocities, l->weights.n, file, "weight_velocities", id);
+		total_vals += write_floats(l->bias_velocities, l->n_filters, file, "bias_velocities", id);
 		if (l->batchnorm) {
 			total_vals += write_floats(l->gammas, l->n_filters, file, "gammas", id);
 			total_vals += write_floats(l->rolling_means, l->n_filters, file, "rolling_means", id);
 			total_vals += write_floats(l->rolling_variances, l->n_filters, file, "rolling_variances", id);
-			total_vals += write_floats(l->gammas_velocity, l->n_filters, file, "gammas_velocity", id);
+			total_vals += write_floats(l->gamma_velocities, l->n_filters, file, "gamma_velocities", id);
 		}
 	}
 	if (fseek(file, sizeof(uint64_t) * 3, SEEK_SET)) {
@@ -136,13 +137,13 @@ void load_state(network* net) {
 		int id = l->id;
 		total_vals += read_floats(l->weights.a, l->weights.n, file, "weights", id);
 		total_vals += read_floats(l->biases, l->n_filters, file, "biases", id);
-		total_vals += read_floats(l->weights_velocity, l->weights.n, file, "weights_velocity", id);
-		total_vals += read_floats(l->biases_velocity, l->n_filters, file, "biases_velocity", id);
+		total_vals += read_floats(l->weight_velocities, l->weights.n, file, "weight_velocities", id);
+		total_vals += read_floats(l->bias_velocities, l->n_filters, file, "bias_velocities", id);
 		if (l->batchnorm) {
 			total_vals += read_floats(l->gammas, l->n_filters, file, "gammas", id);
 			total_vals += read_floats(l->rolling_means, l->n_filters, file, "rolling_means", id);
 			total_vals += read_floats(l->rolling_variances, l->n_filters, file, "rolling_variances", id);
-			total_vals += read_floats(l->gammas_velocity, l->n_filters, file, "gammas_velocity", id);
+			total_vals += read_floats(l->gamma_velocities, l->n_filters, file, "gamma_velocities", id);
 		}
 	}
 	if (total_vals != h[3]) {

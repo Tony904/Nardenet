@@ -159,14 +159,14 @@ extern "C" {
         float* mean_grads;
         float* variance_grads;
         float* gamma_grads;
-        float* gammas_velocity;
+        float* gamma_velocities;
 
         float* errors;
         float* grads;  // storage for propagated gradients
         float* weight_grads;
         float* bias_grads;
-        float* weights_velocity;  // momentum adjustment for weights
-        float* biases_velocity;  // momentum adjustment for biases
+        float* weight_velocities;  // momentum adjustment for weights
+        float* bias_velocities;  // momentum adjustment for biases
 
         intarr in_ids;
         layer** in_layers;

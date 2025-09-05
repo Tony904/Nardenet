@@ -217,13 +217,13 @@ void backward_conv(layer* l, network* net) {
 void update_conv_gpu(layer* l, network* net) {
 	float rate = net->current_learning_rate;
 	float momentum = net->momentum;
-
-	float* biases = l->biases;
-	float* bias_grads = l->bias_grads;
-	float* biases_velocity = l->biases_velocity;
-	size_t n = l->n_filters;
-
-
+	int batch_size = net->batch_size;
+	
+	launch_update_kernel(l->biases, l->bias_grads, l->bias_velocities, l->n_filters, batch_size, momentum, rate);
+	launch_update_kernel(l->weights.a, l->weight_grads, l->weight_velocities, l->weights.n, batch_size, momentum, rate);
+	if (l->batchnorm) {
+		launch_update_kernel(l->gammas, l->gamma_grads, l->gamma_velocities, l->out_c, batch_size, momentum, rate);
+	}
 }
 
 void update_conv(layer* l, network* net) {
@@ -232,43 +232,43 @@ void update_conv(layer* l, network* net) {
 
 	float* biases = l->biases;
 	float* bias_grads = l->bias_grads;
-	float* biases_velocity = l->biases_velocity;
+	float* bias_velocities = l->bias_velocities;
 	size_t n = l->n_filters;
 	size_t i;
 #pragma omp parallel for firstprivate(rate, momentum)
 	for (i = 0; i < n; i++) {
-		float v_old = biases_velocity[i];
+		float v_old = bias_velocities[i];
 		float v_new = momentum * v_old - rate * bias_grads[i];
 		biases[i] += -momentum * v_old + (1 + momentum) * v_new;  // Nesterov momentum
-		biases_velocity[i] = v_new;
+		bias_velocities[i] = v_new;
 		bias_grads[i] = 0.0F;
 	}
 
 	float* weights = l->weights.a;
 	float* weight_grads = l->weight_grads;
-	float* weights_velocity = l->weights_velocity;
+	float* weight_velocities = l->weight_velocities;
 	n = l->weights.n;
 	net->regularize_weights(weight_grads, weights, n, net->decay);
 #pragma omp parallel for firstprivate(rate, momentum)
 	for (i = 0; i < n; i++) {
-		float v_old = weights_velocity[i];
+		float v_old = weight_velocities[i];
 		float v_new = momentum * v_old - rate * weight_grads[i];
 		weights[i] += -momentum * v_old + (1 + momentum) * v_new;
-		weights_velocity[i] = v_new;
+		weight_velocities[i] = v_new;
 		weight_grads[i] = 0.0F;
 	}
 
 	if (l->batchnorm) {
 		float* gammas = l->gammas;
 		float* gamma_grads = l->gamma_grads;
-		float* gammas_velocity = l->gammas_velocity;
+		float* gamma_velocities = l->gamma_velocities;
 		n = l->out_c;
 #pragma omp parallel for firstprivate(rate, momentum)
 		for (i = 0; i < n; i++) {
-			float v_old = weights_velocity[i];
+			float v_old = weight_velocities[i];
 			float v_new = momentum * v_old - rate * weight_grads[i];
 			gammas[i] += -momentum * v_old + (1 + momentum) * v_new;
-			gammas_velocity[i] = v_new;
+			gamma_velocities[i] = v_new;
 			gamma_grads[i] = 0.0F;
 		}
 	}

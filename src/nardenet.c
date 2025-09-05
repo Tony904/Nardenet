@@ -56,10 +56,10 @@ IN PROGRESS:
 	- upsample (done*)
 	- data augmentation (done*)
 	- layers
-		- forward - done: conv, avgpool, maxpool, residual, route
-		- backward - done: conv, avgpool, maxpool, residual, route
-		- update
-	- classification
+		- forward - done: conv, avgpool, maxpool, residual, route, upsample
+		- backward - done: conv, avgpool, maxpool, residual, route, upsample
+		- update - done
+	- classification - done
 	- object detection prediction stuff
 
  learning rate policies

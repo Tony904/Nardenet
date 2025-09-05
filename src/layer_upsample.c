@@ -2,7 +2,32 @@
 #include "utils.h"
 #include "derivatives.h"
 #include "xallocs.h"
+#include "blas.h"
+#include "xcuda.h"
 
+
+
+void forward_upsample_gpu(layer* l, network* net) {
+	float* Z = l->Z;
+	size_t ksize = l->ksize;
+	size_t w = l->w;
+	size_t h = l->h;
+	size_t wh = w * h;
+	size_t out_w = l->out_w;
+	size_t out_wh = out_w * l->out_h;
+	size_t batch_size = net->batch_size;
+	for (size_t b = 0; b < batch_size; b++) {
+		for (size_t a = 0; a < l->in_ids.n; a++) {
+			layer* inl = l->in_layers[a];
+			float* inl_output = inl->output;
+			size_t inl_out_c = inl->out_c;
+			launch_forward_upsample_kernel(inl_output, Z, w, h, inl_out_c, ksize, 1);
+			Z += out_wh * inl_out_c;
+		}
+	}
+	if (l->activation) l->activate(l->Z, l->output, l->out_n, net->batch_size);
+	if (net->training) zero_array_gpu(l->grads, l->out_n * batch_size);
+}
 
 void forward_upsample(layer* l, network* net) {
 	float* Z = l->Z;
@@ -47,21 +72,31 @@ void forward_upsample(layer* l, network* net) {
 	if (net->training) zero_array(l->grads, l->out_n * batch_size);
 }
 
+void backward_upsample_gpu(layer* l, network* net) {
+	size_t batch_size = net->batch_size;
+	float* grads = l->grads;
+	if (l->activation) get_activation_grads_gpu(l, batch_size);
+	size_t ksize = l->ksize;
+	size_t w = l->w;
+	size_t h = l->h;
+	size_t wh = w * h;
+	size_t out_w = l->out_w;
+	size_t out_wh = out_w * l->out_h;
+	for (size_t b = 0; b < batch_size; b++) {
+		for (size_t a = 0; a < l->in_ids.n; a++) {
+			layer* inl = l->in_layers[a];
+			float* inl_grads = inl->grads;
+			size_t inl_out_c = inl->out_c;
+			launch_backward_upsample_kernel(inl_grads, grads, w, h, inl_out_c, ksize, 1);
+			grads += out_wh * inl_out_c;
+		}
+	}
+}
+
 void backward_upsample(layer* l, network* net) {
 	size_t batch_size = net->batch_size;
 	float* grads = l->grads;
-	if (l->activation) {
-		if (l->activation == ACT_MISH) get_grads_mish(grads, l->act_inputs, l->out_n, batch_size);  // dC/da * da/dz
-		else if (l->activation == ACT_RELU) get_grads_relu(grads, l->act_inputs, l->out_n, batch_size);
-		else if (l->activation == ACT_LEAKY) get_grads_leaky_relu(grads, l->act_inputs, l->out_n, batch_size);
-		else if (l->activation == ACT_SIGMOID) get_grads_sigmoid(grads, l->output, l->out_n, batch_size);
-		else if (l->activation == ACT_SOFTMAX);
-		else if (l->activation == ACT_TANH) get_grads_tanh(grads, l->act_inputs, l->out_n, batch_size);
-		else {
-			printf("Incorrect or unsupported activation function.\n");
-			wait_for_key_then_exit();
-		}
-	}
+	if (l->activation) get_activation_grads(l, batch_size);
 	size_t ksize = l->ksize;
 	size_t w = l->w;
 	size_t h = l->h;

@@ -196,8 +196,8 @@ void build_conv_layer(int i, network* net) {
 	l->grads = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 	l->weight_grads = (float*)xcalloc(l->weights.n, sizeof(float));
 	l->bias_grads = (float*)xcalloc(l->n_filters, sizeof(float));
-	l->weights_velocity = (float*)xcalloc(l->weights.n, sizeof(float));
-	l->biases_velocity = (float*)xcalloc(l->n_filters, sizeof(float));
+	l->weight_velocities = (float*)xcalloc(l->weights.n, sizeof(float));
+	l->bias_velocities = (float*)xcalloc(l->n_filters, sizeof(float));
 	if (l->batchnorm) {
 		l->Z_norm = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 		l->act_inputs = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
@@ -205,7 +205,7 @@ void build_conv_layer(int i, network* net) {
 		l->variances = (float*)xcalloc(l->out_c, sizeof(float));
 		l->gammas = (float*)xcalloc(l->out_c, sizeof(float));
 		l->gamma_grads = (float*)xcalloc(l->out_c, sizeof(float));
-		l->gammas_velocity = (float*)xcalloc(l->out_c, sizeof(float));
+		l->gamma_velocities = (float*)xcalloc(l->out_c, sizeof(float));
 		fill_array(l->gammas, l->out_c, 1.0F);
 		l->rolling_means = (float*)xcalloc(l->out_c, sizeof(float));
 		l->rolling_variances = (float*)xcalloc(l->out_c, sizeof(float));
@@ -281,8 +281,8 @@ void build_fc_layer(int i, network* net) {
 	l->grads = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 	l->weight_grads = (float*)xcalloc(l->weights.n, sizeof(float));
 	l->bias_grads = (float*)xcalloc(l->n_filters, sizeof(float));
-	l->weights_velocity = (float*)xcalloc(l->weights.n, sizeof(float));
-	l->biases_velocity = (float*)xcalloc(l->n_filters, sizeof(float));
+	l->weight_velocities = (float*)xcalloc(l->weights.n, sizeof(float));
+	l->bias_velocities = (float*)xcalloc(l->n_filters, sizeof(float));
 	if (l->batchnorm) {
 		l->Z_norm = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 		l->act_inputs = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
@@ -290,7 +290,7 @@ void build_fc_layer(int i, network* net) {
 		l->variances = (float*)xcalloc(l->out_c, sizeof(float));
 		l->gammas = (float*)xcalloc(l->out_c, sizeof(float));
 		l->gamma_grads = (float*)xcalloc(l->out_c, sizeof(float));
-		l->gammas_velocity = (float*)xcalloc(l->out_c, sizeof(float));
+		l->gamma_velocities = (float*)xcalloc(l->out_c, sizeof(float));
 		fill_array(l->gammas, l->out_c, 1.0F);
 		l->rolling_means = (float*)xcalloc(l->out_c, sizeof(float));
 		l->rolling_variances = (float*)xcalloc(l->out_c, sizeof(float));
@@ -352,7 +352,7 @@ void build_classify_layer(int i, network* net) {
 	l->pad = 0;
 	l->stride = 1;
 	if (l->w != 1 || l->h != 1 || l->c != l->n_classes) {
-		printf("The layer outputting to a classify layer must have a width, height, and depth of 1x1x%zu, has %zux%zux%zu.\n", l->n_classes, l->w, l->h, l->c);
+		printf("The layer outputting to a classify layer must have a width, height, and depth of 1x1x%zu. (is %zux%zux%zu)\n", l->n_classes, l->w, l->h, l->c);
 		wait_for_key_then_exit();
 	}
 
@@ -1150,7 +1150,7 @@ void print_some_weights(layer* l, size_t n) {
 
 void print_top_class_name(float* probs, size_t n_classes, char** class_names, int include_prob, int new_line) {
 	size_t c = 0;
-	float highscore = 0;
+	float highscore = 0.0F;
 	for (size_t i = 0; i < n_classes; i++) {
 		float p = probs[i];
 		if (p > highscore) {
@@ -1158,14 +1158,8 @@ void print_top_class_name(float* probs, size_t n_classes, char** class_names, in
 			c = i;
 		}
 	}
-	if (new_line) {
-		if (include_prob) printf("%s (%f)\n", class_names[c], highscore);
-		else printf("%s\n", class_names[c]);
-	}
-	else {
-		if (include_prob) printf("%s (%f)", class_names[c], highscore);
-		else printf("%s", class_names[c]);
-	}
+	char end = new_line ? '\n' : '\0';
+	if (include_prob) printf("%s (%f)%c", class_names[c], highscore, end);
 }
 
 void print_network_summary(network* net, int print_training_params) {

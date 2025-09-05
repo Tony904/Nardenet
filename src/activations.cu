@@ -1,10 +1,9 @@
 #include <stdio.h>
+#include <math.h>
+#include <float.h>
 #include "xcuda.h"
 #include "xallocs.h"
 #include "utils.h"
-#include <math.h>
-#include <float.h>
-#include "network.h"
 #include "activations.h"
 #include "blas.h"
 

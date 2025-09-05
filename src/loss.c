@@ -1,5 +1,6 @@
 #include "loss.h"
 #include <math.h>
+#include "xcuda.h"
 #include "iou.h"
 
 
@@ -23,7 +24,12 @@ void loss_mae(layer* l, network* net) {
 			loss += errors[index];
 		}
 	}
+	l->loss = loss / (float)batch_size;
 }
+void loss_mae_gpu(layer* l, network* net) {
+	launch_loss_mae_kernel((int)l->grads, (int)l->output, (int)l->truth, (int)l->errors, (int)l->n, (int)net->batch_size);
+}
+
 
 void loss_mse(layer* l, network* net) {
 	size_t batch_size = net->batch_size;
@@ -45,7 +51,12 @@ void loss_mse(layer* l, network* net) {
 			loss += errors[index];
 		}
 	}
+	l->loss = loss / (float)batch_size;
 }
+void loss_mse_gpu(layer* l, network* net) {
+	launch_loss_mse_kernel((int)l->grads, (int)l->output, (int)l->truth, (int)l->errors, (int)l->n, (int)net->batch_size);
+}
+
 
 // Gradients for softmax are calculated wrt its logits, not its outputs, when paired with cross-entropy loss
 // because math. Otherwise we'd have to calculate the Jacobian of the softmax function which is a lot of math.
@@ -70,13 +81,13 @@ void loss_cce(layer* l, network* net) {
 			errors[index] = (t) ? -logf(p) : 0.0F;  // Errors are only used for reporting performance, not for backprop
 			loss += errors[index];
 		}
-		//print_top_class_name(&truth[offset], n, net->class_names, 0, 0);
-		//printf(" : ");
-		//print_top_class_name(&output[offset], n, net->class_names, 1, 1);
 	}
 	l->loss = loss / (float)batch_size;
-	printf("Avg class loss:      %f\n", l->loss);
 }
+void loss_cce_gpu(layer* l, network* net) {
+	launch_loss_cce_kernel((int)l->grads, (int)l->output, (int)l->truth, (int)l->errors, (int)l->n, (int)net->batch_size);
+}
+
 
 // binary cross entropy
 void loss_bce(layer* l, network* net) {
@@ -100,7 +111,12 @@ void loss_bce(layer* l, network* net) {
 			loss += errors[index];
 		}
 	}
+	l->loss = loss / (float)batch_size;
 }
+void loss_bce_gpu(layer* l, network* net) {
+	launch_loss_bce_kernel((int)l->grads, (int)l->output, (int)l->truth, (int)l->errors, (int)l->n, (int)net->batch_size);
+}
+
 
 void loss_l1(network* net) {
 	size_t n_layers = net->n_layers;
@@ -119,6 +135,7 @@ void loss_l1(network* net) {
 	}
 	net->loss = loss;
 }
+
 
 void loss_l2(network* net) {
 	size_t n_layers = net->n_layers;

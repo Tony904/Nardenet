@@ -32,7 +32,7 @@ void add_biases_gpu(float* arr, int spatial, float* biases, int n_filters, int b
 
 
 __global__ void get_bias_grads_kernel(float* bias_grads, float* grads, int spatial) {
-	__shared__ float shared[BLOCKSIZE];
+	__shared__ float shared[BLOCKSIZE >> 5];
 
 	int tid = threadIdx.x;
 	int channel = blockIdx.x;
@@ -70,14 +70,52 @@ void get_bias_grads_gpu(float* bias_grads, float* grads, int n_filters, int spat
 
 
 
-__global__ void add_arrays_kernel(float* A, float* B, int n) {
+__global__ void add_arrays_kernel(float* X, float* Y, int n) {
 	int index = threadIdx.x + blockIdx.x * blockDim.x;
-	A[index] += B[index];
+	Y[index] += X[index];
 }
-void add_arrays_gpu(float* A, float* B, int n) {
+void add_arrays_gpu(float* X, float* Y, int n) {
 	int grid_size = GET_GRIDSIZE(n, BLOCKSIZE);
-	add_arrays_kernel KARGS(grid_size, BLOCKSIZE) (A, B, n);
+	add_arrays_kernel KARGS(grid_size, BLOCKSIZE) (X, Y, n);
 	CHECK_CUDA(cudaPeekAtLastError());
+}
+
+
+__global__ void sum_array_kernel(float* A, int n, float* sum) {
+	__shared__ float shared[1024 >> 5];
+
+	int tid = threadIdx.x;
+	int lane = threadIdx.x & 31;
+	int warp_id = threadIdx.x >> 5;
+
+	float val = 0.0F;
+	for (int i = tid; i < n; i += 1024) {
+		val += A[i];
+	}
+
+	for (int offset = 16; offset > 0; offset >>= 1) {
+		val += __shfl_down_sync(0xffffffff, val, offset);
+	}
+
+	if (lane == 0) shared[warp_id] = val;
+	__syncthreads();
+
+	float s = 0.0F;
+	if (warp_id == 0) {
+		s = (tid < (1024 >> 5)) ? shared[tid] : 0.0F;
+		for (int offset = 16; offset > 0; offset >>= 1) {
+			s += __shfl_down_sync(0xffffffff, s, offset);
+		}
+		if (tid == 0) {
+			*sum = s;
+		}
+	}
+}
+float sum_array_gpu(float* A, int n) {
+	float sum;
+	sum_array_kernel KARGS(1, 1024) (A, n, &sum);
+	CHECK_CUDA(cudaPeekAtLastError());
+	return sum;
 }
 
 
