@@ -43,7 +43,7 @@ network* create_network_from_cfg(char* cfgfile) {
 	cfg c = { 0 };
 	printf("Loading cfg file: %s\n", cfgfile);
 	load_cfg(cfgfile, &c);
-	if (c.layers == NULL) {
+	if (!c.layers) {
 		printf("No layers in cfg.\n");
 		wait_for_key_then_exit();
 	}
@@ -71,7 +71,7 @@ void load_cfg(char* filename, cfg* c) {
 	while (read_line_to_buff(file, line, LINESIZE)) {
 		clean_string(line);
 		split_string_to_buff(line, "=,", tokens);
-		if (tokens[0] == NULL) continue;
+		if (!tokens[0]) continue;
 		if (is_header(line, header, &is_layer)) {
 			if (!is_layer) continue;
 			if (l) c->batchnorm = (l->batchnorm) ? 1 : 0;

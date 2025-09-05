@@ -67,7 +67,7 @@ __global__ void gemm_kernel(
 	}
 }
 
-void gemm_gpu(size_t M, size_t N, size_t K, float* A, float* B, float* C, int n_groups) {
+void gemm_gpu(int M, int N, int K, float* A, float* B, float* C, int n_groups) {
 	/*
 	M = # of filters
 	N = # of outputs per filter
@@ -107,7 +107,7 @@ void cuda_test_gemm(void) {
 	C = output dot products (M * N)
 	*/
 	int width = 320;
-	int height = width;
+	//int height = width;
 	int channels = 16;
 	if (width % 32 != 0) {
 		printf("Input width must be a multiple of 32.\n");
@@ -154,7 +154,7 @@ void cuda_test_gemm(void) {
 	cudaEventCreate(&start);
 	cudaEventCreate(&stop);
 	cudaEventRecord(start);
-
+#pragma warning (suppress:4267)
 	gemm_gpu(M, N, K, d_a, d_b, d_c, n_groups);
 
 	cudaEventRecord(stop);
@@ -242,7 +242,7 @@ __global__ void gemm_atb_kernel(
 	}
 }
 
-void gemm_atb_gpu(size_t M, size_t N, size_t K, float* A, float* B, float* C, int n_groups) {
+void gemm_atb_gpu(int M, int N, int K, float* A, float* B, float* C, int n_groups) {
 	// M = # of filters
 	// N = # of weights per filter (as if n_groups = 1)
 	// K = # of outputs per filter
@@ -272,7 +272,7 @@ void gemm_atb_gpu(size_t M, size_t N, size_t K, float* A, float* B, float* C, in
 
 void cuda_test_gemm_atb(void) {
 	int width = 320;
-	int height = width;
+	//int height = width;
 	int channels = 16;
 	if (width % 32 != 0) {
 		printf("Input width must be a multiple of 32.\n");
@@ -324,7 +324,7 @@ void cuda_test_gemm_atb(void) {
 	cudaEventCreate(&start);
 	cudaEventCreate(&stop);
 	cudaEventRecord(start);
-
+#pragma warning (suppress:4267)
 	gemm_atb_gpu(M, N, K, d_a, d_b, d_c, n_groups);
 
 	cudaEventRecord(stop);
@@ -408,7 +408,7 @@ __global__ void gemm_tab_kernel(
 	}
 }
 
-void gemm_tab_gpu(size_t M, size_t N, size_t K, float* A, float* B, float* C, int n_groups) {
+void gemm_tab_gpu(int M, int N, int K, float* A, float* B, float* C, int n_groups) {
 	// M = # of filters
 	// N = # of weights per filter (as if n_groups = 1)
 	// K = # of outputs per filter
@@ -438,7 +438,7 @@ void gemm_tab_gpu(size_t M, size_t N, size_t K, float* A, float* B, float* C, in
 
 void cuda_test_gemm_tab(void) {
 	int width = 320;
-	int height = width;
+	//int height = width;
 	int channels = 16;
 	if (width % 32 != 0) {
 		printf("Input width must be a multiple of 32.\n");
@@ -490,7 +490,7 @@ void cuda_test_gemm_tab(void) {
 	cudaEventCreate(&start);
 	cudaEventCreate(&stop);
 	cudaEventRecord(start);
-
+#pragma warning (suppress:4267)
 	gemm_tab_gpu(M, N, K, d_a, d_b, d_c, n_groups);
 
 	cudaEventRecord(stop);

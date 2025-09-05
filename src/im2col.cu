@@ -102,7 +102,7 @@ __global__ void im2col_kernel(
 void im2col_gpu(float* data_im, float* data_col, int channels, int h, int w, int ksize, int stride, int pad, int out_h, int out_w) {
     dim3 block_size(16, 16);
     dim3 grid_size((out_w + block_size.x - 1) / block_size.x, (out_h + block_size.y - 1) / block_size.y, channels);
-    size_t shared_memory_size = (block_size.x + 2 * pad) * (block_size.y + 2 * pad) * sizeof(float);
+    size_t shared_memory_size = (block_size.x + 2 * (size_t)pad) * (block_size.y + 2 * (size_t)pad) * sizeof(float);
     im2col_kernel KARGS(grid_size, block_size, shared_memory_size) (data_im, data_col, channels, h, w, ksize, stride, pad, out_h, out_w);
     CHECK_CUDA(cudaPeekAtLastError());
 }
@@ -223,7 +223,7 @@ __global__ void col2im_kernel(const float* __restrict__ data_col,
     }
 }
 
-void col2im_gpu(float* data_col, float* data_im, int channels, int height, int width, int ksize, int stride, int pad, int n) {
+void col2im_gpu(float* data_col, float* data_im, int height, int width, int ksize, int stride, int pad, int n) {
     int out_size = (width + 2 * pad - ksize) / stride + 1;
     int grid_size = GET_GRIDSIZE(n, BLOCKSIZE);
     col2im_kernel KARGS(grid_size, BLOCKSIZE) (data_col, out_size, out_size,
@@ -266,8 +266,8 @@ void cuda_test_col2im(void) {
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
     cudaEventRecord(start);
-
-    col2im_gpu(d_col, d_im, height, width, channels, ksize, stride, pad, im_n);
+#pragma warning (suppress:4267)
+    col2im_gpu(d_col, d_im, height, width, ksize, stride, pad, im_n);
 
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
@@ -287,6 +287,7 @@ void cuda_test_col2im(void) {
 
     //pprint_mat(col, dst_w, dst_h, 1);
     float* im_cpu = (float*)xcalloc(im_n, sizeof(float));
+#pragma warning (suppress:4267)
     col2im(col, channels, height, width, ksize, pad, stride, im_cpu);
 
     float epsilon = 1e-5f;

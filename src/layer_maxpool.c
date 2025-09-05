@@ -17,25 +17,23 @@ inline static int is_a_ge_zero_and_a_lt_b(int a, int b) {
 
 void forward_maxpool_gpu(layer* l, network* net) {
 
-	size_t batch_size = net->batch_size;
-	size_t ksize = 2;
-	size_t stride = 2;
-	size_t w = l->w;
-	size_t h = l->h;
-	size_t wh = w * h;
-	size_t out_n = l->out_n;
-	size_t out_w = l->out_w;
-	size_t out_h = l->out_h;
-	size_t out_wh = out_w * out_h;
+	int batch_size = (int)net->batch_size;
+	int w = (int)l->w;
+	int h = (int)l->h;
+	int wh = w * h;
+	int out_n = (int)l->out_n;
+	int out_w = (int)l->out_w;
+	int out_h = (int)l->out_h;
+	int out_wh = out_w * out_h;
 	float* l_output = l->output;
 	float** l_max_ptrs = l->maxpool_addresses;
-	for (size_t b = 0; b < batch_size; b++) {
+	for (int b = 0; b < batch_size; b++) {
 		float* b_output = &l_output[b * out_n];
 		float** b_max_ptrs = &l_max_ptrs[b * out_n];
-		size_t bwh = b * wh;
-		for (size_t i = 0; i < l->in_ids.n; i++) {
+		int bwh = b * wh;
+		for (int i = 0; i < l->in_ids.n; i++) {
 			layer* inl = l->in_layers[i];
-			size_t inl_out_c = inl->out_c;
+			int inl_out_c = (int)inl->out_c;
 			float* inl_output = &inl->output[bwh * inl_out_c];
 			//float* src, float* dst, float** max_ptrs, int src_w, int src_h, int dst_w, int dst_h, int dst_n, int batch_size
 			launch_forward_maxpool_kernel(inl_output, b_output, b_max_ptrs, w, h, out_w, out_h, out_n, batch_size);
@@ -48,7 +46,7 @@ void forward_maxpool_gpu(layer* l, network* net) {
 }
 
 void backward_maxpool_gpu(layer* l, network* net) {
-	launch_backward_maxpool_kernel(l->grads, l->maxpool_addresses, l->out_n * net->batch_size);
+	launch_backward_maxpool_kernel(l->grads, l->maxpool_addresses, (int)(l->out_n * net->batch_size));
 }
 
 /* Standard maxpool operation with ksize = 2, pad = 0, stride = 2 */

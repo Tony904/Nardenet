@@ -2,6 +2,7 @@
 #define XCUDA_H
 
 
+
 #include <stdlib.h>
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
@@ -18,6 +19,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 
 
 	void ___check_cuda(cudaError_t x, const char* const filename, const char* const funcname, const int line, const char* time);
@@ -55,22 +57,22 @@ extern "C" {
 	void launch_backward_upsample_kernel(float* grads_x, float* grads_y, int w, int h, int c, int ksize, int batch_size);
 
 	// derivatives.cu
-	void get_grads_sigmoid_gpu(float* grads, float* act_output, size_t out_n, size_t batch_size);
-	void get_grads_mish_gpu(float* grads, float* act_inputs, size_t out_n, size_t batch_size);
-	void get_grads_relu_gpu(float* grads, float* act_inputs, size_t out_n, size_t batch_size);
-	void get_grads_leaky_relu_gpu(float* grads, float* act_inputs, size_t out_n, size_t batch_size);
-	void get_grads_tanh_gpu(float* grads, float* act_inputs, size_t out_n, size_t batch_size);
-	void regularize_l1_gpu(float* weight_grads, float* weights, size_t size, float decay);
-	void regularize_l2_gpu(float* weight_grads, float* weights, size_t size, float decay);
+	void get_grads_sigmoid_gpu(float* grads, float* act_output, int out_n, int batch_size);
+	void get_grads_mish_gpu(float* grads, float* act_inputs, int out_n, int batch_size);
+	void get_grads_relu_gpu(float* grads, float* act_inputs, int out_n, int batch_size);
+	void get_grads_leaky_relu_gpu(float* grads, float* act_inputs, int out_n, int batch_size);
+	void get_grads_tanh_gpu(float* grads, float* act_inputs, int out_n, int batch_size);
+	void regularize_l1_gpu(float* weight_grads, float* weights, int size, float decay);
+	void regularize_l2_gpu(float* weight_grads, float* weights, int size, float decay);
 
 	// im2col.cu
 	void im2col_gpu(float* data_im, float* data_col, int channels, int h, int w, int ksize, int stride, int pad, int out_h, int out_w);
-	void col2im_gpu(float* data_col, float* data_im, int channels, int h, int w, int ksize, int stride, int pad, int n);
+	void col2im_gpu(float* data_col, float* data_im, int h, int w, int ksize, int stride, int pad, int n);
 
 	// gemm.cu
-	void gemm_gpu(size_t M, size_t N, size_t K, float* A, float* B, float* C, int n_groups);
-	void gemm_atb_gpu(size_t M, size_t N, size_t K, float* A, float* B, float* C, int n_groups);
-	void gemm_tab_gpu(size_t M, size_t N, size_t K, float* A, float* B, float* C, int n_groups);
+	void gemm_gpu(int M, int N, int K, float* A, float* B, float* C, int n_groups);
+	void gemm_atb_gpu(int M, int N, int K, float* A, float* B, float* C, int n_groups);
+	void gemm_tab_gpu(int M, int N, int K, float* A, float* B, float* C, int n_groups);
 	void add_biases_gpu(float* arr, int spatial, float* biases, int channels, int batch_size);
 
 	// batchnorm.cu
@@ -80,13 +82,13 @@ extern "C" {
 		float* gammas, float* gamma_grads, int spatial, int n_filters, int batch_size);
 
 	// derivatives.cu
-	void get_grads_sigmoid_gpu(float* grads, float* act_output, size_t out_n, size_t batch_size);
-	void get_grads_mish_gpu(float* grads, float* act_inputs, size_t out_n, size_t batch_size);
-	void get_grads_relu_gpu(float* grads, float* act_inputs, size_t out_n, size_t batch_size);
-	void get_grads_leaky_relu_gpu(float* grads, float* act_inputs, size_t out_n, size_t batch_size);
-	void get_grads_tanh_gpu(float* grads, float* act_inputs, size_t out_n, size_t batch_size);
-	void regularize_l1_gpu(float* weight_grads, float* weights, size_t n_weights, float decay);
-	void regularize_l2_gpu(float* weight_grads, float* weights, size_t n_weights, float decay);
+	void get_grads_sigmoid_gpu(float* grads, float* act_output, int out_n, int batch_size);
+	void get_grads_mish_gpu(float* grads, float* act_inputs, int out_n, int batch_size);
+	void get_grads_relu_gpu(float* grads, float* act_inputs, int out_n, int batch_size);
+	void get_grads_leaky_relu_gpu(float* grads, float* act_inputs, int out_n, int batch_size);
+	void get_grads_tanh_gpu(float* grads, float* act_inputs, int out_n, int batch_size);
+	void regularize_l1_gpu(float* weight_grads, float* weights, int n_weights, float decay);
+	void regularize_l2_gpu(float* weight_grads, float* weights, int n_weights, float decay);
 
 	// loss.cu
 	void launch_loss_mae_kernel(float* grads, float* output, float* truth, float* errors, int n, int batch_size);
@@ -96,6 +98,7 @@ extern "C" {
 
 	// update.cu
 	void launch_update_kernel(float* vals, float* grads, float* velocities, int n_vals, int batch_size, float momentum, float rate);
+
 
 
 #ifdef __cplusplus

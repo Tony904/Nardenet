@@ -47,7 +47,6 @@ void train_classifer(network* net) {
 			printf("# of classes found does not match the # specified in the cfg file.\n");
 			wait_for_key_then_exit();
 		}
-		net->n_classes = lst->length;
 		net->class_names = (char**)xcalloc(net->n_classes, sizeof(char*));
 		node* noed = lst->first;
 		size_t n = 0;
@@ -87,9 +86,8 @@ void train_classifer(network* net) {
 			net->reg_loss(net);
 			printf("Regularization loss: %f\n", net->loss);
 		}
-		for (size_t ii = n_layers; ii; ii--) {
-			size_t i = ii - 1;
-			layers[i].backward(&layers[i], net);
+		for (size_t i = n_layers; i; i--) {
+			layers[i - 1].backward(&layers[i - 1], net);
 		}
 		for (size_t i = 0; i < n_layers; i++) {
 			layers[i].update(&layers[i], net);

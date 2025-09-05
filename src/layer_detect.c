@@ -5,6 +5,7 @@
 #include "xallocs.h"
 #include "image.h"
 #include "activations.h"
+#include "blas.h"
 
 
 #define COORD_MULTI 5.0F

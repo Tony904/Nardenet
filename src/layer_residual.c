@@ -28,7 +28,7 @@ void forward_residual(layer* l, network* net) {
 }
 
 void forward_residual_gpu(layer* l, network* net) {
-	size_t n = l->out_n * net->batch_size;
+	int n = (int)(l->out_n * net->batch_size);
 	float* Z = l->Z;
 	float* inl0_output = l->in_layers[0]->output;
 	copy_array_gpu(inl0_output, Z, n);
@@ -59,7 +59,7 @@ void backward_residual_gpu(layer* l, network* net) {
 	size_t batch_size = net->batch_size;
 	float* grads = l->grads;
 	if (l->activation) get_activation_grads(l, batch_size);
-	size_t n = batch_size * l->out_n;
+	int n = (int)(batch_size * l->out_n);
 	for (size_t a = 0; a < l->in_ids.n; a++) {
 		float* inl_grads = l->in_layers[a]->grads;
 		add_arrays_gpu(grads, inl_grads, n);

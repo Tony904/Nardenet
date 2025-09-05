@@ -60,7 +60,7 @@ void load_det_sample(char* antfile, char* imgfile, det_sample* samp) {
 	while (line = read_line(file), line != 0) {
 		//clean_string(line);
 		char** tokens = split_string(line, " ");
-		if (tokens == NULL) {
+		if (!tokens) {
 			printf("Error parsing bounding box string.\n");
 			printf("Line %zu, file %s\n", n, antfile);
 			wait_for_key_then_exit();

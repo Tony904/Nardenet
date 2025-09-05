@@ -27,7 +27,7 @@ void loss_mae(layer* l, network* net) {
 	l->loss = loss / (float)batch_size;
 }
 void loss_mae_gpu(layer* l, network* net) {
-	launch_loss_mae_kernel((int)l->grads, (int)l->output, (int)l->truth, (int)l->errors, (int)l->n, (int)net->batch_size);
+	launch_loss_mae_kernel(l->grads, l->output, l->truth, l->errors, (int)l->n, (int)net->batch_size);
 }
 
 
@@ -54,7 +54,7 @@ void loss_mse(layer* l, network* net) {
 	l->loss = loss / (float)batch_size;
 }
 void loss_mse_gpu(layer* l, network* net) {
-	launch_loss_mse_kernel((int)l->grads, (int)l->output, (int)l->truth, (int)l->errors, (int)l->n, (int)net->batch_size);
+	launch_loss_mse_kernel(l->grads, l->output, l->truth, l->errors, (int)l->n, (int)net->batch_size);
 }
 
 
@@ -85,7 +85,7 @@ void loss_cce(layer* l, network* net) {
 	l->loss = loss / (float)batch_size;
 }
 void loss_cce_gpu(layer* l, network* net) {
-	launch_loss_cce_kernel((int)l->grads, (int)l->output, (int)l->truth, (int)l->errors, (int)l->n, (int)net->batch_size);
+	launch_loss_cce_kernel(l->grads, l->output, l->truth, l->errors, (int)l->n, (int)net->batch_size);
 }
 
 
@@ -114,7 +114,7 @@ void loss_bce(layer* l, network* net) {
 	l->loss = loss / (float)batch_size;
 }
 void loss_bce_gpu(layer* l, network* net) {
-	launch_loss_bce_kernel((int)l->grads, (int)l->output, (int)l->truth, (int)l->errors, (int)l->n, (int)net->batch_size);
+	launch_loss_bce_kernel(l->grads, l->output, l->truth, l->errors, (int)l->n, (int)net->batch_size);
 }
 
 

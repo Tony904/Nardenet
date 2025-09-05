@@ -10,19 +10,20 @@
 
 
 int main(void) {
+	srand(7777777);
 
-	/*activate_xalloc_tracking();
+	activate_xalloc_tracking();
 	
-	char* cfgfile = "D:\\TonyDev\\Nardenet\\cfg\\nardenet-yolov4-tiny-classifier-tiny-imagenet.cfg";
+	char* cfgfile = "C:\\Users\\TNard\\OneDrive\\Desktop\\dev\\Nardenet\\cfg\\nardenet-yolov4-tiny-classifier-tiny-imagenet.cfg";
 	network* net = create_network_from_cfg(cfgfile);
-	train(net);*/
-	//srand(7777777);
+	train(net);
+	
 
 
 
-	print_gpu_props();
+	//print_gpu_props();
 
-	//free_network(net);(
+	free_network(net);
 	//print_alloc_list();
 
 #ifndef _DEBUG

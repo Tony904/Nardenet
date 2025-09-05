@@ -36,55 +36,6 @@ static void print_location_and_exit(const char* const filename, const char* cons
 static void print_error_and_exit(const char* const filename);
 
 
-void fill_array(float* arr, size_t size, float val) {
-	size_t i;
-#pragma omp parallel for
-	for (i = 0; i < size; i++) {
-		arr[i] = val;
-	}
-}
-
-void zero_array(float* arr, size_t size) {
-	size_t i;
-#pragma omp parallel for
-	for (i = 0; i < size; i++) {
-		arr[i] = 0.0F;
-	}
-}
-
-void fill_array_increment(float* arr, size_t size, float start_val, float increment) {
-	size_t i;
-#pragma omp parallel for
-	for (i = 0; i < size; i++) {
-		arr[i] = start_val + (float)i * increment;
-	}
-}
-
-void fill_array_rand_float(float* arr, size_t size, double mean, double sdev) {
-	size_t i;
-#pragma omp parallel for
-	for (i = 0; i < size; i++) {
-		arr[i] = randn(mean, sdev);
-	}
-}
-
-float sum_array(float* arr, size_t size) {
-	float sum = 0.0F;
-	size_t i;
-#pragma omp parallel for reduction(+:sum)
-	for (i = 0; i < size; i++) {
-		sum += arr[i];
-	}
-	return sum;
-}
-
-void scale_array(float* arr, size_t size, float scalar) {
-	size_t i;
-#pragma omp parallel for
-	for (i = 0; i < size; i++) {
-		arr[i] *= scalar;
-	}
-}
 
 int char_in_string(char c, char* str) {
 	size_t length = strlen(str);

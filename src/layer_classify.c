@@ -7,7 +7,7 @@
 void forward_classify_gpu(layer* l, network* net) {
 	if (net->training) {
 		l->get_loss(l, net);
-		float avg_loss = sum_array_gpu(l->errors, l->n) / (float)net->batch_size;
+		float avg_loss = sum_array_gpu(l->errors, (int)l->n) / (float)net->batch_size;
 		printf("Avg class loss:      %f\n", avg_loss);
 		l->loss = avg_loss;
 	}

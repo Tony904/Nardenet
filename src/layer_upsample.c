@@ -9,24 +9,23 @@
 
 void forward_upsample_gpu(layer* l, network* net) {
 	float* Z = l->Z;
-	size_t ksize = l->ksize;
-	size_t w = l->w;
-	size_t h = l->h;
-	size_t wh = w * h;
-	size_t out_w = l->out_w;
-	size_t out_wh = out_w * l->out_h;
+	int ksize = (int)l->ksize;
+	int w = (int)l->w;
+	int h = (int)l->h;
+	int out_w = (int)l->out_w;
+	int out_wh = out_w * (int)l->out_h;
 	size_t batch_size = net->batch_size;
 	for (size_t b = 0; b < batch_size; b++) {
 		for (size_t a = 0; a < l->in_ids.n; a++) {
 			layer* inl = l->in_layers[a];
 			float* inl_output = inl->output;
-			size_t inl_out_c = inl->out_c;
+			int inl_out_c = (int)inl->out_c;
 			launch_forward_upsample_kernel(inl_output, Z, w, h, inl_out_c, ksize, 1);
 			Z += out_wh * inl_out_c;
 		}
 	}
-	if (l->activation) l->activate(l->Z, l->output, l->out_n, net->batch_size);
-	if (net->training) zero_array_gpu(l->grads, l->out_n * batch_size);
+	if (l->activation) l->activate(l->Z, l->output, l->out_n, batch_size);
+	if (net->training) zero_array_gpu(l->grads, (int)(l->out_n * batch_size));
 }
 
 void forward_upsample(layer* l, network* net) {
@@ -73,20 +72,19 @@ void forward_upsample(layer* l, network* net) {
 }
 
 void backward_upsample_gpu(layer* l, network* net) {
-	size_t batch_size = net->batch_size;
+	int batch_size = (int)net->batch_size;
 	float* grads = l->grads;
 	if (l->activation) get_activation_grads_gpu(l, batch_size);
-	size_t ksize = l->ksize;
-	size_t w = l->w;
-	size_t h = l->h;
-	size_t wh = w * h;
-	size_t out_w = l->out_w;
-	size_t out_wh = out_w * l->out_h;
-	for (size_t b = 0; b < batch_size; b++) {
-		for (size_t a = 0; a < l->in_ids.n; a++) {
+	int ksize = (int)l->ksize;
+	int w = (int)l->w;
+	int h = (int)l->h;
+	int out_w = (int)l->out_w;
+	int out_wh = out_w * (int)l->out_h;
+	for (int b = 0; b < batch_size; b++) {
+		for (int a = 0; a < l->in_ids.n; a++) {
 			layer* inl = l->in_layers[a];
 			float* inl_grads = inl->grads;
-			size_t inl_out_c = inl->out_c;
+			int inl_out_c = (int)inl->out_c;
 			launch_backward_upsample_kernel(inl_grads, grads, w, h, inl_out_c, ksize, 1);
 			grads += out_wh * inl_out_c;
 		}

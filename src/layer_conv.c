@@ -42,7 +42,7 @@ void forward_conv_gpu(layer* l, network* net) {
 			B += K * l->ksize * l->ksize * c;
 		}
 		float* C = &l->Z[b * M * N];  // M * N
-		gemm_gpu(M, N, K, A, B0, C, (int)n_groups);
+		gemm_gpu((int)M, (int)N, (int)K, A, B0, C, (int)n_groups);
 	}
 	if (l->batchnorm) {
 		forward_batchnorm_gpu(l->gammas, l->biases, l->means, l->variances, l->rolling_means, l->rolling_variances, l->Z, l->Z_norm, l->act_inputs, (int)(w * h), (int)l->n_filters, (int)batch_size);
@@ -126,7 +126,7 @@ void backward_conv_gpu(layer* l, network* net) {
 			B += N * l->ksize * l->ksize * c;
 		}
 		B = B0;
-		gemm_atb_gpu(M, N, K, A, B, C, (int)n_groups);
+		gemm_atb_gpu((int)M, (int)N, (int)K, A, B, C, (int)n_groups);
 	}
 
 	if (l->id == 0) return;
@@ -135,13 +135,13 @@ void backward_conv_gpu(layer* l, network* net) {
 		float* B = &grads[s * M * K];  // M * K
 		float* C = net->workspace.a;  // N * K
 		zero_array_gpu(C, (int)(N * K));
-		gemm_tab_gpu(M, N, K, A, B, C, (int)n_groups);
+		gemm_tab_gpu((int)M, (int)N, (int)K, A, B, C, (int)n_groups);
 
 		for (size_t i = 0; i < l->in_ids.n; i++) {
 			layer* inl = l->in_layers[i];
 			size_t c = inl->out_c;
 			float* im = &inl->grads[s * w * h * c];
-			col2im_gpu(C, im, (int)c, (int)h, (int)w, (int)l->ksize, (int)l->stride, (int)l->pad, (int)l->n);
+			col2im_gpu(C, im, (int)h, (int)w, (int)l->ksize, (int)l->stride, (int)l->pad, (int)l->n);
 		}
 	}
 }
@@ -217,12 +217,12 @@ void backward_conv(layer* l, network* net) {
 void update_conv_gpu(layer* l, network* net) {
 	float rate = net->current_learning_rate;
 	float momentum = net->momentum;
-	int batch_size = net->batch_size;
+	int batch_size = (int)net->batch_size;
 	
-	launch_update_kernel(l->biases, l->bias_grads, l->bias_velocities, l->n_filters, batch_size, momentum, rate);
-	launch_update_kernel(l->weights.a, l->weight_grads, l->weight_velocities, l->weights.n, batch_size, momentum, rate);
+	launch_update_kernel(l->biases, l->bias_grads, l->bias_velocities, (int)l->n_filters, batch_size, momentum, rate);
+	launch_update_kernel(l->weights.a, l->weight_grads, l->weight_velocities, (int)l->weights.n, batch_size, momentum, rate);
 	if (l->batchnorm) {
-		launch_update_kernel(l->gammas, l->gamma_grads, l->gamma_velocities, l->out_c, batch_size, momentum, rate);
+		launch_update_kernel(l->gammas, l->gamma_grads, l->gamma_velocities, (int)l->out_c, batch_size, momentum, rate);
 	}
 }
 

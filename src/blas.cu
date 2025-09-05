@@ -112,7 +112,7 @@ __global__ void sum_array_kernel(float* A, int n, float* sum) {
 	}
 }
 float sum_array_gpu(float* A, int n) {
-	float sum;
+	float sum = 0.0F;
 	sum_array_kernel KARGS(1, 1024) (A, n, &sum);
 	CHECK_CUDA(cudaPeekAtLastError());
 	return sum;
