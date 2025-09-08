@@ -1160,6 +1160,7 @@ void print_top_class_name(float* probs, size_t n_classes, char** class_names, in
 	}
 	char end = new_line ? '\n' : '\0';
 	if (include_prob) printf("%s (%f)%c", class_names[c], highscore, end);
+	else printf("%s%c", class_names[c], end);
 }
 
 void print_network_summary(network* net, int print_training_params) {

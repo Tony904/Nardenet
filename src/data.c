@@ -109,7 +109,7 @@ void classifier_dataset_get_next_image(classifier_dataset* dataset, image* dst, 
 	class_set* set = &sets[rands[ri]];
 	ri++;
 	// generate new random numbers if at end of rands array
-	if (ri >= n) {
+	if (!(ri < n)) {
 		ri = 0;
 		get_random_numbers_no_repeats(rands, n, 0, n - 1);
 	}
