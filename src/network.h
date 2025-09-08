@@ -10,14 +10,17 @@
 extern "C" {
 #endif
 
-    typedef struct network network;
-    typedef struct layer layer;
+    typedef struct gpu_network_vars gpu_network_vars;
+    typedef struct gpu_layer_vars gpu_layer_vars;
     typedef struct class_set class_set;
     typedef struct classifier_dataset classifier_dataset;
     typedef struct bbox bbox;
     typedef struct det_cell det_cell;
     typedef struct det_sample det_sample;
     typedef struct detector_dataset detector_dataset;
+    typedef struct layer layer;
+    typedef struct network network;
+    
     typedef enum LR_POLICY LR_POLICY;
     typedef enum LAYER_TYPE LAYER_TYPE;
     typedef enum ACTIVATION ACTIVATION;
@@ -47,6 +50,7 @@ extern "C" {
     void print_network_structure(network* net);
     void print_prediction_results(network* net, layer* prediction_layer);
 
+
     typedef struct classifier_dataset {
         class_set* sets;
         size_t n;       // # of sets/classes
@@ -62,6 +66,11 @@ extern "C" {
         det_sample** current_batch;
     } detector_dataset;
 
+    typedef struct gpu_network_vars {
+        float* workspace;
+        bbox* anchors;
+    } gpu_network_vars;
+
     typedef struct network {
         size_t n_layers;
         size_t w;
@@ -70,6 +79,7 @@ extern "C" {
         size_t n_classes;
         char** class_names;
         int training;  // 1 = training, 0 = inference only
+        int use_gpu;  // 0 = cpu only
         size_t batch_size;  // number of images per batch
         size_t subbatch_size;  // number of images per sub-batch, must divide evenly into batch_size
         size_t max_iterations;  // maximum number of training iterations before automatically ending training
@@ -102,7 +112,8 @@ extern "C" {
 
         layer* input;
         layer* layers;
-        floatarr workspace;
+        float* workspace;
+        size_t workspace_size;
 
         char* cfg_file;
         char* dataset_dir;
@@ -118,7 +129,42 @@ extern "C" {
         size_t n_anchors;
 
         float draw_thresh;  // threshold for drawing detections (if p >= draw_thresh then draw)
+        gpu_network_vars gpu;
     } network;
+
+    typedef struct gpu_layer_vars {
+        float* output;
+
+        float* weights;  // n_weights = ksize * ksize * c * n_filters
+        float* biases;
+        float* act_inputs;  // activation function inputs
+
+        float* Z;  // results of weights * inputs (when batchnorm enabled)
+        float* Z_norm;  // Normalized Z
+        float* means;
+        float* variances;
+        float* gammas;  // normalized values scales
+        float* rolling_means;
+        float* rolling_variances;
+        float* mean_grads;
+        float* variance_grads;
+        float* gamma_grads;
+        float* gamma_velocities;
+
+        float* errors;
+        float* grads;  // storage for propagated gradients
+        float* weight_grads;
+        float* bias_grads;
+        float* weight_velocities;  // momentum adjustment for weights
+        float* bias_velocities;  // momentum adjustment for biases
+
+        bbox* anchors;  // base anchors that will get copied to each cell
+        bbox* detections;
+        bbox** sorted;
+        float* truth;  // truths for classifier
+
+        float** maxpool_addresses;  // addresses of input layer outputs that were max values (for backprop)
+    } gpu_layer_vars;
 
     typedef struct layer {
         int id;
@@ -144,7 +190,8 @@ extern "C" {
         size_t out_n; // out_n = out_w * out_h * out_c
         float* output;
 
-        floatarr weights;  // n_weights = ksize * ksize * c * n_filters
+        float* weights;
+        size_t n_weights;  // n_weights = ksize * ksize * c * n_filters
         float* biases;
         float* act_inputs;  // activation function inputs
 
@@ -172,7 +219,6 @@ extern "C" {
         layer** in_layers;
 
         LOSS_TYPE loss_type;
-        float* loss_gpu;
         float loss;
         float obj_loss;
         float cls_loss;
@@ -197,7 +243,8 @@ extern "C" {
         float scale_grid;
 
         float** maxpool_addresses;  // addresses of input layer outputs that were max values (for backprop)
-    } layer;
+        gpu_layer_vars gpu;
+    } layer;    
 
     typedef enum NET_TYPE {
         NET_NONE,

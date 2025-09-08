@@ -9,6 +9,8 @@ extern "C" {
 
 	void forward_route(layer* l, network* net);
 	void backward_route(layer* l, network* net);
+	void forward_route_gpu(layer* l, network* net);
+	void backward_route_gpu(layer* l, network* net);
 
 #ifdef __cplusplus
 }

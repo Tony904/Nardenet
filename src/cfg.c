@@ -131,6 +131,9 @@ void copy_to_cfg(cfg* c, char** tokens, char* header) {
 		else if (strcmp(k, "num_classes") == 0) {
 			c->n_classes = str2sizet(tokens[1]);
 		}
+		else if (strcmp(k, "use_gpu") == 0) {
+			c->use_gpu = str2int(tokens[1]);
+		}
 	}
 	else if (strcmp(header, hTRAINING) == 0) {
 		if (strcmp(k, "batch_size") == 0) {
@@ -261,6 +264,7 @@ void copy_cfg_to_network(cfg* cfig, network* net) {
 	net->c = cfig->channels;
 	net->n_classes = cfig->n_classes;
 	net->batchnorm = cfig->batchnorm;
+	net->use_gpu = cfig->use_gpu;
 	// [training]
 	net->batch_size = cfig->batch_size;
 	net->subbatch_size = cfig->subbatch_size;
@@ -472,6 +476,7 @@ ACTIVATION str2activation(char* str) {
 	if (strcmp(str, "softmax") == 0) return ACT_SOFTMAX;
 	if (strcmp(str, "tanh") == 0) return ACT_TANH;
 	if (strcmp(str, "none") == 0) return ACT_NONE;
+	if (strcmp(str, "linear") == 0) return ACT_NONE;
 	fprintf(stderr, "Error: No valid activation named %s.\n", str);
 	exit(EXIT_FAILURE);
 }

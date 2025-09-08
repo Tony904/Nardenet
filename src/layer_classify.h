@@ -10,6 +10,7 @@ extern "C" {
 #endif
 
 	void forward_classify(layer* l, network* net);
+	void forward_classify_gpu(layer* l, network* net);
 
 #ifdef __cplusplus
 }

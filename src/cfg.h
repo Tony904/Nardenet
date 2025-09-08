@@ -27,6 +27,7 @@ extern "C" {
 		size_t height;
 		size_t channels;
 		size_t n_classes;
+		int use_gpu;
 		// [training]
 		size_t batch_size;
 		size_t subbatch_size;

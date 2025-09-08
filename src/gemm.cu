@@ -149,7 +149,6 @@ void cuda_test_gemm(void) {
 	CHECK_CUDA(cudaMemcpy(d_b, B, N * K * sizeof(float), cudaMemcpyHostToDevice));
 	CHECK_CUDA(cudaMemset(d_c, 0, M * N * sizeof(float)));
 
-
 	cudaEvent_t start, stop;
 	cudaEventCreate(&start);
 	cudaEventCreate(&stop);

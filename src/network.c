@@ -73,11 +73,11 @@ void build_network(network* net) {
 	for (int i = 0; i < net->n_layers; i++) {
 		build_layer(i, net);
 		layer* l = &ls[i];
-		size_t wssize = l->out_w * l->out_h * l->ksize * l->ksize * l->c;
-		largest_workspace = max(largest_workspace, wssize);
+		size_t ws_size = l->out_w * l->out_h * l->ksize * l->ksize * l->c;
+		largest_workspace = max(largest_workspace, ws_size);
 	}
-	net->workspace.a = (float*)xcalloc(largest_workspace, sizeof(float));
-	net->workspace.n = largest_workspace;
+	net->workspace = (float*)xcalloc(largest_workspace, sizeof(float));
+	net->workspace_size = largest_workspace;
 	net->current_learning_rate = net->learning_rate;
 	if (net->regularization == REG_L1) {
 		net->reg_loss = loss_l1;
@@ -123,6 +123,9 @@ void build_input_layer(network* net) {
 	l->out_c = l->c;
 	l->out_n = l->n;
 	l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	if (net->use_gpu) {
+		CHECK_CUDA(cudaMalloc(&l->gpu.output, l->out_n * net->batch_size * sizeof(float)));
+	}
 }
 
 /* i = layer index in net->layers */
@@ -190,38 +193,80 @@ void build_conv_layer(int i, network* net) {
 	l->out_n = l->out_w * l->out_h * l->out_c;
 
 	l->Z = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-	l->weights.n = l->n_filters * l->ksize * l->ksize * (l->c / l->n_groups);
-	l->weights.a = (float*)xcalloc(l->weights.n, sizeof(float));
+	l->n_weights = l->n_filters * l->ksize * l->ksize * (l->c / l->n_groups);
+	l->weights = (float*)xcalloc(l->n_weights, sizeof(float));
 	l->biases = (float*)xcalloc(l->n_filters, sizeof(float));
 	l->grads = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-	l->weight_grads = (float*)xcalloc(l->weights.n, sizeof(float));
+	l->weight_grads = (float*)xcalloc(l->n_weights, sizeof(float));
 	l->bias_grads = (float*)xcalloc(l->n_filters, sizeof(float));
-	l->weight_velocities = (float*)xcalloc(l->weights.n, sizeof(float));
+	l->weight_velocities = (float*)xcalloc(l->n_weights, sizeof(float));
 	l->bias_velocities = (float*)xcalloc(l->n_filters, sizeof(float));
+	if (net->use_gpu) {
+		CHECK_CUDA(cudaMalloc(&l->gpu.Z, l->out_n * net->batch_size * sizeof(float)));
+		CHECK_CUDA(cudaMalloc(&l->gpu.weights, l->n_weights * sizeof(float)));
+		CHECK_CUDA(cudaMalloc(&l->gpu.biases, l->n_filters * sizeof(float)));
+		CHECK_CUDA(cudaMalloc(&l->gpu.grads, l->out_n * net->batch_size, sizeof(float)));
+		CHECK_CUDA(cudaMalloc(&l->gpu.weight_grads, l->n_weights * sizeof(float)));
+		CHECK_CUDA(cudaMalloc(&l->gpu.bias_grads, l->n_filters * sizeof(float)));
+		CHECK_CUDA(cudaMalloc(&l->gpu.weight_velocities, l->n_weights * sizeof(float)));
+		CHECK_CUDA(cudaMalloc(&l->gpu.bias_velocities, l->n_filters * sizeof(float)));
+	}
 	if (l->batchnorm) {
 		l->Z_norm = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 		l->act_inputs = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 		l->means = (float*)xcalloc(l->out_c, sizeof(float));
 		l->variances = (float*)xcalloc(l->out_c, sizeof(float));
 		l->gammas = (float*)xcalloc(l->out_c, sizeof(float));
+		fill_array(l->gammas, l->out_c, 1.0F);
 		l->gamma_grads = (float*)xcalloc(l->out_c, sizeof(float));
 		l->gamma_velocities = (float*)xcalloc(l->out_c, sizeof(float));
-		fill_array(l->gammas, l->out_c, 1.0F);
 		l->rolling_means = (float*)xcalloc(l->out_c, sizeof(float));
 		l->rolling_variances = (float*)xcalloc(l->out_c, sizeof(float));
+		if (net->use_gpu) {
+			CHECK_CUDA(cudaMalloc(&l->gpu.Z_norm, l->out_n * net->batch_size, sizeof(float)));
+			CHECK_CUDA(cudaMalloc(&l->gpu.act_inputs, l->out_n * net->batch_size * sizeof(float)));
+			CHECK_CUDA(cudaMalloc(&l->gpu.means, l->out_c * sizeof(float)));
+			CHECK_CUDA(cudaMalloc(&l->gpu.variances, l->out_c * sizeof(float)));
+			CHECK_CUDA(cudaMalloc(&l->gpu.gammas, l->out_c * sizeof(float)));
+			CHECK_CUDA(cudaMemcpy(l->gpu.gammas, l->gammas, l->out_c * sizeof(float), cudaMemcpyHostToDevice));
+			CHECK_CUDA(cudaMalloc(&l->gpu.gamma_grads, l->out_c * sizeof(float)));
+			CHECK_CUDA(cudaMalloc(&l->gpu.gamma_velocities, l->out_c * sizeof(float)));
+			CHECK_CUDA(cudaMalloc(&l->gpu.rolling_means, l->out_c * sizeof(float)));
+			CHECK_CUDA(cudaMalloc(&l->gpu.rolling_variances, l->out_c * sizeof(float)));
+		}
 	}
 	else {
 		l->act_inputs = l->Z;
+		if (net->use_gpu) {
+			l->gpu.act_inputs = l->gpu.Z;
+		}
 	}
 
-	if (l->activation) l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-	else l->output = l->act_inputs;
+	if (l->activation) {
+		l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+		if (net->use_gpu) {
+			CHECK_CUDA(cudaMalloc(&l->gpu.output, l->out_n * net->batch_size * sizeof(float)));
+		}
+	}
+	else {
+		l->output = l->act_inputs;
+		if (net->use_gpu) {
+			l->gpu.output = l->gpu.act_inputs;
+		}
+	}
 
-	l->forward = forward_conv;
-	l->backward = backward_conv;
-	l->update = update_conv;
+	if (net->use_gpu) {
+		l->forward = forward_conv_gpu;
+		l->backward = backward_conv_gpu;
+		l->update = update_conv_gpu;
+	}
+	else {
+		l->forward = forward_conv;
+		l->backward = backward_conv;
+		l->update = update_conv;
+	}
 	
-	set_activate(l);
+	set_activate(l, net->use_gpu);
 }
 
 void build_fc_layer(int i, network* net) {
@@ -275,37 +320,80 @@ void build_fc_layer(int i, network* net) {
 	l->out_n = l->out_w * l->out_h * l->out_c;
 
 	l->Z = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-	l->weights.n = l->n_filters * l->ksize * l->ksize * l->c;
-	l->weights.a = (float*)xcalloc(l->weights.n, sizeof(float));
+	l->n_weights = l->n_filters * l->ksize * l->ksize * l->c;
+	l->weights = (float*)xcalloc(l->n_weights, sizeof(float));
 	l->biases = (float*)xcalloc(l->n_filters, sizeof(float));
 	l->grads = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-	l->weight_grads = (float*)xcalloc(l->weights.n, sizeof(float));
+	l->weight_grads = (float*)xcalloc(l->n_weights, sizeof(float));
 	l->bias_grads = (float*)xcalloc(l->n_filters, sizeof(float));
-	l->weight_velocities = (float*)xcalloc(l->weights.n, sizeof(float));
+	l->weight_velocities = (float*)xcalloc(l->n_weights, sizeof(float));
 	l->bias_velocities = (float*)xcalloc(l->n_filters, sizeof(float));
+	if (net->use_gpu) {
+		CHECK_CUDA(cudaMalloc(&l->gpu.Z, l->out_n * net->batch_size * sizeof(float)));
+		CHECK_CUDA(cudaMalloc(&l->gpu.weights, l->n_weights * sizeof(float)));
+		CHECK_CUDA(cudaMalloc(&l->gpu.biases, l->n_filters * sizeof(float)));
+		CHECK_CUDA(cudaMalloc(&l->gpu.grads, l->out_n * net->batch_size, sizeof(float)));
+		CHECK_CUDA(cudaMalloc(&l->gpu.weight_grads, l->n_weights * sizeof(float)));
+		CHECK_CUDA(cudaMalloc(&l->gpu.bias_grads, l->n_filters * sizeof(float)));
+		CHECK_CUDA(cudaMalloc(&l->gpu.weight_velocities, l->n_weights * sizeof(float)));
+		CHECK_CUDA(cudaMalloc(&l->gpu.bias_velocities, l->n_filters * sizeof(float)));
+	}
 	if (l->batchnorm) {
 		l->Z_norm = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 		l->act_inputs = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 		l->means = (float*)xcalloc(l->out_c, sizeof(float));
 		l->variances = (float*)xcalloc(l->out_c, sizeof(float));
 		l->gammas = (float*)xcalloc(l->out_c, sizeof(float));
+		fill_array(l->gammas, l->out_c, 1.0F);
 		l->gamma_grads = (float*)xcalloc(l->out_c, sizeof(float));
 		l->gamma_velocities = (float*)xcalloc(l->out_c, sizeof(float));
-		fill_array(l->gammas, l->out_c, 1.0F);
 		l->rolling_means = (float*)xcalloc(l->out_c, sizeof(float));
 		l->rolling_variances = (float*)xcalloc(l->out_c, sizeof(float));
+		if (net->use_gpu) {
+			CHECK_CUDA(cudaMalloc(&l->gpu.Z_norm, l->out_n * net->batch_size, sizeof(float)));
+			CHECK_CUDA(cudaMalloc(&l->gpu.act_inputs, l->out_n * net->batch_size * sizeof(float)));
+			CHECK_CUDA(cudaMalloc(&l->gpu.means, l->out_c * sizeof(float)));
+			CHECK_CUDA(cudaMalloc(&l->gpu.variances, l->out_c * sizeof(float)));
+			CHECK_CUDA(cudaMalloc(&l->gpu.gammas, l->out_c * sizeof(float)));
+			CHECK_CUDA(cudaMemcpy(l->gpu.gammas, l->gammas, l->out_c * sizeof(float), cudaMemcpyHostToDevice));
+			CHECK_CUDA(cudaMalloc(&l->gpu.gamma_grads, l->out_c * sizeof(float)));
+			CHECK_CUDA(cudaMalloc(&l->gpu.gamma_velocities, l->out_c * sizeof(float)));
+			CHECK_CUDA(cudaMalloc(&l->gpu.rolling_means, l->out_c * sizeof(float)));
+			CHECK_CUDA(cudaMalloc(&l->gpu.rolling_variances, l->out_c * sizeof(float)));
+		}
 	}
 	else {
 		l->act_inputs = l->Z;
+		if (net->use_gpu) {
+			l->gpu.act_inputs = l->gpu.Z;
+		}
 	}
 
-	if (l->activation) l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-	else l->output = l->act_inputs;
+	if (l->activation) {
+		l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+		if (net->use_gpu) {
+			CHECK_CUDA(cudaMalloc(&l->gpu.output, l->out_n * net->batch_size * sizeof(float)));
+		}
+	}
+	else {
+		l->output = l->act_inputs;
+		if (net->use_gpu) {
+			l->gpu.output = l->gpu.act_inputs;
+		}
+	}
 
-	l->forward = forward_conv;
-	l->backward = backward_conv;
-	l->update = update_conv;
-	set_activate(l);
+	if (net->use_gpu) {
+		l->forward = forward_conv_gpu;
+		l->backward = backward_conv_gpu;
+		l->update = update_conv_gpu;
+	}
+	else {
+		l->forward = forward_conv;
+		l->backward = backward_conv;
+		l->update = update_conv;
+	}
+
+	set_activate(l, net->use_gpu);
 }
 
 // i = layer index in net->layers
@@ -367,12 +455,21 @@ void build_classify_layer(int i, network* net) {
 
 	l->truth = (float*)xcalloc(l->n_classes * net->batch_size, sizeof(float));
 	l->errors = (float*)xcalloc(l->n_classes * net->batch_size, sizeof(float));
+	if (net->use_gpu) {
+		CHECK_CUDA(cudaMalloc(&l->gpu.truth, l->n_classes * net->batch_size * sizeof(float)));
+		CHECK_CUDA(cudaMalloc(&l->gpu.errors, l->n_classes * net->batch_size, sizeof(float)));
+	}
 	
-	l->forward = forward_classify;
+	if (net->use_gpu) {
+		l->forward = forward_classify_gpu;
+	}
+	else {
+		l->forward = forward_classify;
+	}
 	l->backward = backward_none;  // all backprop stuff is done in forward pass
 	l->update = update_none;
 
-	set_loss(l);
+	set_loss(l, net->use_gpu);
 }
 
 /* i = layer index in net->layers */
@@ -822,25 +919,25 @@ void build_detect_layer(int i, network* net) {
 	l->scale_grid = 2.0F;
 }
 
-void set_activate(layer* l) {
+void set_activate(layer* l, int use_gpu) {
 	switch (l->activation) {
 	case ACT_RELU:
-		l->activate = activate_relu;
+		l->activate = use_gpu ? activate_relu_gpu : activate_relu;
 		break;
 	case ACT_MISH:
-		l->activate = activate_mish;
+		l->activate = use_gpu ? activate_mish_gpu : activate_relu;
 		break;
 	case ACT_SIGMOID:
-		l->activate = activate_sigmoid;
+		l->activate = use_gpu ? activate_sigmoid_gpu : activate_sigmoid;
 		break;
 	case ACT_LEAKY:
-		l->activate = activate_leaky_relu;
+		l->activate = use_gpu ? activate_leaky_relu_gpu : activate_leaky_relu;
 		break;
 	case ACT_TANH:
-		l->activate = activate_tanh;
+		l->activate = use_gpu ? activate_tanh_gpu : activate_tanh;
 		break;
 	case ACT_SOFTMAX:
-		l->activate = activate_softmax;
+		l->activate = use_gpu ? activate_softmax_gpu : activate_softmax;
 		break;
 	default:
 		l->activate = activate_none;
@@ -875,19 +972,19 @@ void get_activation_grads_gpu(layer* l, size_t batch_size) {
 	}
 }
 
-void set_loss(layer* l) {
+void set_loss(layer* l, int use_gpu) {
 	switch (l->loss_type) {
 	case LOSS_MAE:
-		l->get_loss = loss_mae;
+		l->get_loss = use_gpu ? loss_mae_gpu : loss_mae;
 		break;
 	case LOSS_MSE:
-		l->get_loss = loss_mse;
+		l->get_loss = use_gpu ? loss_mse_gpu : loss_mse;
 		break;
 	case LOSS_BCE:
-		l->get_loss = loss_bce;
+		l->get_loss = use_gpu ? loss_bce_gpu : loss_bce;
 		break;
 	case LOSS_CCE:
-		l->get_loss = loss_cce;
+		l->get_loss = use_gpu ? loss_cce_gpu : loss_cce;
 		break;
 	default:
 		printf("No loss function set. Layer %d\n", l->id);
@@ -914,7 +1011,7 @@ void free_network(network* n) {
 	free_layer_members(n->input);
 	xfree(n->input);
 	free_network_layers(n);
-	xfree(n->workspace.a);
+	xfree(n->workspace);
 	xfree(n->dataset_dir);
 	xfree(n->weights_file);
 	xfree(n->save_dir);
@@ -931,7 +1028,7 @@ void free_network_layers(network* net) {
 
 void free_layer_members(layer* l) {
 	xfree(l->output);
-	xfree(l->weights.a);
+	xfree(l->weights);
 	xfree(l->biases);
 	xfree(l->weight_grads);
 	xfree(l->bias_grads);
@@ -960,7 +1057,7 @@ size_t get_train_params_count(network* net) {
 }
 
 size_t get_layer_param_count(layer* l) {
-	size_t N = l->weights.n;
+	size_t N = l->n_weights;
 	N += l->n_filters;  // # of biases
 	if (l->batchnorm) N += l->out_c * 3;  // gammas, rolling means & variances
 	return N;
@@ -1026,7 +1123,7 @@ void print_layer_conv(layer* l) {
 	printf("pad: %zu\n", l->pad);
 	printf("# of inputs: %zu\n", l->n);
 	printf("# of outputs: %zu\n", l->out_n);
-	printf("# of weights: %zu\n", l->weights.n);
+	printf("# of weights: %zu\n", l->n_weights);
 	printf("train: %d\n", l->train);
 	printf("in_ids: ");
 	print_intarr(&(l->in_ids));
@@ -1047,7 +1144,7 @@ void print_layer_classify(layer* l) {
 	printf("stride: %zu\n", l->stride);
 	printf("# of inputs: %zu\n", l->n);
 	printf("# of outputs: %zu\n", l->out_n);
-	printf("# of weights: %zu\n", l->weights.n);
+	printf("# of weights: %zu\n", l->n_weights);
 	printf("train: %d\n", l->train);
 	printf("in_ids: ");
 	print_intarr(&(l->in_ids));
@@ -1132,17 +1229,17 @@ void print_all_network_weights(network* net) {
 	for (size_t i = 0; i < N; i++) {
 		printf("\n\nLAYER %zu\n", i);
 		l = &layers[i];
-		n = l->weights.n;
+		n = l->n_weights;
 		for (size_t j = 0; j < n; j++) {
-			printf("%f, ", l->weights.a[j]);
+			printf("%f, ", l->weights[j]);
 			if ((j + 1) % 10 == 0) printf("\n");
 		}
 	}
 }
 
 void print_some_weights(layer* l, size_t n) {
-	float* weights = l->weights.a;
-	assert(l->weights.n >= n);
+	float* weights = l->weights;
+	assert(l->n_weights >= n);
 	for (size_t i = 0; i < n; i++) {
 		printf("%f\n", weights[i]);
 	}

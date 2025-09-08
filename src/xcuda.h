@@ -99,6 +99,14 @@ extern "C" {
 	// update.cu
 	void launch_update_kernel(float* vals, float* grads, float* velocities, int n_vals, int batch_size, float momentum, float rate);
 
+	// activations.cu
+	void activate_mish_gpu(float* Z, float* output, size_t size, size_t batch_size);
+	void activate_relu_gpu(float* Z, float* output, size_t size, size_t batch_size);
+	void activate_sigmoid_gpu(float* Z, float* output, size_t size, size_t batch_size);
+	void activate_leaky_relu_gpu(float* Z, float* output, size_t size, size_t batch_size);
+	void activate_tanh_gpu(float* Z, float* output, size_t out_n, size_t batch_size);
+	void activate_softmax_gpu(float* Z, float* output, size_t size, size_t batch_size);
+
 
 
 #ifdef __cplusplus

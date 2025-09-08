@@ -1,4 +1,5 @@
 #include "layer_avgpool.h"
+#include <omp.h>
 #include "derivatives.h"
 #include "utils.h"
 #include "xallocs.h"

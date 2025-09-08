@@ -14,6 +14,12 @@ extern "C" {
 	void loss_bce(layer* l, network* net);
 	void loss_l1(network* net);
 	void loss_l2(network* net);
+	void loss_mae_gpu(layer* l, network* net);
+	void loss_mse_gpu(layer* l, network* net);
+	void loss_cce_gpu(layer* l, network* net);
+	void loss_bce_gpu(layer* l, network* net);
+	void loss_l1_gpu(network* net);
+	void loss_l2_gpu(network* net);
 
 #ifdef __cplusplus
 }

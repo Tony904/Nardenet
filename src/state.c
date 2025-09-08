@@ -52,9 +52,9 @@ void save_state(network* net) {
 			continue;
 		}
 		int id = l->id;
-		total_vals += write_floats(l->weights.a, l->weights.n, file, "weights", id);
+		total_vals += write_floats(l->weights, l->n_weights, file, "weights", id);
 		total_vals += write_floats(l->biases, l->n_filters, file, "biases", id);
-		total_vals += write_floats(l->weight_velocities, l->weights.n, file, "weight_velocities", id);
+		total_vals += write_floats(l->weight_velocities, l->n_weights, file, "weight_velocities", id);
 		total_vals += write_floats(l->bias_velocities, l->n_filters, file, "bias_velocities", id);
 		if (l->batchnorm) {
 			total_vals += write_floats(l->gammas, l->n_filters, file, "gammas", id);
@@ -135,9 +135,9 @@ void load_state(network* net) {
 			continue;
 		}
 		int id = l->id;
-		total_vals += read_floats(l->weights.a, l->weights.n, file, "weights", id);
+		total_vals += read_floats(l->weights, l->n_weights, file, "weights", id);
 		total_vals += read_floats(l->biases, l->n_filters, file, "biases", id);
-		total_vals += read_floats(l->weight_velocities, l->weights.n, file, "weight_velocities", id);
+		total_vals += read_floats(l->weight_velocities, l->n_weights, file, "weight_velocities", id);
 		total_vals += read_floats(l->bias_velocities, l->n_filters, file, "bias_velocities", id);
 		if (l->batchnorm) {
 			total_vals += read_floats(l->gammas, l->n_filters, file, "gammas", id);
@@ -196,17 +196,17 @@ void test_save_state(void) {
 	net.n_classes = 2;
 	net.layers = (layer*)xcalloc(net.n_layers, sizeof(layer));
 	layer* l1 = &net.layers[0];
-	l1->weights.n = 10;
-	l1->weights.a = (float*)xcalloc(l1->weights.n, sizeof(float));
-	fill_array_increment(l1->weights.a, l1->weights.n, 0.0F, 1.0F);
+	l1->n_weights = 10;
+	l1->weights = (float*)xcalloc(l1->n_weights, sizeof(float));
+	fill_array_increment(l1->weights, l1->n_weights, 0.0F, 1.0F);
 	layer* l2 = &net.layers[1];
-	l2->weights.n = 4;
-	l2->weights.a = (float*)xcalloc(l2->weights.n, sizeof(float));
-	fill_array_increment(l2->weights.a, l2->weights.n, 7.0F, 2.0F);
+	l2->n_weights = 4;
+	l2->weights = (float*)xcalloc(l2->n_weights, sizeof(float));
+	fill_array_increment(l2->weights, l2->n_weights, 7.0F, 2.0F);
 	l1->n_filters = 0;
 	net.weights_file = "C:\\Users\\TNard\\OneDrive\\Desktop\\dev\\Nardenet-main\\data\\test_weights.txt";
 	save_state(&net);
-	zero_array(l1->weights.a, l1->weights.n);
+	zero_array(l1->weights, l1->n_weights);
 	net.weights_file = "C:\\Users\\TNard\\OneDrive\\Desktop\\dev\\Nardenet-main\\data\\test_weights-123.txt";
 	load_state(&net);
 	print_network(&net);
@@ -223,17 +223,17 @@ void test_load_state(void) {
 	net.n_classes = 2;
 	net.layers = (layer*)xcalloc(net.n_layers, sizeof(layer));
 	layer* l1 = &net.layers[0];
-	l1->weights.n = 10;
-	l1->weights.a = (float*)xcalloc(l1->weights.n, sizeof(float));
-	fill_array_increment(l1->weights.a, l1->weights.n, 0.0F, 1.0F);
+	l1->n_weights = 10;
+	l1->weights = (float*)xcalloc(l1->n_weights, sizeof(float));
+	fill_array_increment(l1->weights, l1->n_weights, 0.0F, 1.0F);
 	layer* l2 = &net.layers[1];
-	l2->weights.n = 4;
-	l2->weights.a = (float*)xcalloc(l2->weights.n, sizeof(float));
-	fill_array_increment(l2->weights.a, l2->weights.n, 7.0F, 2.0F);
+	l2->n_weights = 4;
+	l2->weights = (float*)xcalloc(l2->n_weights, sizeof(float));
+	fill_array_increment(l2->weights, l2->n_weights, 7.0F, 2.0F);
 	l1->n_filters = 0;
 	net.weights_file = "C:\\Users\\TNard\\OneDrive\\Desktop\\dev\\Nardenet-main\\data\\test_weights.txt";
 	save_state(&net);
-	zero_array(l1->weights.a, l1->weights.n);
+	zero_array(l1->weights, l1->n_weights);
 	net.weights_file = "C:\\Users\\TNard\\OneDrive\\Desktop\\dev\\Nardenet-main\\data\\test_weights-123.txt";
 	load_state(&net);
 	print_network(&net);

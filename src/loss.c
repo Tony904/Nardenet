@@ -126,8 +126,8 @@ void loss_l1(network* net) {
 	size_t i;
 #pragma omp parallel for reduction(+:loss) firstprivate(decay)
 	for (i = 0; i < n_layers; i++) {
-		float* weights = ls[i].weights.a;
-		for (size_t j = 0; j < ls[i].weights.n; j++) {
+		float* weights = ls[i].weights;
+		for (size_t j = 0; j < ls[i].n_weights; j++) {
 			float w = weights[j];
 			if (w < 0.0F) w = -w;  // w needs to be positive
 			loss += w * decay;
@@ -135,7 +135,10 @@ void loss_l1(network* net) {
 	}
 	net->loss = loss;
 }
-
+void loss_l1_gpu(network* net) {
+	net;
+	// WILL DO LATER... PROBABLY...
+}
 
 void loss_l2(network* net) {
 	size_t n_layers = net->n_layers;
@@ -145,11 +148,15 @@ void loss_l2(network* net) {
 	size_t i;
 #pragma omp parallel for reduction(+:loss) firstprivate(decay)
 	for (i = 0; i < n_layers; i++) {
-		float* weights = ls[i].weights.a;
-		for (size_t j = 0; j < ls[i].weights.n; j++) {
+		float* weights = ls[i].weights;
+		for (size_t j = 0; j < ls[i].n_weights; j++) {
 			float w = weights[j];
 			loss += w * w * decay;
 		}
 	}
 	net->loss = loss;
+}
+void loss_l2_gpu(network* net) {
+	net;
+	// WILL DO LATER... PROBABLY...
 }

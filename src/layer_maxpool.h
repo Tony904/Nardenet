@@ -12,8 +12,8 @@ extern "C" {
 	void forward_maxpool(layer* l, network* net);
 	void forward_maxpool_general(layer* l, network* net);
 	void backward_maxpool(layer* l, network* net);
-	void test_forward_maxpool(void);
-	void test_backward_maxpool(void);
+	void forward_maxpool_gpu(layer* l, network* net);
+	void backward_maxpool_gpu(layer* l, network* net);
 
 #ifdef __cplusplus
 }

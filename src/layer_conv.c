@@ -30,9 +30,9 @@ void forward_conv_gpu(layer* l, network* net) {
 	size_t M = l->n_filters;
 	size_t N = l->out_w * l->out_h;
 	size_t K = l->ksize * l->ksize * l->c;
-	float* A = l->weights.a;  // M * K
+	float* A = l->weights;  // M * K
 	for (size_t b = 0; b < batch_size; b++) {
-		float* B = net->workspace.a;  // K * N
+		float* B = net->workspace;  // K * N
 		float* B0 = B;
 		for (size_t i = 0; i < l->in_ids.n; i++) {
 			layer* inl = l->in_layers[i];
@@ -66,9 +66,9 @@ void forward_conv(layer* l, network* net) {
 	size_t M = l->n_filters;
 	size_t N = l->out_w * l->out_h;
 	size_t K = l->ksize * l->ksize * l->c;
-	float* A = l->weights.a;  // M * K
+	float* A = l->weights;  // M * K
 	for (size_t b = 0; b < batch_size; b++) {
-		float* B = net->workspace.a;  // K * N
+		float* B = net->workspace;  // K * N
 		float* B0 = B;
 		for (size_t i = 0; i < l->in_ids.n; i++) {
 			layer* inl = l->in_layers[i];
@@ -114,7 +114,7 @@ void backward_conv_gpu(layer* l, network* net) {
 	size_t out_h = l->out_h;
 	for (size_t s = 0; s < batch_size; s++) {
 		float* A = &grads[s * M * K];  // M * K
-		float* B = net->workspace.a;  // N * K
+		float* B = net->workspace;  // N * K
 		zero_array_gpu(B, (int)(N * K));
 		float* B0 = B;
 		float* C = l->weight_grads;  // M * N
@@ -131,9 +131,9 @@ void backward_conv_gpu(layer* l, network* net) {
 
 	if (l->id == 0) return;
 	for (size_t s = 0; s < batch_size; s++) {
-		float* A = l->weights.a;  // M * N / n_groups
+		float* A = l->weights;  // M * N / n_groups
 		float* B = &grads[s * M * K];  // M * K
-		float* C = net->workspace.a;  // N * K
+		float* C = net->workspace;  // N * K
 		zero_array_gpu(C, (int)(N * K));
 		gemm_tab_gpu((int)M, (int)N, (int)K, A, B, C, (int)n_groups);
 
@@ -169,7 +169,7 @@ void backward_conv(layer* l, network* net) {
 	size_t h = l->h;
 	for (size_t s = 0; s < batch_size; s++) {
 		float* A = &grads[s * M * K];  // M * K
-		float* B = net->workspace.a;  // N * K
+		float* B = net->workspace;  // N * K
 		zero_array(B, N * K);
 		float* B0 = B;
 		float* C = l->weight_grads;  // M * N
@@ -195,9 +195,9 @@ void backward_conv(layer* l, network* net) {
 
 	if (l->id == 0) return;
 	for (size_t s = 0; s < batch_size; s++) {
-		float* A = l->weights.a;  // M * N / n_groups
+		float* A = l->weights;  // M * N / n_groups
 		float* B = &grads[s * M * K];  // M * K
-		float* C = net->workspace.a;  // N * K
+		float* C = net->workspace;  // N * K
 		zero_array(C, N * K);
 		if (n_groups > 1) gemm_tab_groups(M, N, K, A, B, C, n_groups);
 		else gemm_tab(M, N, K, A, B, C);
@@ -220,7 +220,7 @@ void update_conv_gpu(layer* l, network* net) {
 	int batch_size = (int)net->batch_size;
 	
 	launch_update_kernel(l->biases, l->bias_grads, l->bias_velocities, (int)l->n_filters, batch_size, momentum, rate);
-	launch_update_kernel(l->weights.a, l->weight_grads, l->weight_velocities, (int)l->weights.n, batch_size, momentum, rate);
+	launch_update_kernel(l->weights, l->weight_grads, l->weight_velocities, (int)l->n_weights, batch_size, momentum, rate);
 	if (l->batchnorm) {
 		launch_update_kernel(l->gammas, l->gamma_grads, l->gamma_velocities, (int)l->out_c, batch_size, momentum, rate);
 	}
@@ -244,10 +244,10 @@ void update_conv(layer* l, network* net) {
 		bias_grads[i] = 0.0F;
 	}
 
-	float* weights = l->weights.a;
+	float* weights = l->weights;
 	float* weight_grads = l->weight_grads;
 	float* weight_velocities = l->weight_velocities;
-	n = l->weights.n;
+	n = l->n_weights;
 	net->regularize_weights(weight_grads, weights, n, net->decay);
 #pragma omp parallel for firstprivate(rate, momentum)
 	for (i = 0; i < n; i++) {
@@ -292,9 +292,9 @@ void test_forward_conv(void) {
 	l->biases = (float*)xcalloc(l->n_filters, sizeof(float));
 	fill_array(l->biases, l->n_filters, 0.5F);
 	l->activate = activate_none;
-	l->weights.n = l->n_filters * l->ksize * l->ksize * l->c;
-	l->weights.a = (float*)xcalloc(l->weights.n, sizeof(float));
-	fill_array(l->weights.a, l->weights.n, 1.0F);
+	l->n_weights = l->n_filters * l->ksize * l->ksize * l->c;
+	l->weights = (float*)xcalloc(l->n_weights, sizeof(float));
+	fill_array(l->weights, l->n_weights, 1.0F);
 	l->Z = (float*)xcalloc(l->n_filters * l->out_w * l->out_h, sizeof(float));
 	layer* inl1 = (layer*)xcalloc(1, sizeof(layer));
 	layer* inl2 = (layer*)xcalloc(1, sizeof(layer));
@@ -316,7 +316,7 @@ void test_forward_conv(void) {
 	l->in_layers[1] = inl2;
 	l->in_ids.n = 2;
 
-	net->workspace.a = (float*)xcalloc(l->out_w * l->out_h * l->ksize * l->ksize * l->c * 2, sizeof(float));
+	net->workspace = (float*)xcalloc(l->out_w * l->out_h * l->ksize * l->ksize * l->c * 2, sizeof(float));
 
 	forward_conv(l, net);
 

@@ -142,10 +142,10 @@ void initialize_weights_kaiming(network* net) {
 	double stddev;
 	for (size_t i = 0; i < N; i++) {
 		l = &layers[i];
-		n = l->weights.n;
+		n = l->n_weights;
 		stddev = sqrt(2.0 / n);
 		for (size_t j = 0; j < n; j++) {
-			l->weights.a[j] = (float)(stddev * randn(0.0, 1));
+			l->weights[j] = (float)(stddev * randn(0.0, 1));
 		}
 	}
 }
