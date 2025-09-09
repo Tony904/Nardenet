@@ -1,3 +1,5 @@
+#ifdef GPU
+
 #include <stdio.h>
 #include "xcuda.h"
 #include "xallocs.h"
@@ -307,3 +309,5 @@ void cuda_test_col2im(void) {
     printf("zero count: %zu\n", zero_count);
     printf("Verifiction Success!!!\n");
 }
+
+#endif

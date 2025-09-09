@@ -8,7 +8,6 @@
 #include "xcuda.h"
 
 
-
 int main(void) {
 	srand(77777774);
 

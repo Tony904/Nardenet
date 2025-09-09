@@ -7,27 +7,6 @@
 
 
 
-void forward_upsample_gpu(layer* l, network* net) {
-	float* Z = l->Z;
-	int ksize = (int)l->ksize;
-	int w = (int)l->w;
-	int h = (int)l->h;
-	int out_w = (int)l->out_w;
-	int out_wh = out_w * (int)l->out_h;
-	size_t batch_size = net->batch_size;
-	for (size_t b = 0; b < batch_size; b++) {
-		for (size_t a = 0; a < l->in_ids.n; a++) {
-			layer* inl = l->in_layers[a];
-			float* inl_output = inl->output;
-			int inl_out_c = (int)inl->out_c;
-			launch_forward_upsample_kernel(inl_output, Z, w, h, inl_out_c, ksize, 1);
-			Z += out_wh * inl_out_c;
-		}
-	}
-	if (l->activation) l->activate(l->Z, l->output, l->out_n, batch_size);
-	if (net->training) zero_array_gpu(l->grads, (int)(l->out_n * batch_size));
-}
-
 void forward_upsample(layer* l, network* net) {
 	float* Z = l->Z;
 	size_t ksize = l->ksize;
@@ -71,26 +50,6 @@ void forward_upsample(layer* l, network* net) {
 	if (net->training) zero_array(l->grads, l->out_n * batch_size);
 }
 
-void backward_upsample_gpu(layer* l, network* net) {
-	int batch_size = (int)net->batch_size;
-	float* grads = l->grads;
-	if (l->activation) get_activation_grads_gpu(l, batch_size);
-	int ksize = (int)l->ksize;
-	int w = (int)l->w;
-	int h = (int)l->h;
-	int out_w = (int)l->out_w;
-	int out_wh = out_w * (int)l->out_h;
-	for (int b = 0; b < batch_size; b++) {
-		for (int a = 0; a < l->in_ids.n; a++) {
-			layer* inl = l->in_layers[a];
-			float* inl_grads = inl->grads;
-			int inl_out_c = (int)inl->out_c;
-			launch_backward_upsample_kernel(inl_grads, grads, w, h, inl_out_c, ksize, 1);
-			grads += out_wh * inl_out_c;
-		}
-	}
-}
-
 void backward_upsample(layer* l, network* net) {
 	size_t batch_size = net->batch_size;
 	float* grads = l->grads;
@@ -132,6 +91,58 @@ void backward_upsample(layer* l, network* net) {
 		}
 	}
 }
+
+#ifdef GPU
+void forward_upsample_gpu(layer* l, network* net) {
+	float* Z = l->Z;
+	int ksize = (int)l->ksize;
+	int w = (int)l->w;
+	int h = (int)l->h;
+	int out_w = (int)l->out_w;
+	int out_wh = out_w * (int)l->out_h;
+	size_t batch_size = net->batch_size;
+	for (size_t b = 0; b < batch_size; b++) {
+		for (size_t a = 0; a < l->in_ids.n; a++) {
+			layer* inl = l->in_layers[a];
+			float* inl_output = inl->output;
+			int inl_out_c = (int)inl->out_c;
+			launch_forward_upsample_kernel(inl_output, Z, w, h, inl_out_c, ksize, 1);
+			Z += out_wh * inl_out_c;
+		}
+	}
+	if (l->activation) l->activate(l->Z, l->output, l->out_n, batch_size);
+	if (net->training) zero_array_gpu(l->grads, (int)(l->out_n * batch_size));
+}
+
+void backward_upsample_gpu(layer* l, network* net) {
+	int batch_size = (int)net->batch_size;
+	float* grads = l->grads;
+	if (l->activation) get_activation_grads_gpu(l, batch_size);
+	int ksize = (int)l->ksize;
+	int w = (int)l->w;
+	int h = (int)l->h;
+	int out_w = (int)l->out_w;
+	int out_wh = out_w * (int)l->out_h;
+	for (int b = 0; b < batch_size; b++) {
+		for (int a = 0; a < l->in_ids.n; a++) {
+			layer* inl = l->in_layers[a];
+			float* inl_grads = inl->grads;
+			int inl_out_c = (int)inl->out_c;
+			launch_backward_upsample_kernel(inl_grads, grads, w, h, inl_out_c, ksize, 1);
+			grads += out_wh * inl_out_c;
+		}
+	}
+}
+#else
+#pragma warning (suppress:4100)
+void forward_upsample_gpu(layer* l, network* net) {
+	gpu_not_defined();
+}
+#pragma warning (suppress:4100)
+void backward_upsample_gpu(layer* l, network* net) {
+	gpu_not_defined();
+}
+#endif
 
 /*** TESTING ***/
 

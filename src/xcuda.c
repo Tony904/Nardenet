@@ -4,12 +4,27 @@
 
 
 
+void gpu_not_defined(void) {
+    printf("Cannot run GPU code. Install CUDA and compile Nardenet with preprocessor \"GPU\" defined.");
+    wait_for_key_then_exit();
+}
+
+#ifdef GPU
+
 void ___check_cuda(cudaError_t x, const char* const filename, const char* const funcname, const int line, const char* time) {
 	if (x != cudaSuccess) {
 		fprintf(stderr, "CUDA error: %s\ntime: %s\n", cudaGetErrorString(x), time);
 		print_location(filename, funcname, line);
 		wait_for_key_then_exit();
 	}
+}
+
+void ___cudaMalloc(void** devPtr, size_t size, const char* const filename, const char* const funcname, const int line, const char* time) {
+    ___check_cuda(cudaMalloc(devPtr, size), filename, funcname, line, time);
+}
+
+void ___cudaMemcpy(void* dst, void* src, size_t size, enum cudaMemcpyKind kind, const char* const filename, const char* const funcname, const int line, const char* time) {
+    ___check_cuda(cudaMemcpy(dst, src, size, kind), filename, funcname, line, time);
 }
 
 void print_gpu_props(void) {
@@ -44,3 +59,5 @@ void print_gpu_props(void) {
         printf("\n");
     }
 }
+
+#endif // GPU

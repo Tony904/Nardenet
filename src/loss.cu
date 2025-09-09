@@ -1,3 +1,5 @@
+#ifdef GPU
+
 #include <stdio.h>
 #include <math.h>
 #include "xcuda.h"
@@ -79,3 +81,5 @@ void launch_loss_bce_kernel(float* grads, float* output, float* truth, float* er
 	loss_cce_kernel KARGS(grid_size, BLOCKSIZE) (grads, output, truth, errors, n);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
+
+#endif

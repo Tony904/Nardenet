@@ -1,3 +1,5 @@
+#ifdef GPU
+
 #include <stdio.h>
 #include "xcuda.h"
 #include "xallocs.h"
@@ -597,3 +599,5 @@ void test_backward_batchnorm_gpu(void) {
 	}
 	printf("Gamma grads verification success.\n");
 }
+
+#endif

@@ -1,3 +1,5 @@
+#ifdef GPU
+
 #include <stdio.h>
 #include "xcuda.h"
 #include <math.h>
@@ -165,3 +167,5 @@ void zero_array_gpu(float* A, int n) {
 	zero_array_kernel KARGS(grid_size, BLOCKSIZE) (A, n);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
+
+#endif

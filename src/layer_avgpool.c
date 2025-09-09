@@ -66,6 +66,7 @@ void backward_avgpool(layer* l, network* net) {
 	}
 }
 
+#ifdef GPU
 void forward_avgpool_gpu(layer* l, network* net) {
 	float* Z = l->Z;
 	size_t w = l->w;
@@ -113,6 +114,16 @@ void backward_avgpool_gpu(layer* l, network* net) {
 	}
 	else launch_backward_avgpool_kernel(l->in_layers[0]->grads, grads, (int)wh, (int)l->c, batch_size);
 }
+#else
+#pragma warning (suppress:4100)
+void forward_avgpool_gpu(layer* l, network* net) {
+	gpu_not_defined();
+}
+#pragma warning (suppress:4100)
+void backward_avgpool_gpu(layer* l, network* net) {
+	gpu_not_defined();
+}
+#endif
 
 /*** TESTING ***/
 

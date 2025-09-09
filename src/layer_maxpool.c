@@ -15,40 +15,6 @@ inline static int is_a_ge_zero_and_a_lt_b(int a, int b) {
 	return (unsigned)(a) < (unsigned)(b);
 }
 
-void forward_maxpool_gpu(layer* l, network* net) {
-
-	int batch_size = (int)net->batch_size;
-	int w = (int)l->w;
-	int h = (int)l->h;
-	int wh = w * h;
-	int out_n = (int)l->out_n;
-	int out_w = (int)l->out_w;
-	int out_h = (int)l->out_h;
-	int out_wh = out_w * out_h;
-	float* l_output = l->output;
-	float** l_max_ptrs = l->maxpool_addresses;
-	for (int b = 0; b < batch_size; b++) {
-		float* b_output = &l_output[b * out_n];
-		float** b_max_ptrs = &l_max_ptrs[b * out_n];
-		int bwh = b * wh;
-		for (int i = 0; i < l->in_ids.n; i++) {
-			layer* inl = l->in_layers[i];
-			int inl_out_c = (int)inl->out_c;
-			float* inl_output = &inl->output[bwh * inl_out_c];
-			//float* src, float* dst, float** max_ptrs, int src_w, int src_h, int dst_w, int dst_h, int dst_n, int batch_size
-			launch_forward_maxpool_kernel(inl_output, b_output, b_max_ptrs, w, h, out_w, out_h, out_n, batch_size);
-			// shift pointers by the size of the output of the input layer that was just processed
-			b_output += out_wh * inl_out_c;
-			b_max_ptrs += out_wh * inl_out_c;
-		}
-	}
-	if (net->training) zero_array_gpu(l->grads, (int)(l->out_n * batch_size));
-}
-
-void backward_maxpool_gpu(layer* l, network* net) {
-	launch_backward_maxpool_kernel(l->grads, l->maxpool_addresses, (int)(l->out_n * net->batch_size));
-}
-
 /* Standard maxpool operation with ksize = 2, pad = 0, stride = 2 */
 void forward_maxpool(layer* l, network* net) {
 	size_t batch_size = net->batch_size;
@@ -198,10 +164,52 @@ void backward_maxpool(layer* l, network* net) {
 	}
 }
 
+#ifdef GPU
+void forward_maxpool_gpu(layer* l, network* net) {
+	int batch_size = (int)net->batch_size;
+	int w = (int)l->w;
+	int h = (int)l->h;
+	int wh = w * h;
+	int out_n = (int)l->out_n;
+	int out_w = (int)l->out_w;
+	int out_h = (int)l->out_h;
+	int out_wh = out_w * out_h;
+	float* l_output = l->output;
+	float** l_max_ptrs = l->maxpool_addresses;
+	for (int b = 0; b < batch_size; b++) {
+		float* b_output = &l_output[b * out_n];
+		float** b_max_ptrs = &l_max_ptrs[b * out_n];
+		int bwh = b * wh;
+		for (int i = 0; i < l->in_ids.n; i++) {
+			layer* inl = l->in_layers[i];
+			int inl_out_c = (int)inl->out_c;
+			float* inl_output = &inl->output[bwh * inl_out_c];
+			//float* src, float* dst, float** max_ptrs, int src_w, int src_h, int dst_w, int dst_h, int dst_n, int batch_size
+			launch_forward_maxpool_kernel(inl_output, b_output, b_max_ptrs, w, h, out_w, out_h, out_n, batch_size);
+			// shift pointers by the size of the output of the input layer that was just processed
+			b_output += out_wh * inl_out_c;
+			b_max_ptrs += out_wh * inl_out_c;
+		}
+	}
+	if (net->training) zero_array_gpu(l->grads, (int)(l->out_n * batch_size));
+}
+
+void backward_maxpool_gpu(layer* l, network* net) {
+	launch_backward_maxpool_kernel(l->grads, l->maxpool_addresses, (int)(l->out_n * net->batch_size));
+}
+#else
+#pragma warning (suppress:4100)
+void forward_maxpool_gpu(layer* l, network* net) {
+	gpu_not_defined();
+}
+#pragma warning (suppress:4100)
+void backward_maxpool_gpu(layer* l, network* net) {
+	gpu_not_defined();
+}
+#endif
+
 
 /*** TESTING ***/
-
-
 void test_forward_maxpool(void) {
 	layer* l = (layer*)xcalloc(1, sizeof(layer));
 	network* net = (network*)xcalloc(1, sizeof(network));

@@ -1,3 +1,5 @@
+#ifdef GPU
+
 #include <stdio.h>
 #include "xcuda.h"
 #include "xallocs.h"
@@ -551,3 +553,5 @@ void print_test_matrix(size_t rows, size_t cols, size_t channels, float* matrix)
 		printf("\n");
 	}
 }
+
+#endif

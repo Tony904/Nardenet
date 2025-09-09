@@ -1,3 +1,5 @@
+#ifdef GPU
+
 #include <stdio.h>
 #include <math.h>
 #include "xcuda.h"
@@ -161,3 +163,5 @@ void transform_colorspace_gpu(image* img, float brightness_scalar, float contras
     hsv_apply_changes_gpu(img, brightness_scalar, saturation_scalar, hue_shift);
     hsv2rgb_gpu(img);
 }
+
+#endif

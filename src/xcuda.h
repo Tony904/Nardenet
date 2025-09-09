@@ -1,30 +1,40 @@
 #ifndef XCUDA_H
 #define XCUDA_H
 
-
+//#define GPU
 
 #include <stdlib.h>
-#include <cuda_runtime.h>
-#include <device_launch_parameters.h>
-#include "locmacro.h"
-#include "image.h"
-
-
 #ifndef __TIME__
 #define __TIME__
 #endif
 
+#ifdef GPU
+#include <cuda_runtime.h>
+#include <device_launch_parameters.h>
+#include "locmacro.h"
+#include "image.h"
+#endif
 
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+	void gpu_not_defined(void);
 
-
+#ifndef GPU
+#define CHECK_CUDA(x) gpu_not_defined()
+#define CUDA_MALLOC(pPtr, size) gpu_not_defined()
+#define CUDA_MEMCPY_H2D(dst, src, size) gpu_not_defined()
+#define CUDA_MEMCPY_D2H(dst, src, size) gpu_not_defined()
+#else
 	void ___check_cuda(cudaError_t x, const char* const filename, const char* const funcname, const int line, const char* time);
-
+	void ___cudaMalloc(void** devPtr, size_t size, const char* const filename, const char* const funcname, const int line, const char* time);
+	void ___cudaMemcpy(void* dst, void* src, size_t size, enum cudaMemcpyKind kind, const char* const filename, const char* const funcname, const int line, const char* time);
 #define CHECK_CUDA(x) ___check_cuda(x, NARDENET_LOCATION, " - " __TIME__)
+#define CUDA_MALLOC(pPtr, size) ___cudaMalloc(pPtr, size, NARDENET_LOCATION, " - " __TIME__)
+#define CUDA_MEMCPY_H2D(dst, src, size) ___cudaMemcpy(dst, src, size, cudaMemcpyHostToDevice, NARDENET_LOCATION, " - " __TIME__)
+#define CUDA_MEMCPY_D2H(dst, src, size) ___cudaMemcpy(dst, src, size, cudaMemcpyDeviceToHost, NARDENET_LOCATION, " - " __TIME__)
 #define BLOCKSIZE 512
 #define GET_GRIDSIZE(n, blocksize) (n + blocksize - 1) / blocksize
 
@@ -107,7 +117,7 @@ extern "C" {
 	void activate_tanh_gpu(float* Z, float* output, size_t out_n, size_t batch_size);
 	void activate_softmax_gpu(float* Z, float* output, size_t size, size_t batch_size);
 
-
+#endif  // GPU
 
 #ifdef __cplusplus
 }

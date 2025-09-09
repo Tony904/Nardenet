@@ -1,3 +1,5 @@
+#ifdef GPU
+
 #include <stdio.h>
 #include <math.h>
 #include <float.h>
@@ -196,3 +198,5 @@ void test_activate_softmax_gpu(void) {
 	}
 	printf("Verifiction Success!!!\n");
 }
+
+#endif

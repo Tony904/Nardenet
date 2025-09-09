@@ -23,20 +23,6 @@ void forward_route(layer* l, network* net) {
 	if (net->training) zero_array(l->grads, l->out_n * batch_size);
 }
 
-void forward_route_gpu(layer* l, network* net) {
-	size_t batch_size = net->batch_size;
-	float* Z = l->Z;
-	float* Z0 = Z;
-	for (size_t a = 0; a < l->in_ids.n; a++) {
-		float* inl_output = l->in_layers[a]->output;
-		size_t inl_out_n = l->in_layers[a]->out_n * batch_size;
-		copy_array_gpu(inl_output, Z, (int)inl_out_n);
-		Z += inl_out_n;
-	}
-	if (l->activation) l->activate(Z0, l->output, l->out_n, net->batch_size);
-	if (net->training) zero_array_gpu(l->grads, (int)(l->out_n * batch_size));
-}
-
 void backward_route(layer* l, network* net) {
 	size_t batch_size = net->batch_size;
 	float* grads = l->grads;
@@ -53,6 +39,21 @@ void backward_route(layer* l, network* net) {
 	}
 }
 
+#ifdef GPU
+void forward_route_gpu(layer* l, network* net) {
+	size_t batch_size = net->batch_size;
+	float* Z = l->Z;
+	float* Z0 = Z;
+	for (size_t a = 0; a < l->in_ids.n; a++) {
+		float* inl_output = l->in_layers[a]->output;
+		size_t inl_out_n = l->in_layers[a]->out_n * batch_size;
+		copy_array_gpu(inl_output, Z, (int)inl_out_n);
+		Z += inl_out_n;
+	}
+	if (l->activation) l->activate(Z0, l->output, l->out_n, net->batch_size);
+	if (net->training) zero_array_gpu(l->grads, (int)(l->out_n * batch_size));
+}
+
 void backward_route_gpu(layer* l, network* net) {
 	size_t batch_size = net->batch_size;
 	float* grads = l->grads;
@@ -64,3 +65,13 @@ void backward_route_gpu(layer* l, network* net) {
 		grads += inl_out_n;
 	}
 }
+#else
+#pragma warning (suppress:4100)
+void forward_route_gpu(layer* l, network* net) {
+	gpu_not_defined();
+}
+#pragma warning (suppress:4100)
+void backward_route_gpu(layer* l, network* net) {
+	gpu_not_defined();
+}
+#endif

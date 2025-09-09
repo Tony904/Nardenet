@@ -17,9 +17,10 @@
 #include "loss.h"
 #include "derivatives.h"
 #include "data.h"
-#include "xcuda.h"
 #include "blas.h"
+#include "xcuda.h"
 
+#pragma warning (disable:4702)
 
 void build_input_layer(network* net);
 void build_layer(int i, network* net);
@@ -32,8 +33,8 @@ void build_upsample_layer(int i, network* net);
 void build_classify_layer(int i, network* net);
 void build_detect_layer(int i, network* net);
 
-void set_activate(layer* l);
-void set_loss(layer* l);
+void set_activate(layer* l, int use_gpu);
+void set_loss(layer* l, int use_gpu);
 
 void backward_none(layer* l, network* net);
 void update_none(layer* l, network* net);
@@ -124,7 +125,7 @@ void build_input_layer(network* net) {
 	l->out_n = l->n;
 	l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 	if (net->use_gpu) {
-		CHECK_CUDA(cudaMalloc(&l->gpu.output, l->out_n * net->batch_size * sizeof(float)));
+		CUDA_MALLOC(&l->gpu.output, l->out_n * net->batch_size * sizeof(float));
 	}
 }
 
@@ -202,14 +203,14 @@ void build_conv_layer(int i, network* net) {
 	l->weight_velocities = (float*)xcalloc(l->n_weights, sizeof(float));
 	l->bias_velocities = (float*)xcalloc(l->n_filters, sizeof(float));
 	if (net->use_gpu) {
-		CHECK_CUDA(cudaMalloc(&l->gpu.Z, l->out_n * net->batch_size * sizeof(float)));
-		CHECK_CUDA(cudaMalloc(&l->gpu.weights, l->n_weights * sizeof(float)));
-		CHECK_CUDA(cudaMalloc(&l->gpu.biases, l->n_filters * sizeof(float)));
-		CHECK_CUDA(cudaMalloc(&l->gpu.grads, l->out_n * net->batch_size, sizeof(float)));
-		CHECK_CUDA(cudaMalloc(&l->gpu.weight_grads, l->n_weights * sizeof(float)));
-		CHECK_CUDA(cudaMalloc(&l->gpu.bias_grads, l->n_filters * sizeof(float)));
-		CHECK_CUDA(cudaMalloc(&l->gpu.weight_velocities, l->n_weights * sizeof(float)));
-		CHECK_CUDA(cudaMalloc(&l->gpu.bias_velocities, l->n_filters * sizeof(float)));
+		CUDA_MALLOC(&l->gpu.Z, l->out_n * net->batch_size * sizeof(float));
+		CUDA_MALLOC(&l->gpu.weights, l->n_weights * sizeof(float));
+		CUDA_MALLOC(&l->gpu.biases, l->n_filters * sizeof(float));
+		CUDA_MALLOC(&l->gpu.grads, l->out_n * net->batch_size * sizeof(float));
+		CUDA_MALLOC(&l->gpu.weight_grads, l->n_weights * sizeof(float));
+		CUDA_MALLOC(&l->gpu.bias_grads, l->n_filters * sizeof(float));
+		CUDA_MALLOC(&l->gpu.weight_velocities, l->n_weights * sizeof(float));
+		CUDA_MALLOC(&l->gpu.bias_velocities, l->n_filters * sizeof(float));
 	}
 	if (l->batchnorm) {
 		l->Z_norm = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
@@ -223,36 +224,32 @@ void build_conv_layer(int i, network* net) {
 		l->rolling_means = (float*)xcalloc(l->out_c, sizeof(float));
 		l->rolling_variances = (float*)xcalloc(l->out_c, sizeof(float));
 		if (net->use_gpu) {
-			CHECK_CUDA(cudaMalloc(&l->gpu.Z_norm, l->out_n * net->batch_size, sizeof(float)));
-			CHECK_CUDA(cudaMalloc(&l->gpu.act_inputs, l->out_n * net->batch_size * sizeof(float)));
-			CHECK_CUDA(cudaMalloc(&l->gpu.means, l->out_c * sizeof(float)));
-			CHECK_CUDA(cudaMalloc(&l->gpu.variances, l->out_c * sizeof(float)));
-			CHECK_CUDA(cudaMalloc(&l->gpu.gammas, l->out_c * sizeof(float)));
+			CUDA_MALLOC(&l->gpu.Z_norm, l->out_n * net->batch_size * sizeof(float));
+			CUDA_MALLOC(&l->gpu.act_inputs, l->out_n * net->batch_size * sizeof(float));
+			CUDA_MALLOC(&l->gpu.means, l->out_c * sizeof(float));
+			CUDA_MALLOC(&l->gpu.variances, l->out_c * sizeof(float));
+			CUDA_MALLOC(&l->gpu.gammas, l->out_c * sizeof(float));
 			CHECK_CUDA(cudaMemcpy(l->gpu.gammas, l->gammas, l->out_c * sizeof(float), cudaMemcpyHostToDevice));
-			CHECK_CUDA(cudaMalloc(&l->gpu.gamma_grads, l->out_c * sizeof(float)));
-			CHECK_CUDA(cudaMalloc(&l->gpu.gamma_velocities, l->out_c * sizeof(float)));
-			CHECK_CUDA(cudaMalloc(&l->gpu.rolling_means, l->out_c * sizeof(float)));
-			CHECK_CUDA(cudaMalloc(&l->gpu.rolling_variances, l->out_c * sizeof(float)));
+			CUDA_MALLOC(&l->gpu.gamma_grads, l->out_c * sizeof(float));
+			CUDA_MALLOC(&l->gpu.gamma_velocities, l->out_c * sizeof(float));
+			CUDA_MALLOC(&l->gpu.rolling_means, l->out_c * sizeof(float));
+			CUDA_MALLOC(&l->gpu.rolling_variances, l->out_c * sizeof(float));
 		}
 	}
 	else {
 		l->act_inputs = l->Z;
-		if (net->use_gpu) {
-			l->gpu.act_inputs = l->gpu.Z;
-		}
+		l->gpu.act_inputs = l->gpu.Z;
 	}
 
 	if (l->activation) {
 		l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 		if (net->use_gpu) {
-			CHECK_CUDA(cudaMalloc(&l->gpu.output, l->out_n * net->batch_size * sizeof(float)));
+			CUDA_MALLOC(&l->gpu.output, l->out_n * net->batch_size * sizeof(float));
 		}
 	}
 	else {
 		l->output = l->act_inputs;
-		if (net->use_gpu) {
-			l->gpu.output = l->gpu.act_inputs;
-		}
+		l->gpu.output = l->gpu.act_inputs;
 	}
 
 	if (net->use_gpu) {
@@ -329,14 +326,14 @@ void build_fc_layer(int i, network* net) {
 	l->weight_velocities = (float*)xcalloc(l->n_weights, sizeof(float));
 	l->bias_velocities = (float*)xcalloc(l->n_filters, sizeof(float));
 	if (net->use_gpu) {
-		CHECK_CUDA(cudaMalloc(&l->gpu.Z, l->out_n * net->batch_size * sizeof(float)));
-		CHECK_CUDA(cudaMalloc(&l->gpu.weights, l->n_weights * sizeof(float)));
-		CHECK_CUDA(cudaMalloc(&l->gpu.biases, l->n_filters * sizeof(float)));
-		CHECK_CUDA(cudaMalloc(&l->gpu.grads, l->out_n * net->batch_size, sizeof(float)));
-		CHECK_CUDA(cudaMalloc(&l->gpu.weight_grads, l->n_weights * sizeof(float)));
-		CHECK_CUDA(cudaMalloc(&l->gpu.bias_grads, l->n_filters * sizeof(float)));
-		CHECK_CUDA(cudaMalloc(&l->gpu.weight_velocities, l->n_weights * sizeof(float)));
-		CHECK_CUDA(cudaMalloc(&l->gpu.bias_velocities, l->n_filters * sizeof(float)));
+		CUDA_MALLOC(&l->gpu.Z, l->out_n * net->batch_size * sizeof(float));
+		CUDA_MALLOC(&l->gpu.weights, l->n_weights * sizeof(float));
+		CUDA_MALLOC(&l->gpu.biases, l->n_filters * sizeof(float));
+		CUDA_MALLOC(&l->gpu.grads, l->out_n * net->batch_size * sizeof(float));
+		CUDA_MALLOC(&l->gpu.weight_grads, l->n_weights * sizeof(float));
+		CUDA_MALLOC(&l->gpu.bias_grads, l->n_filters * sizeof(float));
+		CUDA_MALLOC(&l->gpu.weight_velocities, l->n_weights * sizeof(float));
+		CUDA_MALLOC(&l->gpu.bias_velocities, l->n_filters * sizeof(float));
 	}
 	if (l->batchnorm) {
 		l->Z_norm = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
@@ -350,36 +347,32 @@ void build_fc_layer(int i, network* net) {
 		l->rolling_means = (float*)xcalloc(l->out_c, sizeof(float));
 		l->rolling_variances = (float*)xcalloc(l->out_c, sizeof(float));
 		if (net->use_gpu) {
-			CHECK_CUDA(cudaMalloc(&l->gpu.Z_norm, l->out_n * net->batch_size, sizeof(float)));
-			CHECK_CUDA(cudaMalloc(&l->gpu.act_inputs, l->out_n * net->batch_size * sizeof(float)));
-			CHECK_CUDA(cudaMalloc(&l->gpu.means, l->out_c * sizeof(float)));
-			CHECK_CUDA(cudaMalloc(&l->gpu.variances, l->out_c * sizeof(float)));
-			CHECK_CUDA(cudaMalloc(&l->gpu.gammas, l->out_c * sizeof(float)));
-			CHECK_CUDA(cudaMemcpy(l->gpu.gammas, l->gammas, l->out_c * sizeof(float), cudaMemcpyHostToDevice));
-			CHECK_CUDA(cudaMalloc(&l->gpu.gamma_grads, l->out_c * sizeof(float)));
-			CHECK_CUDA(cudaMalloc(&l->gpu.gamma_velocities, l->out_c * sizeof(float)));
-			CHECK_CUDA(cudaMalloc(&l->gpu.rolling_means, l->out_c * sizeof(float)));
-			CHECK_CUDA(cudaMalloc(&l->gpu.rolling_variances, l->out_c * sizeof(float)));
+			CUDA_MALLOC(&l->gpu.Z_norm, l->out_n * net->batch_size * sizeof(float));
+			CUDA_MALLOC(&l->gpu.act_inputs, l->out_n * net->batch_size * sizeof(float));
+			CUDA_MALLOC(&l->gpu.means, l->out_c * sizeof(float));
+			CUDA_MALLOC(&l->gpu.variances, l->out_c * sizeof(float));
+			CUDA_MALLOC(&l->gpu.gammas, l->out_c * sizeof(float));
+			CUDA_MEMCPY_H2D(l->gpu.gammas, l->gammas, l->out_c * sizeof(float));
+			CUDA_MALLOC(&l->gpu.gamma_grads, l->out_c * sizeof(float));
+			CUDA_MALLOC(&l->gpu.gamma_velocities, l->out_c * sizeof(float));
+			CUDA_MALLOC(&l->gpu.rolling_means, l->out_c * sizeof(float));
+			CUDA_MALLOC(&l->gpu.rolling_variances, l->out_c * sizeof(float));
 		}
 	}
 	else {
 		l->act_inputs = l->Z;
-		if (net->use_gpu) {
-			l->gpu.act_inputs = l->gpu.Z;
-		}
+		l->gpu.act_inputs = l->gpu.Z;
 	}
 
 	if (l->activation) {
 		l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 		if (net->use_gpu) {
-			CHECK_CUDA(cudaMalloc(&l->gpu.output, l->out_n * net->batch_size * sizeof(float)));
+			CUDA_MALLOC(&l->gpu.output, l->out_n * net->batch_size * sizeof(float));
 		}
 	}
 	else {
 		l->output = l->act_inputs;
-		if (net->use_gpu) {
-			l->gpu.output = l->gpu.act_inputs;
-		}
+		l->gpu.output = l->gpu.act_inputs;
 	}
 
 	if (net->use_gpu) {
@@ -456,16 +449,12 @@ void build_classify_layer(int i, network* net) {
 	l->truth = (float*)xcalloc(l->n_classes * net->batch_size, sizeof(float));
 	l->errors = (float*)xcalloc(l->n_classes * net->batch_size, sizeof(float));
 	if (net->use_gpu) {
-		CHECK_CUDA(cudaMalloc(&l->gpu.truth, l->n_classes * net->batch_size * sizeof(float)));
-		CHECK_CUDA(cudaMalloc(&l->gpu.errors, l->n_classes * net->batch_size, sizeof(float)));
+		CUDA_MALLOC(&l->gpu.truth, l->n_classes * net->batch_size * sizeof(float));
+		CUDA_MALLOC(&l->gpu.errors, l->n_classes * net->batch_size * sizeof(float));
 	}
 	
-	if (net->use_gpu) {
-		l->forward = forward_classify_gpu;
-	}
-	else {
-		l->forward = forward_classify;
-	}
+	if (net->use_gpu) l->forward = forward_classify_gpu;
+	else l->forward = forward_classify;
 	l->backward = backward_none;  // all backprop stuff is done in forward pass
 	l->update = update_none;
 
@@ -529,9 +518,24 @@ void build_maxpool_layer(int i, network* net) {
 	l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 	l->grads = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 	l->maxpool_addresses = (float**)xcalloc(l->out_n * net->batch_size, sizeof(float*));
+	if (net->use_gpu) {
+		CUDA_MALLOC(&l->gpu.output, l->out_n * net->batch_size * sizeof(float));
+		CUDA_MALLOC(&l->gpu.grads, l->out_n * net->batch_size * sizeof(float));
+		CUDA_MALLOC((void**)(&l->gpu.maxpool_addresses), l->out_n * net->batch_size * sizeof(float*));
+	}
 
-	l->forward = (l->ksize != 2 || l->stride != 2) ? forward_maxpool_general : forward_maxpool;
-	l->backward = backward_maxpool;
+	if (net->use_gpu) {
+		if (l->ksize != 2 || l->stride != 2) {
+			printf("No GPU support for maxpool layers with ksize or stride other than 2.");
+			wait_for_key_then_exit();
+		}
+		l->forward = forward_maxpool_gpu;
+		l->backward = backward_maxpool_gpu;
+	}
+	else {
+		l->forward = (l->ksize != 2 || l->stride != 2) ? forward_maxpool_general : forward_maxpool;
+		l->backward = backward_maxpool;
+	}
 	l->update = update_none;
 }
 
@@ -590,15 +594,32 @@ void build_residual_layer(int i, network* net) {
 	l->Z = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 	l->act_inputs = l->Z;
 	l->grads = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	if (net->use_gpu) {
+		CUDA_MALLOC(&l->gpu.Z, l->out_n * net->batch_size * sizeof(float));
+		l->gpu.act_inputs = l->gpu.Z;
+		CUDA_MALLOC(&l->gpu.grads, l->out_n * net->batch_size * sizeof(float));
+	}
 
-	if (l->activation) l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-	else l->output = l->Z;
+	if (l->activation) {
+		l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+		if (net->use_gpu) CUDA_MALLOC(&l->gpu.output, l->out_n * net->batch_size * sizeof(float));
+	}
+	else {
+		l->output = l->Z;
+		l->gpu.output = l->gpu.Z;
+	}
 
-	l->forward = forward_residual;
-	l->backward = backward_residual;
+	if (net->use_gpu) {
+		l->forward = forward_residual_gpu;
+		l->backward = backward_residual_gpu;
+	}
+	else {
+		l->forward = forward_residual;
+		l->backward = backward_residual;
+	}
 	l->update = update_none;
-
-	set_activate(l);
+	
+	set_activate(l, net->use_gpu);
 }
 
 void build_route_layer(int i, network* net) {
@@ -656,15 +677,32 @@ void build_route_layer(int i, network* net) {
 	l->Z = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 	l->act_inputs = l->Z;
 	l->grads = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	if (net->use_gpu) {
+		CUDA_MALLOC(&l->gpu.Z, l->out_n * net->batch_size * sizeof(float));
+		l->gpu.act_inputs = l->gpu.Z;
+		CUDA_MALLOC(&l->gpu.grads, l->out_n * net->batch_size * sizeof(float));
+	}
 
-	if (l->activation) l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-	else l->output = l->Z;
+	if (l->activation) {
+		l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+		if (net->use_gpu) CUDA_MALLOC(&l->gpu.output, l->out_n * net->batch_size * sizeof(float));
+	}
+	else {
+		l->output = l->Z;
+		l->gpu.output = l->gpu.Z;
+	}
 
-	l->forward = forward_route;
-	l->backward = backward_route;
+	if (net->use_gpu) {
+		l->forward = forward_route_gpu;
+		l->backward = backward_route_gpu;
+	}
+	else {
+		l->forward = forward_route;
+		l->backward = backward_route;
+	}
 	l->update = update_none;
-
-	set_activate(l);
+	
+	set_activate(l, net->use_gpu);
 }
 
 void build_avgpool_layer(int i, network* net) {
@@ -723,15 +761,32 @@ void build_avgpool_layer(int i, network* net) {
 	l->Z = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 	l->act_inputs = l->Z;
 	l->grads = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	if (net->use_gpu) {
+		CUDA_MALLOC(&l->gpu.Z, l->out_n * net->batch_size * sizeof(float));
+		l->gpu.act_inputs = l->gpu.Z;
+		CUDA_MALLOC(&l->gpu.grads, l->out_n * net->batch_size * sizeof(float));
+	}
 
-	if (l->activation) l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-	else l->output = l->Z;
+	if (l->activation) {
+		l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+		if (net->use_gpu) CUDA_MALLOC(&l->gpu.output, l->out_n * net->batch_size * sizeof(float));
+	}
+	else {
+		l->output = l->Z;
+		l->gpu.output = l->gpu.Z;
+	}
 
-	l->forward = forward_avgpool;
-	l->backward = backward_avgpool;
+	if (net->use_gpu) {
+		l->forward = forward_avgpool_gpu;
+		l->backward = backward_avgpool_gpu;
+	}
+	else {
+		l->forward = forward_avgpool;
+		l->backward = backward_avgpool;
+	}
 	l->update = update_none;
 
-	set_activate(l);
+	set_activate(l, net->use_gpu);
 }
 
 void build_upsample_layer(int i, network* net) {
@@ -784,17 +839,33 @@ void build_upsample_layer(int i, network* net) {
 	l->out_c = l->c;
 	l->out_n = l->out_w * l->out_h * l->out_c;
 	l->Z = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	if (net->use_gpu) {
+		CUDA_MALLOC(&l->gpu.Z, l->out_n * net->batch_size * sizeof(float));
+	}
 
 	l->act_inputs = l->Z;
+	l->gpu.act_inputs = l->gpu.Z;
 
-	if (l->activation) l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-	else l->output = l->act_inputs;
+	if (l->activation) {
+		l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+		if (net->use_gpu) CUDA_MALLOC(&l->gpu.output, l->out_n * net->batch_size * sizeof(float));
+	}
+	else {
+		l->output = l->act_inputs;
+		l->gpu.output = l->gpu.act_inputs;
+	}
 
-	l->forward = forward_upsample;
-	l->backward = backward_upsample;
+	if (net->use_gpu) {
+		l->forward = forward_upsample_gpu;
+		l->backward = backward_upsample_gpu;
+	}
+	else {
+		l->forward = forward_upsample;
+		l->backward = backward_upsample;
+	}
 	l->update = update_none;
 
-	set_activate(l);
+	set_activate(l, net->use_gpu);
 }
 
 void build_detect_layer(int i, network* net) {
@@ -872,7 +943,6 @@ void build_detect_layer(int i, network* net) {
 	l->update = update_none;
 
 	l->activation = ACT_NONE;
-	set_activate(l);
 
 	l->output = (float*)xcalloc(l->n * net->batch_size, sizeof(float));
 
@@ -920,27 +990,57 @@ void build_detect_layer(int i, network* net) {
 }
 
 void set_activate(layer* l, int use_gpu) {
-	switch (l->activation) {
-	case ACT_RELU:
-		l->activate = use_gpu ? activate_relu_gpu : activate_relu;
-		break;
-	case ACT_MISH:
-		l->activate = use_gpu ? activate_mish_gpu : activate_relu;
-		break;
-	case ACT_SIGMOID:
-		l->activate = use_gpu ? activate_sigmoid_gpu : activate_sigmoid;
-		break;
-	case ACT_LEAKY:
-		l->activate = use_gpu ? activate_leaky_relu_gpu : activate_leaky_relu;
-		break;
-	case ACT_TANH:
-		l->activate = use_gpu ? activate_tanh_gpu : activate_tanh;
-		break;
-	case ACT_SOFTMAX:
-		l->activate = use_gpu ? activate_softmax_gpu : activate_softmax;
-		break;
-	default:
-		l->activate = activate_none;
+	if (use_gpu) {
+#ifndef GPU
+		gpu_not_defined();
+#else
+		switch (l->activation) {
+		case ACT_RELU:
+			l->activate = activate_relu_gpu;
+			break;
+		case ACT_MISH:
+			l->activate = activate_mish_gpu;
+			break;
+		case ACT_SIGMOID:
+			l->activate = activate_sigmoid_gpu;
+			break;
+		case ACT_LEAKY:
+			l->activate = activate_leaky_relu_gpu;
+			break;
+		case ACT_TANH:
+			l->activate = activate_tanh_gpu;
+			break;
+		case ACT_SOFTMAX:
+			l->activate = activate_softmax_gpu;
+			break;
+		default:
+			l->activate = activate_none;
+		}
+#endif
+	}
+	else {
+		switch (l->activation) {
+		case ACT_RELU:
+			l->activate = activate_relu;
+			break;
+		case ACT_MISH:
+			l->activate = activate_mish;
+			break;
+		case ACT_SIGMOID:
+			l->activate = activate_sigmoid;
+			break;
+		case ACT_LEAKY:
+			l->activate = activate_leaky_relu;
+			break;
+		case ACT_TANH:
+			l->activate = activate_tanh;
+			break;
+		case ACT_SOFTMAX:
+			l->activate = activate_softmax;
+			break;
+		default:
+			l->activate = activate_none;
+		}
 	}
 }
 
@@ -958,7 +1058,9 @@ void get_activation_grads(layer* l, size_t batch_size) {
 	}
 }
 
+#pragma warning (suppress:4100)
 void get_activation_grads_gpu(layer* l, size_t batch_size) {
+#ifdef GPU
 	if (l->activation == ACT_MISH) get_grads_mish_gpu(l->grads, l->act_inputs, (int)l->out_n, (int)batch_size);
 	else if (l->activation == ACT_RELU) get_grads_relu_gpu(l->grads, l->act_inputs, (int)l->out_n, (int)batch_size);
 	else if (l->activation == ACT_LEAKY) get_grads_leaky_relu_gpu(l->grads, l->act_inputs, (int)l->out_n, (int)batch_size);
@@ -970,24 +1072,51 @@ void get_activation_grads_gpu(layer* l, size_t batch_size) {
 		printf("Invalid activation function.");
 		wait_for_key_then_exit();
 	}
+#else
+	gpu_not_defined();
+#endif
 }
 
 void set_loss(layer* l, int use_gpu) {
-	switch (l->loss_type) {
-	case LOSS_MAE:
-		l->get_loss = use_gpu ? loss_mae_gpu : loss_mae;
-		break;
-	case LOSS_MSE:
-		l->get_loss = use_gpu ? loss_mse_gpu : loss_mse;
-		break;
-	case LOSS_BCE:
-		l->get_loss = use_gpu ? loss_bce_gpu : loss_bce;
-		break;
-	case LOSS_CCE:
-		l->get_loss = use_gpu ? loss_cce_gpu : loss_cce;
-		break;
-	default:
-		printf("No loss function set. Layer %d\n", l->id);
+	if (use_gpu) {
+#ifndef GPU
+		gpu_not_defined();
+#else
+		switch (l->loss_type) {
+		case LOSS_MAE:
+			l->get_loss = loss_mae_gpu;
+			break;
+		case LOSS_MSE:
+			l->get_loss = loss_mse_gpu;
+			break;
+		case LOSS_BCE:
+			l->get_loss = loss_bce_gpu;
+			break;
+		case LOSS_CCE:
+			l->get_loss = loss_cce_gpu;
+			break;
+		default:
+			printf("No loss function set. Layer %d\n", l->id);
+		}
+#endif
+	}
+	else {
+		switch (l->loss_type) {
+		case LOSS_MAE:
+			l->get_loss = loss_mae;
+			break;
+		case LOSS_MSE:
+			l->get_loss = loss_mse;
+			break;
+		case LOSS_BCE:
+			l->get_loss = loss_bce;
+			break;
+		case LOSS_CCE:
+			l->get_loss = loss_cce;
+			break;
+		default:
+			printf("No loss function set. Layer %d\n", l->id);
+		}
 	}
 }
 

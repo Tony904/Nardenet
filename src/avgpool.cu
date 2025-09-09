@@ -1,3 +1,5 @@
+#ifdef GPU
+
 #include <stdio.h>
 #include <math.h>
 #include "xcuda.h"
@@ -66,3 +68,5 @@ void launch_backward_avgpool_kernel(float* grads_x, float* grads_y, int spatial,
 	backward_avgpool_kernel KARGS(c * batch_size, BLOCKSIZE) (grads_x, grads_y, spatial);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
+
+#endif

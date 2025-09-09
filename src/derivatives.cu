@@ -1,3 +1,5 @@
+#ifdef GPU
+
 #include <stdio.h>
 #include "xcuda.h"
 #include <math.h>
@@ -106,3 +108,5 @@ void regularize_l2_gpu(float* weight_grads, float* weights, int size, float deca
 	regularize_l2_kernel KARGS(grid_size, BLOCKSIZE) (weight_grads, weights, size, decay);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
+
+#endif

@@ -1,3 +1,5 @@
+#ifdef GPU
+
 #include <stdio.h>
 #include <math.h>
 #include <float.h>
@@ -120,3 +122,5 @@ void launch_backward_maxpool_kernel(float* grads, float** max_ptrs, int n) {
 	backward_maxpool_kernel KARGS(grid_size, BLOCKSIZE) (grads, max_ptrs, n);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
+
+#endif

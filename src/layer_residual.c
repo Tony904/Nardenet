@@ -27,19 +27,6 @@ void forward_residual(layer* l, network* net) {
 	if (net->training) zero_array(l->grads, n);
 }
 
-void forward_residual_gpu(layer* l, network* net) {
-	int n = (int)(l->out_n * net->batch_size);
-	float* Z = l->Z;
-	float* inl0_output = l->in_layers[0]->output;
-	copy_array_gpu(inl0_output, Z, n);
-	for (size_t a = 1; a < l->in_ids.n; a++) {
-		float* inl_output = l->in_layers[a]->output;
-		add_arrays_gpu(inl_output, Z, n);
-	}
-	if (l->activation) l->activate(Z, l->output, l->out_n, net->batch_size);
-	if (net->training) zero_array_gpu(l->grads, n);
-}
-
 void backward_residual(layer* l, network* net) {
 	size_t batch_size = net->batch_size;
 	float* grads = l->grads;
@@ -55,6 +42,20 @@ void backward_residual(layer* l, network* net) {
 	}
 }
 
+#ifdef GPU
+void forward_residual_gpu(layer* l, network* net) {
+	int n = (int)(l->out_n * net->batch_size);
+	float* Z = l->Z;
+	float* inl0_output = l->in_layers[0]->output;
+	copy_array_gpu(inl0_output, Z, n);
+	for (size_t a = 1; a < l->in_ids.n; a++) {
+		float* inl_output = l->in_layers[a]->output;
+		add_arrays_gpu(inl_output, Z, n);
+	}
+	if (l->activation) l->activate(Z, l->output, l->out_n, net->batch_size);
+	if (net->training) zero_array_gpu(l->grads, n);
+}
+
 void backward_residual_gpu(layer* l, network* net) {
 	size_t batch_size = net->batch_size;
 	float* grads = l->grads;
@@ -65,9 +66,18 @@ void backward_residual_gpu(layer* l, network* net) {
 		add_arrays_gpu(grads, inl_grads, n);
 	}
 }
+#else
+#pragma warning (suppress:4100)
+void forward_residual_gpu(layer* l, network* net) {
+	gpu_not_defined();
+}
+#pragma warning (suppress:4100)
+void backward_residual_gpu(layer* l, network* net) {
+	gpu_not_defined();
+}
+#endif
 
 /*** TESTING ***/
-
 void test_forward_residual(void) {
 	layer l = { 0 };
 	network net = { 0 };

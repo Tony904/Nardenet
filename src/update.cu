@@ -1,3 +1,5 @@
+#ifdef GPU
+
 #include <stdio.h>
 #include "xcuda.h"
 
@@ -28,3 +30,5 @@ void launch_update_kernel(float* vals, float* grads, float* velocities, int n_va
 	update_kernel KARGS(grid_size, BLOCKSIZE) (vals, grads, velocities, n, momentum, rate);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
+
+#endif

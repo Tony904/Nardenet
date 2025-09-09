@@ -1,3 +1,5 @@
+#ifdef GPU
+
 #include <stdio.h>
 #include <math.h>
 #include "xcuda.h"
@@ -68,3 +70,5 @@ void launch_backward_upsample_kernel(float* grads_x, float* grads_y, int w, int 
 	forward_upsample_kernel KARGS(grid_size, BLOCKSIZE) (grads_x, grads_y, w * h, w, ksize);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
+
+#endif

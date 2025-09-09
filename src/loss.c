@@ -26,8 +26,13 @@ void loss_mae(layer* l, network* net) {
 	}
 	l->loss = loss / (float)batch_size;
 }
+#pragma warning (suppress:4100)
 void loss_mae_gpu(layer* l, network* net) {
+#ifdef GPU
 	launch_loss_mae_kernel(l->grads, l->output, l->truth, l->errors, (int)l->n, (int)net->batch_size);
+#else
+	gpu_not_defined();
+#endif
 }
 
 
@@ -53,8 +58,13 @@ void loss_mse(layer* l, network* net) {
 	}
 	l->loss = loss / (float)batch_size;
 }
+#pragma warning (suppress:4100)
 void loss_mse_gpu(layer* l, network* net) {
+#ifdef GPU
 	launch_loss_mse_kernel(l->grads, l->output, l->truth, l->errors, (int)l->n, (int)net->batch_size);
+#else
+	gpu_not_defined();
+#endif
 }
 
 
@@ -84,8 +94,13 @@ void loss_cce(layer* l, network* net) {
 	}
 	l->loss = loss / (float)batch_size;
 }
+#pragma warning (suppress:4100)
 void loss_cce_gpu(layer* l, network* net) {
+#ifdef GPU
 	launch_loss_cce_kernel(l->grads, l->output, l->truth, l->errors, (int)l->n, (int)net->batch_size);
+#else
+	gpu_not_defined();
+#endif
 }
 
 
@@ -113,8 +128,13 @@ void loss_bce(layer* l, network* net) {
 	}
 	l->loss = loss / (float)batch_size;
 }
+#pragma warning (suppress:4100)
 void loss_bce_gpu(layer* l, network* net) {
+#ifdef GPU
 	launch_loss_bce_kernel(l->grads, l->output, l->truth, l->errors, (int)l->n, (int)net->batch_size);
+#else
+	gpu_not_defined();
+#endif
 }
 
 
