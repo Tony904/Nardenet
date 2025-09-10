@@ -6,6 +6,7 @@
 #include "utils.h"
 #include "xallocs.h"
 #include "blas.h"
+#include "xcuda.h"
 
 
 size_t write_floats(float* data, size_t n, FILE* file, char* data_name, int layer_id);
@@ -48,15 +49,27 @@ void save_state(network* net) {
 	layer* layers = net->layers;
 	for (size_t i = 0; i < n_layers; i++) {
 		layer* l = &layers[i];
-		if (l->type == LAYER_MAXPOOL || l->type == LAYER_RESIDUAL || l->type == LAYER_DETECT) {
+		if (l->type != LAYER_CONV) {
 			continue;
 		}
 		int id = l->id;
+		if (net->use_gpu && net->iteration > 0) {
+			CUDA_MEMCPY_D2H(l->weights, l->gpu.weights, l->n_weights * sizeof(float));
+			CUDA_MEMCPY_D2H(l->biases, l->gpu.biases, l->n_filters * sizeof(float));
+			CUDA_MEMCPY_D2H(l->weight_velocities, l->gpu.weight_velocities, l->n_weights * sizeof(float));
+			CUDA_MEMCPY_D2H(l->bias_velocities, l->gpu.bias_velocities, l->n_filters * sizeof(float));
+		}
 		total_vals += write_floats(l->weights, l->n_weights, file, "weights", id);
 		total_vals += write_floats(l->biases, l->n_filters, file, "biases", id);
 		total_vals += write_floats(l->weight_velocities, l->n_weights, file, "weight_velocities", id);
 		total_vals += write_floats(l->bias_velocities, l->n_filters, file, "bias_velocities", id);
 		if (l->batchnorm) {
+			if (net->use_gpu && net->iteration > 0) {
+				CUDA_MEMCPY_D2H(l->gammas, l->gpu.gammas, l->n_filters * sizeof(float));
+				CUDA_MEMCPY_D2H(l->rolling_means, l->gpu.rolling_means, l->n_filters * sizeof(float));
+				CUDA_MEMCPY_D2H(l->rolling_variances, l->gpu.rolling_variances, l->n_filters * sizeof(float));
+				CUDA_MEMCPY_D2H(l->gamma_velocities, l->gpu.gamma_velocities, l->n_filters * sizeof(float));
+			}
 			total_vals += write_floats(l->gammas, l->n_filters, file, "gammas", id);
 			total_vals += write_floats(l->rolling_means, l->n_filters, file, "rolling_means", id);
 			total_vals += write_floats(l->rolling_variances, l->n_filters, file, "rolling_variances", id);
@@ -131,15 +144,27 @@ void load_state(network* net) {
 	layer* layers = net->layers;
 	for (size_t i = 0; i < n_layers; i++) {
 		layer* l = &layers[i];
-		if (l->type == LAYER_MAXPOOL || l->type == LAYER_RESIDUAL || l->type == LAYER_DETECT) {
+		if (l->type != LAYER_CONV) {
 			continue;
 		}
 		int id = l->id;
+		if (net->use_gpu) {
+			CUDA_MEMCPY_H2D(l->gpu.weights, l->weights, l->n_weights * sizeof(float));
+			CUDA_MEMCPY_H2D(l->gpu.biases, l->biases, l->n_filters * sizeof(float));
+			CUDA_MEMCPY_H2D(l->gpu.weight_velocities, l->weight_velocities, l->n_weights * sizeof(float));
+			CUDA_MEMCPY_H2D(l->gpu.bias_velocities, l->bias_velocities, l->n_filters * sizeof(float));
+		}
 		total_vals += read_floats(l->weights, l->n_weights, file, "weights", id);
 		total_vals += read_floats(l->biases, l->n_filters, file, "biases", id);
 		total_vals += read_floats(l->weight_velocities, l->n_weights, file, "weight_velocities", id);
 		total_vals += read_floats(l->bias_velocities, l->n_filters, file, "bias_velocities", id);
 		if (l->batchnorm) {
+			if (net->use_gpu) {
+				CUDA_MEMCPY_H2D(l->gpu.gammas, l->gammas, l->n_filters * sizeof(float));
+				CUDA_MEMCPY_H2D(l->gpu.rolling_means, l->rolling_means, l->n_filters * sizeof(float));
+				CUDA_MEMCPY_H2D(l->gpu.rolling_variances, l->rolling_variances, l->n_filters * sizeof(float));
+				CUDA_MEMCPY_H2D(l->gpu.gamma_velocities, l->gamma_velocities, l->n_filters * sizeof(float));
+			}
 			total_vals += read_floats(l->gammas, l->n_filters, file, "gammas", id);
 			total_vals += read_floats(l->rolling_means, l->n_filters, file, "rolling_means", id);
 			total_vals += read_floats(l->rolling_variances, l->n_filters, file, "rolling_variances", id);

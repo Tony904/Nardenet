@@ -78,6 +78,9 @@ void build_network(network* net) {
 		largest_workspace = max(largest_workspace, ws_size);
 	}
 	net->workspace = (float*)xcalloc(largest_workspace, sizeof(float));
+	if (net->use_gpu) {
+		CUDA_MALLOC(&net->gpu.workspace, largest_workspace * sizeof(float));
+	}
 	net->workspace_size = largest_workspace;
 	net->current_learning_rate = net->learning_rate;
 	if (net->regularization == REG_L1) {
@@ -229,7 +232,7 @@ void build_conv_layer(int i, network* net) {
 			CUDA_MALLOC(&l->gpu.means, l->out_c * sizeof(float));
 			CUDA_MALLOC(&l->gpu.variances, l->out_c * sizeof(float));
 			CUDA_MALLOC(&l->gpu.gammas, l->out_c * sizeof(float));
-			CHECK_CUDA(cudaMemcpy(l->gpu.gammas, l->gammas, l->out_c * sizeof(float), cudaMemcpyHostToDevice));
+			CUDA_MEMCPY_H2D(l->gpu.gammas, l->gammas, l->out_c * sizeof(float));
 			CUDA_MALLOC(&l->gpu.gamma_grads, l->out_c * sizeof(float));
 			CUDA_MALLOC(&l->gpu.gamma_velocities, l->out_c * sizeof(float));
 			CUDA_MALLOC(&l->gpu.rolling_means, l->out_c * sizeof(float));
@@ -251,7 +254,7 @@ void build_conv_layer(int i, network* net) {
 		l->output = l->act_inputs;
 		l->gpu.output = l->gpu.act_inputs;
 	}
-
+	
 	if (net->use_gpu) {
 		l->forward = forward_conv_gpu;
 		l->backward = backward_conv_gpu;
@@ -445,14 +448,17 @@ void build_classify_layer(int i, network* net) {
 
 	l->output = l->in_layers[0]->output;
 	l->grads = l->in_layers[0]->grads;
+	l->gpu.output = l->in_layers[0]->gpu.output;
+	l->gpu.grads = l->in_layers[0]->gpu.grads;
 
 	l->truth = (float*)xcalloc(l->n_classes * net->batch_size, sizeof(float));
 	l->errors = (float*)xcalloc(l->n_classes * net->batch_size, sizeof(float));
 	if (net->use_gpu) {
 		CUDA_MALLOC(&l->gpu.truth, l->n_classes * net->batch_size * sizeof(float));
 		CUDA_MALLOC(&l->gpu.errors, l->n_classes * net->batch_size * sizeof(float));
+		CUDA_MALLOC(&l->gpu.loss, sizeof(float));
 	}
-	
+
 	if (net->use_gpu) l->forward = forward_classify_gpu;
 	else l->forward = forward_classify;
 	l->backward = backward_none;  // all backprop stuff is done in forward pass
@@ -769,12 +775,16 @@ void build_avgpool_layer(int i, network* net) {
 
 	if (l->activation) {
 		l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-		if (net->use_gpu) CUDA_MALLOC(&l->gpu.output, l->out_n * net->batch_size * sizeof(float));
+		if (net->use_gpu) {
+			CUDA_MALLOC(&l->gpu.output, l->out_n * net->batch_size * sizeof(float));
+		}
 	}
 	else {
 		l->output = l->Z;
 		l->gpu.output = l->gpu.Z;
 	}
+
+	printf("avgpool pointer = %p\n", l->gpu.output);
 
 	if (net->use_gpu) {
 		l->forward = forward_avgpool_gpu;
@@ -1122,12 +1132,10 @@ void set_loss(layer* l, int use_gpu) {
 
 #pragma warning(suppress:4100)  // unreferenced formal parameter: 'net'
 void backward_none(layer* l, network* net) {
-	l;
 }
 
 #pragma warning(suppress:4100)  // unreferenced formal parameter: 'net'
 void update_none(layer* l, network* net) {
-	l;
 }
 
 void free_network(network* n) {
@@ -1390,7 +1398,7 @@ void print_top_class_name(float* probs, size_t n_classes, char** class_names, in
 }
 
 void print_network_summary(network* net, int print_training_params) {
-	printf("[NETWORK]\n"
+	printf("[NETWORK SUMMARY]\n"
 		"Cfg: %s\n"
 		"Classes: %zu\n"
 		"Input: %zux%zux%zu\n"

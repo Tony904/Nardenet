@@ -40,11 +40,12 @@ extern "C" {
 
 
 	void print_gpu_props(void);
+	void print_gpu_float_array(float* gpu_array, size_t size);
 
 	// blas.cu
 	void add_biases_gpu(float* arr, int spatial, float* biases, int n_filters, int batch_size);
 	void get_bias_grads_gpu(float* bias_grads, float* grads, int n_filters, int spatial, int batch_size);
-	float sum_array_gpu(float* A, int n);
+	void sum_array_gpu(float* A, int n, float* sum);
 	void add_arrays_gpu(float* X, float* Y, int n);
 	void copy_array_gpu(float* src, float* dst, int n);
 	void scale_array_gpu(float* A, float scalar, int n);
@@ -86,10 +87,8 @@ extern "C" {
 	void add_biases_gpu(float* arr, int spatial, float* biases, int channels, int batch_size);
 
 	// batchnorm.cu
-	void forward_batchnorm_gpu(float* gammas, float* betas, float* means, float* variances, float* rolling_means, float* rolling_variances,
-		float* Z, float* Z_norm, float* act_inputs, int spatial, int n_filters, int batch_size);
-	void backward_batchnorm_gpu(float* grads, float* Z, float* Z_norm, float* means, float* variances,
-		float* gammas, float* gamma_grads, int spatial, int n_filters, int batch_size);
+	void forward_batchnorm_gpu(float* gammas, float* betas, float* means, float* variances, float* rolling_means, float* rolling_variances, float* Z, float* Z_norm, float* act_inputs, int spatial, int n_filters, int batch_size);
+	void backward_batchnorm_gpu(float* grads, float* Z, float* Z_norm, float* means, float* variances, float* gammas, float* gamma_grads, int spatial, int n_filters, int batch_size);
 
 	// derivatives.cu
 	void get_grads_sigmoid_gpu(float* grads, float* act_output, int out_n, int batch_size);

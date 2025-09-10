@@ -16,6 +16,7 @@
 #define hDETECT "[detect]"
 #define hAVGPOOL "[avgpool]"
 #define hUPSAMPLE "[upsample]"
+#define hROUTE "[route]"
 
 #define LINESIZE 512
 #define TOKENSSIZE 64
@@ -327,8 +328,8 @@ void copy_cfg_to_network(cfg* cfig, network* net) {
 }
 
 void copy_data_augment_range(float* dst, floatarr src) {
-	float x = 1.0;
-	float y = 1.0;
+	float x = 1.0;  // default
+	float y = 1.0;	// default
 	if (src.n == 1) {
 		if (src.a[0] > 1) {
 			y = src.a[0];
@@ -430,6 +431,11 @@ int is_header(char* str, char* header, int* is_layer) {
 		*is_layer = 1;
 		return 1;
 	}
+	else if (strcmp(str, hROUTE) == 0) {
+		strcpy(header, hROUTE);
+		*is_layer = 1;
+		return 1;
+	}
 	return 0;
 }
 
@@ -516,6 +522,7 @@ LAYER_TYPE header2layertype(char* header) {
 	if (strcmp(header, hRESIDUAL) == 0) return LAYER_RESIDUAL;
 	if (strcmp(header, hAVGPOOL) == 0) return LAYER_AVGPOOL;
 	if (strcmp(header, hUPSAMPLE) == 0) return LAYER_UPSAMPLE;
+	if (strcmp(header, hROUTE) == 0) return LAYER_ROUTE;
 	return LAYER_NONE;
 }
 

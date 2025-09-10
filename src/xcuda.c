@@ -27,6 +27,22 @@ void ___cudaMemcpy(void* dst, void* src, size_t size, enum cudaMemcpyKind kind, 
     ___check_cuda(cudaMemcpy(dst, src, size, kind), filename, funcname, line, time);
 }
 
+void print_gpu_float_array(float* gpu_array, size_t size) {
+    float* buff = (float*)calloc(size, sizeof(float));
+    if (!buff) {
+        printf("calloc error");
+        print_location(NARDENET_LOCATION);
+        wait_for_key_then_exit();
+    }
+    CUDA_MEMCPY_D2H(buff, gpu_array, size * sizeof(float));
+    printf("[GPU array]\n");
+    for (size_t i = 0; i < size; i++) {
+        printf("%f\n", buff[i]);
+    }
+    printf("[End GPU array]\n");
+    free(buff);
+}
+
 void print_gpu_props(void) {
     int n_devices;
     cudaGetDeviceCount(&n_devices);

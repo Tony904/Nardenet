@@ -9,6 +9,7 @@
 #include "loss.h"
 #include "state.h"
 #include "xallocs.h"
+#include "xcuda.h"
 
 
 void train_classifer(network* net);
@@ -72,6 +73,7 @@ void train_classifer(network* net) {
 	size_t save_frequency = net->save_frequency;
 	layer* layers = net->layers;
 	size_t n_layers = net->n_layers;
+	print_network(net);
 	print_network_summary(net, 1);
 	print_network_structure(net);
 	for (size_t iter = 0; iter < max_iterations; iter++) {
@@ -137,15 +139,18 @@ void train_detector(network* net) {
 void initialize_weights_kaiming(network* net) {
 	layer* layers = net->layers;
 	size_t N = net->n_layers;
-	size_t n;
 	layer* l;
 	double stddev;
 	for (size_t i = 0; i < N; i++) {
 		l = &layers[i];
-		n = l->n_weights;
+		if (!l->n_weights) continue;
+		size_t n = l->n_weights;
 		stddev = sqrt(2.0 / n);
 		for (size_t j = 0; j < n; j++) {
 			l->weights[j] = (float)(stddev * randn(0.0, 1));
+		}
+		if (net->use_gpu) {
+			CUDA_MEMCPY_H2D(l->gpu.weights, l->weights, n * sizeof(float));
 		}
 	}
 }

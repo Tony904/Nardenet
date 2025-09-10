@@ -84,7 +84,7 @@ void add_arrays_gpu(float* X, float* Y, int n) {
 
 
 __global__ void sum_array_kernel(float* A, int n, float* sum) {
-	__shared__ float shared[1024 >> 5];
+	__shared__ float shared[BLOCKSIZE >> 5];
 
 	int tid = threadIdx.x;
 	int lane = threadIdx.x & 31;
@@ -113,11 +113,9 @@ __global__ void sum_array_kernel(float* A, int n, float* sum) {
 		}
 	}
 }
-float sum_array_gpu(float* A, int n) {
-	float sum = 0.0F;
-	sum_array_kernel KARGS(1, 1024) (A, n, &sum);
+void sum_array_gpu(float* A, int n, float* sum) {
+	sum_array_kernel KARGS(1, BLOCKSIZE) (A, n, sum);
 	CHECK_CUDA(cudaPeekAtLastError());
-	return sum;
 }
 
 

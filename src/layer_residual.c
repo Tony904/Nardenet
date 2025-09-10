@@ -45,24 +45,24 @@ void backward_residual(layer* l, network* net) {
 #ifdef GPU
 void forward_residual_gpu(layer* l, network* net) {
 	int n = (int)(l->out_n * net->batch_size);
-	float* Z = l->Z;
-	float* inl0_output = l->in_layers[0]->output;
+	float* Z = l->gpu.Z;
+	float* inl0_output = l->in_layers[0]->gpu.output;
 	copy_array_gpu(inl0_output, Z, n);
 	for (size_t a = 1; a < l->in_ids.n; a++) {
-		float* inl_output = l->in_layers[a]->output;
+		float* inl_output = l->in_layers[a]->gpu.output;
 		add_arrays_gpu(inl_output, Z, n);
 	}
-	if (l->activation) l->activate(Z, l->output, l->out_n, net->batch_size);
-	if (net->training) zero_array_gpu(l->grads, n);
+	if (l->activation) l->activate(Z, l->gpu.output, l->out_n, net->batch_size);
+	if (net->training) zero_array_gpu(l->gpu.grads, n);
 }
 
 void backward_residual_gpu(layer* l, network* net) {
 	size_t batch_size = net->batch_size;
-	float* grads = l->grads;
+	float* grads = l->gpu.grads;
 	if (l->activation) get_activation_grads(l, batch_size);
 	int n = (int)(batch_size * l->out_n);
 	for (size_t a = 0; a < l->in_ids.n; a++) {
-		float* inl_grads = l->in_layers[a]->grads;
+		float* inl_grads = l->in_layers[a]->gpu.grads;
 		add_arrays_gpu(grads, inl_grads, n);
 	}
 }

@@ -173,7 +173,7 @@ void update_conv(layer* l, network* net) {
 void forward_conv_gpu(layer* l, network* net) {
 	size_t out_n = l->out_n;
 	size_t batch_size = net->batch_size;
-	zero_array_gpu(l->Z, (int)(out_n * batch_size));
+	zero_array_gpu(l->gpu.Z, (int)(out_n * batch_size));
 	size_t n_groups = l->n_groups;
 	size_t w = l->w;
 	size_t h = l->h;
@@ -185,35 +185,35 @@ void forward_conv_gpu(layer* l, network* net) {
 	size_t M = l->n_filters;
 	size_t N = l->out_w * l->out_h;
 	size_t K = l->ksize * l->ksize * l->c;
-	float* A = l->weights;  // M * K
+	float* A = l->gpu.weights;  // M * K
 	for (size_t b = 0; b < batch_size; b++) {
-		float* B = net->workspace;  // K * N
+		float* B = net->gpu.workspace;  // K * N
 		float* B0 = B;
 		for (size_t i = 0; i < l->in_ids.n; i++) {
 			layer* inl = l->in_layers[i];
 			size_t c = inl->out_c;
-			float* im = &inl->output[b * inl->out_n];
+			float* im = &inl->gpu.output[b * inl->out_n];
 			im2col_gpu(im, B, (int)c, (int)h, (int)w, (int)ksize, (int)stride, (int)pad, (int)out_h, (int)out_w);
 			B += K * l->ksize * l->ksize * c;
 		}
-		float* C = &l->Z[b * M * N];  // M * N
+		float* C = &l->gpu.Z[b * M * N];  // M * N
 		gemm_gpu((int)M, (int)N, (int)K, A, B0, C, (int)n_groups);
 	}
 	if (l->batchnorm) {
-		forward_batchnorm_gpu(l->gammas, l->biases, l->means, l->variances, l->rolling_means, l->rolling_variances, l->Z, l->Z_norm, l->act_inputs, (int)(w * h), (int)l->n_filters, (int)batch_size);
-		l->activate(l->act_inputs, l->output, out_n, batch_size);
+		forward_batchnorm_gpu(l->gpu.gammas, l->gpu.biases, l->gpu.means, l->gpu.variances, l->gpu.rolling_means, l->gpu.rolling_variances, l->gpu.Z, l->gpu.Z_norm, l->gpu.act_inputs, (int)(w * h), (int)l->n_filters, (int)batch_size);
+		l->activate(l->gpu.act_inputs, l->gpu.output, out_n, batch_size);
 	}
 	else {
-		// note: l->Z = l->act_inputs when batchnorm disabled
-		add_biases_gpu(l->Z, (int)N, l->biases, (int)M, (int)batch_size);
-		l->activate(l->Z, l->output, (int)out_n, (int)batch_size);
+		// note: l->Z = l->gpu.act_inputs when batchnorm disabled
+		add_biases_gpu(l->gpu.Z, (int)N, l->gpu.biases, (int)M, (int)batch_size);
+		l->activate(l->gpu.Z, l->gpu.output, (int)out_n, (int)batch_size);
 	}
-	if (net->training) zero_array_gpu(l->grads, (int)(out_n * batch_size));
+	if (net->training) zero_array_gpu(l->gpu.grads, (int)(out_n * batch_size));
 }
 
 void backward_conv_gpu(layer* l, network* net) {
 	size_t batch_size = net->batch_size;
-	float* grads = l->grads;
+	float* grads = l->gpu.grads;
 
 	get_activation_grads_gpu(l, batch_size);
 
@@ -223,7 +223,7 @@ void backward_conv_gpu(layer* l, network* net) {
 
 	get_bias_grads_gpu(l->bias_grads, grads, (int)M, (int)K, (int)batch_size);
 
-	if (l->batchnorm) backward_batchnorm_gpu(grads, l->Z, l->Z_norm, l->means, l->variances, l->gammas, l->gamma_grads, (int)K, (int)M, (int)batch_size);
+	if (l->batchnorm) backward_batchnorm_gpu(grads, l->gpu.Z, l->gpu.Z_norm, l->gpu.means, l->gpu.variances, l->gpu.gammas, l->gpu.gamma_grads, (int)K, (int)M, (int)batch_size);
 
 	size_t n_groups = l->n_groups;
 	size_t w = l->w;
@@ -235,11 +235,11 @@ void backward_conv_gpu(layer* l, network* net) {
 		float* B = net->workspace;  // N * K
 		zero_array_gpu(B, (int)(N * K));
 		float* B0 = B;
-		float* C = l->weight_grads;  // M * N
+		float* C = l->gpu.weight_grads;  // M * N
 		for (size_t i = 0; i < l->in_ids.n; i++) {
 			layer* inl = l->in_layers[i];
 			size_t c = inl->out_c;
-			float* im = &inl->output[s * inl->out_n];
+			float* im = &inl->gpu.output[s * inl->out_n];
 			im2col_gpu(im, B, (int)c, (int)h, (int)w, (int)l->ksize, (int)l->stride, (int)l->pad, (int)out_h, (int)out_w);
 			B += N * l->ksize * l->ksize * c;
 		}
@@ -249,16 +249,16 @@ void backward_conv_gpu(layer* l, network* net) {
 
 	if (l->id == 0) return;
 	for (size_t s = 0; s < batch_size; s++) {
-		float* A = l->weights;  // M * N / n_groups
+		float* A = l->gpu.weights;  // M * N / n_groups
 		float* B = &grads[s * M * K];  // M * K
-		float* C = net->workspace;  // N * K
+		float* C = net->gpu.workspace;  // N * K
 		zero_array_gpu(C, (int)(N * K));
 		gemm_tab_gpu((int)M, (int)N, (int)K, A, B, C, (int)n_groups);
 
 		for (size_t i = 0; i < l->in_ids.n; i++) {
 			layer* inl = l->in_layers[i];
 			size_t c = inl->out_c;
-			float* im = &inl->grads[s * w * h * c];
+			float* im = &inl->gpu.grads[s * w * h * c];
 			col2im_gpu(C, im, (int)h, (int)w, (int)l->ksize, (int)l->stride, (int)l->pad, (int)l->n);
 		}
 	}
@@ -269,10 +269,10 @@ void update_conv_gpu(layer* l, network* net) {
 	float momentum = net->momentum;
 	int batch_size = (int)net->batch_size;
 
-	launch_update_kernel(l->biases, l->bias_grads, l->bias_velocities, (int)l->n_filters, batch_size, momentum, rate);
-	launch_update_kernel(l->weights, l->weight_grads, l->weight_velocities, (int)l->n_weights, batch_size, momentum, rate);
+	launch_update_kernel(l->gpu.biases, l->gpu.bias_grads, l->gpu.bias_velocities, (int)l->n_filters, batch_size, momentum, rate);
+	launch_update_kernel(l->gpu.weights, l->gpu.weight_grads, l->gpu.weight_velocities, (int)l->n_weights, batch_size, momentum, rate);
 	if (l->batchnorm) {
-		launch_update_kernel(l->gammas, l->gamma_grads, l->gamma_velocities, (int)l->out_c, batch_size, momentum, rate);
+		launch_update_kernel(l->gpu.gammas, l->gpu.gamma_grads, l->gpu.gamma_velocities, (int)l->out_c, batch_size, momentum, rate);
 	}
 }
 #else

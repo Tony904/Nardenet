@@ -68,7 +68,7 @@ void backward_avgpool(layer* l, network* net) {
 
 #ifdef GPU
 void forward_avgpool_gpu(layer* l, network* net) {
-	float* Z = l->Z;
+	float* Z = l->gpu.Z;
 	size_t w = l->w;
 	size_t h = l->h;
 	size_t wh = w * h;
@@ -78,7 +78,7 @@ void forward_avgpool_gpu(layer* l, network* net) {
 			size_t bwh = b * wh;
 			for (size_t a = 0; a < l->in_ids.n; a++) {
 				layer* inl = l->in_layers[a];
-				float* inl_output = inl->output;
+				float* inl_output = inl->gpu.output;
 				size_t inl_out_c = inl->out_c;
 				size_t b_offset = bwh * inl_out_c;
 				launch_forward_avgpool_kernel(&inl_output[b_offset], Z, (int)wh, (int)inl_out_c, 1);
@@ -86,15 +86,15 @@ void forward_avgpool_gpu(layer* l, network* net) {
 			}
 		}
 	}
-	else launch_forward_avgpool_kernel(l->in_layers[0]->output, Z, (int)wh, (int)l->c, (int)batch_size);
+	else launch_forward_avgpool_kernel(l->in_layers[0]->gpu.output, Z, (int)wh, (int)l->c, (int)batch_size);
 	
-	if (l->activation) l->activate(l->Z, l->output, l->out_n, net->batch_size);
-	if (net->training) zero_array_gpu(l->grads, (int)(l->out_n * batch_size));
+	if (l->activation) l->activate(l->gpu.Z, l->gpu.output, l->out_n, batch_size);
+	if (net->training) zero_array_gpu(l->gpu.grads, (int)(l->out_n * batch_size));
 }
 
 void backward_avgpool_gpu(layer* l, network* net) {
 	int batch_size = (int)net->batch_size;
-	float* grads = l->grads;
+	float* grads = l->gpu.grads;
 	if (l->activation) get_activation_grads_gpu(l, batch_size);
 	size_t w = l->w;
 	size_t h = l->h;
@@ -104,7 +104,7 @@ void backward_avgpool_gpu(layer* l, network* net) {
 			size_t bwh = b * wh;
 			for (size_t a = 0; a < l->in_ids.n; a++) {
 				layer* inl = l->in_layers[a];
-				float* inl_grads = inl->grads;
+				float* inl_grads = inl->gpu.grads;
 				size_t inl_out_c = inl->out_c;
 				size_t b_offset = bwh * inl_out_c;
 				launch_backward_avgpool_kernel(&inl_grads[b_offset], grads, (int)wh, (int)inl_out_c, 1);
@@ -112,7 +112,7 @@ void backward_avgpool_gpu(layer* l, network* net) {
 			}
 		}
 	}
-	else launch_backward_avgpool_kernel(l->in_layers[0]->grads, grads, (int)wh, (int)l->c, batch_size);
+	else launch_backward_avgpool_kernel(l->in_layers[0]->gpu.grads, grads, (int)wh, (int)l->c, batch_size);
 }
 #else
 #pragma warning (suppress:4100)

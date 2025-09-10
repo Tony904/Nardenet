@@ -157,6 +157,7 @@ extern "C" {
         float* bias_grads;
         float* weight_velocities;  // momentum adjustment for weights
         float* bias_velocities;  // momentum adjustment for biases
+        float* loss;
 
         bbox* anchors;  // base anchors that will get copied to each cell
         bbox* detections;
@@ -262,7 +263,8 @@ extern "C" {
         LAYER_RESIDUAL,
         LAYER_DETECT,
         LAYER_AVGPOOL,
-        LAYER_UPSAMPLE
+        LAYER_UPSAMPLE,
+        LAYER_ROUTE
     } LAYER_TYPE;
 
     typedef enum LR_POLICY {

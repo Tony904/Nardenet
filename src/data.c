@@ -8,6 +8,7 @@
 #include "data_detect.h"
 #include "iou.h"
 #include "math.h"
+#include "xcuda.h"
 
 
 det_sample* detector_dataset_get_next_sample(detector_dataset* dataset, image* dst);
@@ -71,12 +72,16 @@ void load_detector_dataset(detector_dataset* dataset, char* dir) {
 	get_random_numbers_no_repeats(dataset->rands, count, 0, count - 1);
 }
 
+
+
 void classifier_get_next_batch(network* net) {
 	classifier_dataset* dataset = &net->data.clsr;
-	float* truth = net->layers[net->n_layers - 1].truth;
+	layer* cls_layer = &net->layers[net->n_layers - 1];
+	float* truth = cls_layer->truth;
 	size_t batch_size = net->batch_size;
 	size_t n_classes = net->n_classes;
-	float* data = net->input->output;
+	layer* input_layer = net->input;
+	float* data = input_layer->output;
 	size_t w = net->w;
 	size_t h = net->h;
 	size_t c = net->c;
@@ -98,6 +103,11 @@ void classifier_get_next_batch(network* net) {
 		classifier_dataset_get_next_image(dataset, &img, &truth[s * n_classes]);
 		randomize_colorspace(&img, brightness_lower, brightness_upper, contrast_lower, contrast_upper, saturation_lower, saturation_upper, hue_lower, hue_upper);
 	}
+	if (net->use_gpu) {
+		CUDA_MEMCPY_H2D(input_layer->gpu.output, data, n * net->batch_size * sizeof(float));
+		CUDA_MEMCPY_H2D(cls_layer->gpu.truth, truth, n_classes * net->batch_size * sizeof(float));
+	}
+	
 }
 
 void classifier_dataset_get_next_image(classifier_dataset* dataset, image* dst, float* truth) {

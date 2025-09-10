@@ -42,24 +42,24 @@ void backward_route(layer* l, network* net) {
 #ifdef GPU
 void forward_route_gpu(layer* l, network* net) {
 	size_t batch_size = net->batch_size;
-	float* Z = l->Z;
+	float* Z = l->gpu.Z;
 	float* Z0 = Z;
 	for (size_t a = 0; a < l->in_ids.n; a++) {
-		float* inl_output = l->in_layers[a]->output;
+		float* inl_output = l->in_layers[a]->gpu.output;
 		size_t inl_out_n = l->in_layers[a]->out_n * batch_size;
 		copy_array_gpu(inl_output, Z, (int)inl_out_n);
 		Z += inl_out_n;
 	}
-	if (l->activation) l->activate(Z0, l->output, l->out_n, net->batch_size);
-	if (net->training) zero_array_gpu(l->grads, (int)(l->out_n * batch_size));
+	if (l->activation) l->activate(Z0, l->gpu.output, l->out_n, net->batch_size);
+	if (net->training) zero_array_gpu(l->gpu.grads, (int)(l->out_n * batch_size));
 }
 
 void backward_route_gpu(layer* l, network* net) {
 	size_t batch_size = net->batch_size;
-	float* grads = l->grads;
+	float* grads = l->gpu.grads;
 	if (l->activation) get_activation_grads_gpu(l, (int)batch_size);
 	for (size_t a = 0; a < l->in_ids.n; a++) {
-		float* inl_grads = l->in_layers[a]->grads;
+		float* inl_grads = l->in_layers[a]->gpu.grads;
 		size_t inl_out_n = l->in_layers[a]->out_n * batch_size;
 		copy_array_gpu(grads, inl_grads, (int)inl_out_n);
 		grads += inl_out_n;
