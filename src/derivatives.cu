@@ -92,9 +92,10 @@ __global__ void regularize_l1_kernel(float* weight_grads, float* weights, int si
 	int i = threadIdx.x + blockIdx.x * blockDim.x;
 	weight_grads[i] -= (weights[i] > 0.0F) ? decay : -decay;
 }
-void regularize_l1_gpu(float* weight_grads, float* weights, int size, float decay) {
-	int grid_size = GET_GRIDSIZE(size, BLOCKSIZE);
-	regularize_l1_kernel KARGS(grid_size, BLOCKSIZE) (weight_grads, weights, size, decay);
+void regularize_l1_gpu(float* weight_grads, float* weights, size_t size, float decay) {
+	int n = (int)size;
+	int grid_size = GET_GRIDSIZE(n, BLOCKSIZE);
+	regularize_l1_kernel KARGS(grid_size, BLOCKSIZE) (weight_grads, weights, n, decay);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
@@ -103,9 +104,10 @@ __global__ void regularize_l2_kernel(float* weight_grads, float* weights, int si
 	int i = threadIdx.x + blockIdx.x * blockDim.x;
 	weight_grads[i] -= weights[i] * decay;
 }
-void regularize_l2_gpu(float* weight_grads, float* weights, int size, float decay) {
-	int grid_size = GET_GRIDSIZE(size, BLOCKSIZE);
-	regularize_l2_kernel KARGS(grid_size, BLOCKSIZE) (weight_grads, weights, size, decay);
+void regularize_l2_gpu(float* weight_grads, float* weights, size_t size, float decay) {
+	int n = (int)size;
+	int grid_size = GET_GRIDSIZE(n, BLOCKSIZE);
+	regularize_l2_kernel KARGS(grid_size, BLOCKSIZE) (weight_grads, weights, n, decay);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 

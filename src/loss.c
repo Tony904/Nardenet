@@ -138,7 +138,11 @@ void loss_bce_gpu(layer* l, network* net) {
 }
 
 
-void loss_l1(network* net) {
+#pragma warning (suppress:4100)
+void reg_loss_none(network* net) {
+}
+
+void reg_loss_l1(network* net) {
 	size_t n_layers = net->n_layers;
 	layer* ls = net->layers;
 	float loss = 0.0F;
@@ -155,12 +159,23 @@ void loss_l1(network* net) {
 	}
 	net->loss = loss;
 }
-void loss_l1_gpu(network* net) {
-	net;
-	// WILL DO LATER... PROBABLY...
+void reg_loss_l1_gpu(network* net) {
+#ifdef GPU
+	size_t n_layers = net->n_layers;
+	layer* ls = net->layers;
+	float* loss = net->gpu.reg_loss;
+	zero_array_gpu(loss, 1);
+	float decay = net->decay;
+	for (size_t i = 0; i < n_layers; i++) {
+		launch_loss_l1_kernel(ls[i].gpu.weights, ls[i].n_weights, decay, loss);
+	}
+	CUDA_MEMCPY_D2H(&net->loss, net->gpu.reg_loss, sizeof(float));
+#else
+	gpu_not_defined();
+#endif
 }
 
-void loss_l2(network* net) {
+void reg_loss_l2(network* net) {
 	size_t n_layers = net->n_layers;
 	layer* ls = net->layers;
 	float loss = 0.0F;
@@ -176,7 +191,18 @@ void loss_l2(network* net) {
 	}
 	net->loss = loss;
 }
-void loss_l2_gpu(network* net) {
-	net;
-	// WILL DO LATER... PROBABLY...
+void reg_loss_l2_gpu(network* net) {
+#ifdef GPU
+	size_t n_layers = net->n_layers;
+	layer* ls = net->layers;
+	float* loss = net->gpu.reg_loss;
+	zero_array_gpu(loss, 1);
+	float decay = net->decay;
+	for (size_t i = 0; i < n_layers; i++) {
+		launch_loss_l2_kernel(ls[i].gpu.weights, ls[i].n_weights, decay, loss);
+	}
+	CUDA_MEMCPY_D2H(&net->loss, net->gpu.reg_loss, sizeof(float));
+#else
+	gpu_not_defined();
+#endif
 }

@@ -73,5 +73,4 @@ void regularize_l2(float* weight_grads, float* weights, size_t size, float decay
 
 #pragma warning(suppress:4100)  // unreferenced formal parameter
 void regularize_none(float* weight_grads, float* weights, size_t size, float decay) {
-	decay;
 }

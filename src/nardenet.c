@@ -6,24 +6,23 @@
 #include "xopencv.h"
 #include "xallocs.h"
 #include "xcuda.h"
+#include <time.h>
 
 
 int main(void) {
-	srand(77777774);
+	//srand(time(NULL));
+	srand(7777777);
 
 	activate_xalloc_tracking();
 	
 	char* cfgfile = "C:\\Users\\TNard\\OneDrive\\Desktop\\dev\\Nardenet\\cfg\\gpu-testing.cfg";
-	//char* cfgfile = "C:\\Users\\TNard\\OneDrive\\Desktop\\dev\\Nardenet\\cfg\\nardenet-yolov4-tiny-classifier-tiny-imagenet.cfg";
 	network* net = create_network_from_cfg(cfgfile);
 	train(net);
-	
-
-
-
-	//print_gpu_props();
-
 	free_network(net);
+
+	//test_activate_softmax_gpu();
+
+	
 	//print_alloc_list();
 
 #ifndef _DEBUG
@@ -38,6 +37,8 @@ BUGS:
 CHANGES:
 
 IN PROGRESS:
+	- Overhaul implementation of fully connected layer. Make it separate from conv layers.
+	- Fix im2col kernel. It currently doesn't handle pad = 0 and probably other unconventional configurations.
 
  GPU support:
 	- im2col (done)

@@ -32,9 +32,7 @@ void forward_classify_gpu(layer* l, network* net) {
 		CUDA_MEMCPY_D2H(&l->loss, l->gpu.loss, sizeof(float));
 		float avg_loss = l->loss / (float)batch_size;
 		l->loss = avg_loss;
-		print_gpu_float_array(l->gpu.output, n * batch_size);
 		printf("Avg class loss: %f\n", avg_loss);
-		printf("final pointer = %p\n", l->in_layers[0]->gpu.output);
 		CUDA_MEMCPY_D2H(l->output, l->gpu.output, n * batch_size * sizeof(float));
 		CUDA_MEMCPY_D2H(l->truth, l->gpu.truth, n * batch_size * sizeof(float));
 		for (size_t b = 0; b < batch_size; b++) {
@@ -42,6 +40,10 @@ void forward_classify_gpu(layer* l, network* net) {
 			print_top_class_name(&l->truth[offset], n, net->class_names, 0, 0);
 			printf(" : ");
 			print_top_class_name(&l->output[offset], n, net->class_names, 1, 1);
+		}
+		if (avg_loss < 0.1F) {
+			printf("done\n");
+			wait_for_key_then_exit();
 		}
 	}
 	else {

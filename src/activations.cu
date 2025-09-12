@@ -146,8 +146,8 @@ void activate_softmax_gpu(float* Z, float* output, size_t out_n, size_t batch_si
 }
 
 void test_activate_softmax_gpu(void) {
-	size_t out_n = 256;
-	size_t batch_size = 64;
+	size_t out_n = 3;
+	size_t batch_size = 1;
 	float* Z = (float*)xmalloc(out_n * batch_size * sizeof(float));
 	float* output = (float*)xmalloc(out_n * batch_size * sizeof(float));
 
@@ -166,7 +166,7 @@ void test_activate_softmax_gpu(void) {
 	cudaEventCreate(&stop);
 	cudaEventRecord(start);
 
-
+	
 	activate_softmax_gpu(d_Z, d_output, out_n, batch_size);
 
 
@@ -190,7 +190,7 @@ void test_activate_softmax_gpu(void) {
 	float epsilon = 1e-5f;
 	printf("Verifiying......\n");
 	for (size_t i = 0; i < out_n * batch_size; i++) {
-		//printf("%f : %f\n", output[i], output_gpu[i]);
+		printf("%f : %f\n", output[i], output_gpu[i]);
 		if (fabs(output[i] - output_gpu[i]) > epsilon || isnan(output[i]) || isnan(output_gpu[i])) {
 			printf("Verification Failed: i = %zu, (cpu)%f != (gpu)%f\n", i, output[i], output_gpu[i]);
 			wait_for_key_then_exit();

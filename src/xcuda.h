@@ -45,10 +45,11 @@ extern "C" {
 	// blas.cu
 	void add_biases_gpu(float* arr, int spatial, float* biases, int n_filters, int batch_size);
 	void get_bias_grads_gpu(float* bias_grads, float* grads, int n_filters, int spatial, int batch_size);
+	void dot_product_gpu(float* A, float* B, int n, float* result);
 	void sum_array_gpu(float* A, int n, float* sum);
 	void add_arrays_gpu(float* X, float* Y, int n);
 	void copy_array_gpu(float* src, float* dst, int n);
-	void scale_array_gpu(float* A, float scalar, int n);
+	void scale_add_array_gpu(float* src, float* dst, float* scalar, int n);
 	void clamp_array_gpu(float* A, float upper, float lower, int n);
 	void zero_array_gpu(float* A, int n);
 
@@ -73,8 +74,8 @@ extern "C" {
 	void get_grads_relu_gpu(float* grads, float* act_inputs, int out_n, int batch_size);
 	void get_grads_leaky_relu_gpu(float* grads, float* act_inputs, int out_n, int batch_size);
 	void get_grads_tanh_gpu(float* grads, float* act_inputs, int out_n, int batch_size);
-	void regularize_l1_gpu(float* weight_grads, float* weights, int size, float decay);
-	void regularize_l2_gpu(float* weight_grads, float* weights, int size, float decay);
+	void regularize_l1_gpu(float* weight_grads, float* weights, size_t size, float decay);
+	void regularize_l2_gpu(float* weight_grads, float* weights, size_t size, float decay);
 
 	// im2col.cu
 	void im2col_gpu(float* data_im, float* data_col, int channels, int h, int w, int ksize, int stride, int pad, int out_h, int out_w);
@@ -90,23 +91,16 @@ extern "C" {
 	void forward_batchnorm_gpu(float* gammas, float* betas, float* means, float* variances, float* rolling_means, float* rolling_variances, float* Z, float* Z_norm, float* act_inputs, int spatial, int n_filters, int batch_size);
 	void backward_batchnorm_gpu(float* grads, float* Z, float* Z_norm, float* means, float* variances, float* gammas, float* gamma_grads, int spatial, int n_filters, int batch_size);
 
-	// derivatives.cu
-	void get_grads_sigmoid_gpu(float* grads, float* act_output, int out_n, int batch_size);
-	void get_grads_mish_gpu(float* grads, float* act_inputs, int out_n, int batch_size);
-	void get_grads_relu_gpu(float* grads, float* act_inputs, int out_n, int batch_size);
-	void get_grads_leaky_relu_gpu(float* grads, float* act_inputs, int out_n, int batch_size);
-	void get_grads_tanh_gpu(float* grads, float* act_inputs, int out_n, int batch_size);
-	void regularize_l1_gpu(float* weight_grads, float* weights, int n_weights, float decay);
-	void regularize_l2_gpu(float* weight_grads, float* weights, int n_weights, float decay);
-
 	// loss.cu
 	void launch_loss_mae_kernel(float* grads, float* output, float* truth, float* errors, int n, int batch_size);
 	void launch_loss_mse_kernel(float* grads, float* output, float* truth, float* errors, int n, int batch_size);
 	void launch_loss_cce_kernel(float* grads, float* output, float* truth, float* errors, int n, int batch_size);
 	void launch_loss_bce_kernel(float* grads, float* output, float* truth, float* errors, int n, int batch_size);
+	void launch_loss_l1_kernel(float* weights, size_t n, float decay, float* loss);
+	void launch_loss_l2_kernel(float* weights, size_t n, float decay, float* loss);
 
 	// update.cu
-	void launch_update_kernel(float* vals, float* grads, float* velocities, int n_vals, int batch_size, float momentum, float rate);
+	void launch_update_kernel(float* vals, float* grads, float* velocities, int n_vals, float momentum, float rate);
 
 	// activations.cu
 	void activate_mish_gpu(float* Z, float* output, size_t size, size_t batch_size);
@@ -115,6 +109,7 @@ extern "C" {
 	void activate_leaky_relu_gpu(float* Z, float* output, size_t size, size_t batch_size);
 	void activate_tanh_gpu(float* Z, float* output, size_t out_n, size_t batch_size);
 	void activate_softmax_gpu(float* Z, float* output, size_t size, size_t batch_size);
+	void test_activate_softmax_gpu(void);
 
 #endif  // GPU
 

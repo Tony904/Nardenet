@@ -81,11 +81,12 @@ void train_classifer(network* net) {
 		update_current_learning_rate(net, iter);
 		printf("Learning rate: %f\n", net->current_learning_rate * (float)batch_size);
 		classifier_get_next_batch(net);
+		//print_gpu_float_array(layers[0].gpu.weights, layers[0].n_weights);
 		for (size_t i = 0; i < n_layers; i++) {
 			layers[i].forward(&layers[i], net);
 		}
 		if (net->regularization != REG_NONE) {
-			net->reg_loss(net);
+			net->get_reg_loss(net);
 			printf("Regularization loss: %f\n", net->loss);
 		}
 		for (size_t i = n_layers; i; i--) {
@@ -122,7 +123,7 @@ void train_detector(network* net) {
 			layers[i].forward(&layers[i], net);
 		}
 		if (net->regularization != REG_NONE) {
-			net->reg_loss(net);
+			net->get_reg_loss(net);
 			printf("Regularization loss: %f\n", net->loss);
 		}
 		for (size_t ii = n_layers; ii; ii--) {

@@ -71,6 +71,42 @@ void get_bias_grads_gpu(float* bias_grads, float* grads, int n_filters, int spat
 }
 
 
+__global__ void dot_product_kernel(float* A, float* B, int n, float* result) {
+	__shared__ float shared[BLOCKSIZE >> 5];
+
+	int tid = threadIdx.x;
+	int lane = threadIdx.x & 31;
+	int warp_id = threadIdx.x >> 5;
+
+	float val = 0.0F;
+	for (int i = tid; i < n; i += BLOCKSIZE) {
+		val += A[i] * B[i];
+	}
+
+	for (int offset = 16; offset > 0; offset >>= 1) {
+		val += __shfl_down_sync(0xffffffff, val, offset);
+	}
+
+	if (lane == 0) shared[warp_id] = val;
+	__syncthreads();
+
+	float s = 0.0F;
+	if (warp_id == 0) {
+		s = (tid < (BLOCKSIZE >> 5)) ? shared[tid] : 0.0F;
+		for (int offset = 16; offset > 0; offset >>= 1) {
+			s += __shfl_down_sync(0xffffffff, s, offset);
+		}
+		if (tid == 0) {
+			*result += s;
+		}
+	}
+}
+void dot_product_gpu(float* A, float* B, int n, float* result) {
+	int grid_size = GET_GRIDSIZE(1, BLOCKSIZE);
+	dot_product_kernel KARGS(grid_size, BLOCKSIZE) (A, B, n, result);
+	CHECK_CUDA(cudaPeekAtLastError());
+}
+
 
 __global__ void add_arrays_kernel(float* X, float* Y, int n) {
 	int index = threadIdx.x + blockIdx.x * blockDim.x;
@@ -91,7 +127,7 @@ __global__ void sum_array_kernel(float* A, int n, float* sum) {
 	int warp_id = threadIdx.x >> 5;
 
 	float val = 0.0F;
-	for (int i = tid; i < n; i += 1024) {
+	for (int i = tid; i < n; i += BLOCKSIZE) {
 		val += A[i];
 	}
 
@@ -104,7 +140,7 @@ __global__ void sum_array_kernel(float* A, int n, float* sum) {
 
 	float s = 0.0F;
 	if (warp_id == 0) {
-		s = (tid < (1024 >> 5)) ? shared[tid] : 0.0F;
+		s = (tid < (BLOCKSIZE >> 5)) ? shared[tid] : 0.0F;
 		for (int offset = 16; offset > 0; offset >>= 1) {
 			s += __shfl_down_sync(0xffffffff, s, offset);
 		}
@@ -130,13 +166,14 @@ void copy_array_gpu(float* src, float* dst, int n) {
 }
 
 
-__global__ void scale_array_kernel(float* A, float scalar, int n) {
+__global__ void scale_add_array_kernel(float* src, float* dst, float* scalar, int n) {
+	float s = *scalar;
 	int i = threadIdx.x + blockIdx.x * blockDim.x;
-	if (i < n) A[i] *= scalar;
+	if (i < n) dst[i] += src[i] * s;
 }
-void scale_array_gpu(float* A, float scalar, int n) {
+void scale_add_array_gpu(float* src, float* dst, float* scalar, int n) {
 	int grid_size = GET_GRIDSIZE(n, BLOCKSIZE);
-	scale_array_kernel KARGS(grid_size, BLOCKSIZE) (A, scalar, n);
+	scale_add_array_kernel KARGS(grid_size, BLOCKSIZE) (src, dst, scalar, n);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 

@@ -62,10 +62,8 @@ void fill_array_increment(float* arr, size_t size, float start_val, float increm
 }
 
 void fill_array_rand_float(float* arr, size_t size, double mean, double sdev) {
-	size_t i;
-#pragma omp parallel for
-	for (i = 0; i < size; i++) {
-		arr[i] = randn(mean, sdev);
+	for (size_t i = 0; i < size; i++) {
+		arr[i] = (float)randn(mean, sdev);
 	}
 }
 

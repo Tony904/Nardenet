@@ -57,7 +57,7 @@ __global__ void im2col_kernel_no_share(const float* __restrict__ data_im,
 }
 
 __global__ void im2col_kernel(
-    const float* __restrict__ input, float* __restrict__ output,
+    float* input, float* output,
     const int channels, const int height, const int width,
     const int ksize, const int stride, const int pad,
     const int out_height, const int out_width) {
@@ -104,15 +104,15 @@ __global__ void im2col_kernel(
 void im2col_gpu(float* data_im, float* data_col, int channels, int h, int w, int ksize, int stride, int pad, int out_h, int out_w) {
     dim3 block_size(16, 16);
     dim3 grid_size((out_w + block_size.x - 1) / block_size.x, (out_h + block_size.y - 1) / block_size.y, channels);
-    size_t shared_memory_size = (block_size.x + 2 * (size_t)pad) * (block_size.y + 2 * (size_t)pad) * sizeof(float);
+    size_t shared_memory_size = (block_size.x + 2 * pad) * (block_size.y + 2 * pad) * sizeof(float);
     im2col_kernel KARGS(grid_size, block_size, shared_memory_size) (data_im, data_col, channels, h, w, ksize, stride, pad, out_h, out_w);
     CHECK_CUDA(cudaPeekAtLastError());
 }
 
 void cuda_test_im2col(void) {
-    int width = 64;
-    int height = 64;
-    int channels = 3;
+    int width = 32;
+    int height = 32;
+    int channels = 4;
     if (width % 32 != 0) {
         printf("Input width must be a multiple of 32.\n");
         exit(EXIT_FAILURE);
@@ -122,10 +122,10 @@ void cuda_test_im2col(void) {
     int pad = 1;
     int stride = 1;
     int ksize = 3;
-    if (pad != (ksize - 1) / 2) {
+    /*if (pad != (ksize - 1) / 2) {
         printf("Pad must equal (ksize - 1) / 2.\n");
         exit(EXIT_FAILURE);
-    }
+    }*/
     int out_w = (width + pad * 2 - ksize) / stride + 1;
     int out_h = (height + pad * 2 - ksize) / stride + 1;
 

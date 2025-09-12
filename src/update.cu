@@ -2,6 +2,9 @@
 
 #include <stdio.h>
 #include "xcuda.h"
+#include "xallocs.h"
+#include "blas.h"
+#include "utils.h"
 
 
 #ifdef __INTELLISENSE__
@@ -11,7 +14,6 @@
 #else
 #define KARGS(...) <<< __VA_ARGS__ >>>
 #endif
-
 
 
 __global__ void update_kernel(float* vals, float* grads, float* velocities, int n_vals, float momentum, float rate) {
@@ -24,10 +26,9 @@ __global__ void update_kernel(float* vals, float* grads, float* velocities, int 
 		grads[index] = 0.0F;
 	}
 }
-void launch_update_kernel(float* vals, float* grads, float* velocities, int n_vals, int batch_size, float momentum, float rate) {
-	int n = n_vals * batch_size;
-	int grid_size = GET_GRIDSIZE(n, BLOCKSIZE);
-	update_kernel KARGS(grid_size, BLOCKSIZE) (vals, grads, velocities, n, momentum, rate);
+void launch_update_kernel(float* vals, float* grads, float* velocities, int n_vals, float momentum, float rate) {
+	int grid_size = GET_GRIDSIZE(n_vals, BLOCKSIZE);
+	update_kernel KARGS(grid_size, BLOCKSIZE) (vals, grads, velocities, n_vals, momentum, rate);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 

@@ -35,6 +35,7 @@ void build_detect_layer(int i, network* net);
 
 void set_activate(layer* l, int use_gpu);
 void set_loss(layer* l, int use_gpu);
+void set_regularization(network* net);
 
 void backward_none(layer* l, network* net);
 void update_none(layer* l, network* net);
@@ -83,17 +84,7 @@ void build_network(network* net) {
 	}
 	net->workspace_size = largest_workspace;
 	net->current_learning_rate = net->learning_rate;
-	if (net->regularization == REG_L1) {
-		net->reg_loss = loss_l1;
-		net->regularize_weights = regularize_l1;
-	}
-	else if (net->regularization == REG_L2) {
-		net->reg_loss = loss_l2;
-		net->regularize_weights = regularize_l2;
-	}
-	else {
-		net->regularize_weights = regularize_none;
-	}
+	set_regularization(net);
 }
 
 void build_layer(int i, network* net) {
@@ -243,7 +234,6 @@ void build_conv_layer(int i, network* net) {
 		l->act_inputs = l->Z;
 		l->gpu.act_inputs = l->gpu.Z;
 	}
-
 	if (l->activation) {
 		l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 		if (net->use_gpu) {
@@ -379,13 +369,13 @@ void build_fc_layer(int i, network* net) {
 	}
 
 	if (net->use_gpu) {
-		l->forward = forward_conv_gpu;
-		l->backward = backward_conv_gpu;
+		l->forward = forward_fc_gpu;
+		l->backward = backward_fc_gpu;
 		l->update = update_conv_gpu;
 	}
 	else {
-		l->forward = forward_conv;
-		l->backward = backward_conv;
+		l->forward = forward_fc;
+		l->backward = backward_fc;
 		l->update = update_conv;
 	}
 
@@ -784,8 +774,6 @@ void build_avgpool_layer(int i, network* net) {
 		l->gpu.output = l->gpu.Z;
 	}
 
-	printf("avgpool pointer = %p\n", l->gpu.output);
-
 	if (net->use_gpu) {
 		l->forward = forward_avgpool_gpu;
 		l->backward = backward_avgpool_gpu;
@@ -1127,6 +1115,35 @@ void set_loss(layer* l, int use_gpu) {
 		default:
 			printf("No loss function set. Layer %d\n", l->id);
 		}
+	}
+}
+
+void set_regularization(network* net) {
+	if (net->use_gpu) {
+		CUDA_MALLOC(&net->gpu.reg_loss, sizeof(float));
+	}
+	if (net->regularization == REG_L1) {
+		if (net->use_gpu) {
+			net->get_reg_loss = reg_loss_l1_gpu;
+			net->regularize_weights = regularize_l1_gpu;
+		}
+		else {
+			net->get_reg_loss = reg_loss_l1;
+			net->regularize_weights = regularize_l1;
+		}
+	}
+	else if (net->regularization == REG_L2) {
+		if (net->use_gpu) {
+			net->get_reg_loss = reg_loss_l2_gpu;
+			net->regularize_weights = regularize_l2_gpu;
+		}
+		else {
+			net->get_reg_loss = reg_loss_l2;
+			net->regularize_weights = regularize_l2;
+		}
+	}
+	else {
+		net->regularize_weights = regularize_none;
 	}
 }
 

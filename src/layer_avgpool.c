@@ -87,7 +87,6 @@ void forward_avgpool_gpu(layer* l, network* net) {
 		}
 	}
 	else launch_forward_avgpool_kernel(l->in_layers[0]->gpu.output, Z, (int)wh, (int)l->c, (int)batch_size);
-	
 	if (l->activation) l->activate(l->gpu.Z, l->gpu.output, l->out_n, batch_size);
 	if (net->training) zero_array_gpu(l->gpu.grads, (int)(l->out_n * batch_size));
 }

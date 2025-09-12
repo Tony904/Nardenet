@@ -68,6 +68,7 @@ extern "C" {
 
     typedef struct gpu_network_vars {
         float* workspace;
+        float* reg_loss;
         bbox* anchors;
     } gpu_network_vars;
 
@@ -98,8 +99,9 @@ extern "C" {
         float momentum;
 
         REGULARIZATION regularization;
-        void(*reg_loss)             (network*);
+        void(*get_reg_loss)         (network*);
         void(*regularize_weights)   (float*, float*, size_t, float);
+        float reg_loss;
         int batchnorm;  // 1 if any layer has batch norm enabled
         float loss;
         float decay;

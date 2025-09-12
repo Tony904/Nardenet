@@ -62,8 +62,8 @@ double randn(double mean, double stddev) {
 	double y = 0.0;
 	double r = 0.0;
 	while (r == 0.0 || r > 1.0) {
-		x = 2.0 * rand() / RAND_MAX - 1.0;
-		y = 2.0 * rand() / RAND_MAX - 1.0;
+		x = 2.0 * ((double)rand() / RAND_MAX) - 1.0;
+		y = 2.0 * ((double)rand() / RAND_MAX) - 1.0;
 		r = x * x + y * y;
 	}
 	double d = sqrt(-2.0 * log(r) / r);
@@ -71,6 +71,7 @@ double randn(double mean, double stddev) {
 	n2_cached = 1;
 	return x * d * stddev + mean;
 }
+
 
 // Inclusive range_start and range_end
 void get_random_numbers_no_repeats(size_t* arr, size_t size, size_t range_start, size_t range_end) {

@@ -82,4 +82,76 @@ void launch_loss_bce_kernel(float* grads, float* output, float* truth, float* er
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
+
+__global__ void loss_l1_kernel(float* weights, int n, float decay, float* loss) {
+	__shared__ float shared[BLOCKSIZE >> 5];
+
+	int tid = threadIdx.x;
+	int lane = threadIdx.x & 31;
+	int warp_id = threadIdx.x >> 5;
+
+	float val = 0.0F;
+	for (int i = tid; i < n; i += BLOCKSIZE) {
+		val += weights[i] < 0 ? -weights[i] : weights[i];
+	}
+
+	for (int offset = 16; offset > 0; offset >>= 1) {
+		val += __shfl_down_sync(0xffffffff, val, offset);
+	}
+
+	if (lane == 0) shared[warp_id] = val;
+	__syncthreads();
+
+	float s = 0.0F;
+	if (warp_id == 0) {
+		s = (tid < (BLOCKSIZE >> 5)) ? shared[tid] : 0.0F;
+		for (int offset = 16; offset > 0; offset >>= 1) {
+			s += __shfl_down_sync(0xffffffff, s, offset);
+		}
+		if (tid == 0) {
+			*loss += s * decay;
+		}
+	}
+}
+void launch_loss_l1_kernel(float* weights, size_t n, float decay, float* loss) {
+	loss_l1_kernel KARGS(1, BLOCKSIZE) (weights, (int)n, decay, loss);
+	CHECK_CUDA(cudaPeekAtLastError());
+}
+
+
+__global__ void loss_l2_kernel(float* weights, int n, float decay, float* loss) {
+	__shared__ float shared[BLOCKSIZE >> 5];
+
+	int tid = threadIdx.x;
+	int lane = threadIdx.x & 31;
+	int warp_id = threadIdx.x >> 5;
+
+	float val = 0.0F;
+	for (int i = tid; i < n; i += BLOCKSIZE) {
+		val += powf(weights[i], 2.0F);
+	}
+
+	for (int offset = 16; offset > 0; offset >>= 1) {
+		val += __shfl_down_sync(0xffffffff, val, offset);
+	}
+
+	if (lane == 0) shared[warp_id] = val;
+	__syncthreads();
+
+	float s = 0.0F;
+	if (warp_id == 0) {
+		s = (tid < (BLOCKSIZE >> 5)) ? shared[tid] : 0.0F;
+		for (int offset = 16; offset > 0; offset >>= 1) {
+			s += __shfl_down_sync(0xffffffff, s, offset);
+		}
+		if (tid == 0) {
+			*loss = s * decay;
+		}
+	}
+}
+void launch_loss_l2_kernel(float* weights, size_t n, float decay, float* loss) {
+	loss_l2_kernel KARGS(1, BLOCKSIZE) (weights, (int)n, decay, loss);
+	CHECK_CUDA(cudaPeekAtLastError());
+}
+
 #endif
