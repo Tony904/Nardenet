@@ -1,7 +1,9 @@
 #include "loss.h"
 #include <math.h>
+#include <float.h>
 #include "xcuda.h"
 #include "iou.h"
+
 
 
 void loss_mae(layer* l, network* net) {
@@ -88,7 +90,7 @@ void loss_cce(layer* l, network* net) {
 			float t = truth[index];
 			float p = output[index];
 			grads[index] = p - t;  // This is the dC/da * da/dz for softmax with cross entropy
-			errors[index] = (t) ? -logf(p) : 0.0F;  // Errors are only used for reporting performance, not for backprop
+			errors[index] = (t) ? -logf(p + FLT_MIN) : 0.0F;  // Errors are only used for reporting performance, not for backprop
 			loss += errors[index];
 		}
 	}
@@ -122,6 +124,7 @@ void loss_bce(layer* l, network* net) {
 			float t = truth[index];
 			float p = output[index];
 			grads[index] = p - t;  // dC/da
+			p += FLT_MIN;
 			errors[index] = -t * logf(p) - (1.0F - t) * logf(1.0F - p);
 			loss += errors[index];
 		}

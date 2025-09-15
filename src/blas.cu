@@ -16,7 +16,7 @@
 
 
 
-__global__ void add_biases_kernel(float* arr, int spatial, float* biases) {
+__global__ void add_biases_kernel(float* output, int spatial, float* biases) {
 	__shared__ float bias;
 
 	int channel = blockIdx.x;
@@ -25,10 +25,10 @@ __global__ void add_biases_kernel(float* arr, int spatial, float* biases) {
 
 	int offset = channel * spatial;
 	int i = threadIdx.x + blockIdx.x * blockDim.x;
-	for (; i < spatial; i += blockDim.x) arr[offset + i] += bias;
+	for (; i < spatial; i += blockDim.x) output[offset + i] += bias;
 }
-void add_biases_gpu(float* arr, int spatial, float* biases, int n_filters, int batch_size) {
-	add_biases_kernel KARGS(n_filters * batch_size, BLOCKSIZE) (arr, spatial, biases);
+void add_biases_gpu(float* output, float* biases, int n_filters, int spatial, int batch_size) {
+	add_biases_kernel KARGS(n_filters * batch_size, BLOCKSIZE) (output, spatial, biases);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
@@ -82,7 +82,6 @@ __global__ void dot_product_kernel(float* A, float* B, int n, float* result) {
 	for (int i = tid; i < n; i += BLOCKSIZE) {
 		val += A[i] * B[i];
 	}
-
 	for (int offset = 16; offset > 0; offset >>= 1) {
 		val += __shfl_down_sync(0xffffffff, val, offset);
 	}

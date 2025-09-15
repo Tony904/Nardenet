@@ -28,15 +28,6 @@ void activate_mish(float* Z, float* output, size_t out_n, size_t batch_size) {
 	}
 }
 
-void activate_sigmoid(float* Z, float* output, size_t out_n, size_t batch_size) {
-	size_t n = out_n * batch_size;
-	size_t i;
-#pragma omp parallel for
-	for (i = 0; i < n; i++) {
-		output[i] = sigmoid_x(Z[i]);
-	}
-}
-
 void activate_tanh(float* Z, float* output, size_t out_n, size_t batch_size) {
 	size_t n = out_n * batch_size;
 	size_t i;
@@ -46,14 +37,21 @@ void activate_tanh(float* Z, float* output, size_t out_n, size_t batch_size) {
 	}
 }
 
+void activate_sigmoid(float* Z, float* output, size_t out_n, size_t batch_size) {
+	size_t n = out_n * batch_size;
+	size_t i;
+#pragma omp parallel for
+	for (i = 0; i < n; i++) {
+		output[i] = sigmoid_x(Z[i]);
+	}
+}
+
 void activate_softmax(float* Z, float* output, size_t out_n, size_t batch_size) {
-	// Calculate maxval to then subtract for numerical stability
-	// https://stats.stackexchange.com/questions/338285/how-does-the-subtraction-of-the-logit-maximum-improve-learning
-	size_t s;
+	size_t b;
 #pragma omp parallel for firstprivate(out_n)
-	for (s = 0; s < batch_size; s++) {
-		float* z = &Z[s * out_n];
-		float* a = &output[s * out_n];
+	for (b = 0; b < batch_size; b++) {
+		float* z = &Z[b * out_n];
+		float* a = &output[b * out_n];
 		float maxval = z[0];
 		for (size_t i = 1; i < out_n; i++) {
 			if (z[i] > maxval) maxval = z[i];

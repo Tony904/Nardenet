@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <math.h>
+#include <float.h>
 #include "xcuda.h"
 #include "xallocs.h"
 #include "utils.h"
@@ -55,7 +56,7 @@ __global__ void loss_cce_kernel(float* grads, float* output, float* truth, float
 		float t = truth[index];
 		float p = output[index];
 		grads[index] = p - t;
-		errors[index] = (t) ? -logf(p) : 0.0F;
+		errors[index] = (t) ? -logf(p + FLT_MIN) : 0.0F;
 	}
 }
 void launch_loss_cce_kernel(float* grads, float* output, float* truth, float* errors, int n, int batch_size) {
@@ -72,6 +73,7 @@ __global__ void loss_bce_kernel(float* grads, float* output, float* truth, float
 		float t = truth[index];
 		float p = output[index];
 		grads[index] = p - t;
+		p += FLT_MIN;
 		errors[index] = -t * logf(p) - (1.0F - t) * logf(1.0F - p);
 	}
 }

@@ -1,5 +1,5 @@
-#ifndef LAYER_CONV_H
-#define LAYER_CONV_H
+#ifndef LAYER_FC_H
+#define LAYER_FC_H
 
 
 #include "network.h"

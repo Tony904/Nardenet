@@ -79,7 +79,7 @@ void forward_fc_gpu(layer* l, network* net) {
 	size_t batch_size = net->batch_size;
 	size_t out_n = l->out_n;
 	float* Z = l->gpu.Z;
-	zero_array_gpu(Z, out_n * batch_size);
+	zero_array_gpu(Z, (int)(out_n * batch_size));
 	float* weights = l->gpu.weights;
 	float* w0 = weights;
 	for (size_t b = 0; b < batch_size; b++) {
@@ -88,7 +88,7 @@ void forward_fc_gpu(layer* l, network* net) {
 			for (size_t a = 0; a < l->in_ids.n; a++) {
 				size_t inl_out_n = l->in_layers[a]->out_n;
 				float* inl_output = &l->in_layers[a]->gpu.output[inl_out_n * b];
-				dot_product_gpu(weights, inl_output, inl_out_n, &Z[offset]);
+				dot_product_gpu(weights, inl_output, (int)inl_out_n, &Z[offset]);
 				weights += inl_out_n;
 			}
 		}
@@ -100,10 +100,10 @@ void forward_fc_gpu(layer* l, network* net) {
 	}
 	else {
 		// note: l->Z = l->act_inputs when batchnorm disabled
-		add_biases_gpu(l->gpu.Z, l->gpu.biases, out_n, 1, batch_size);
+		add_biases_gpu(l->gpu.Z, l->gpu.biases, (int)out_n, 1, (int)batch_size);
 		l->activate(l->gpu.Z, l->gpu.output, out_n, batch_size);
 	}
-	if (net->training) zero_array_gpu(l->gpu.grads, out_n * batch_size);
+	if (net->training) zero_array_gpu(l->gpu.grads, (int)(out_n * batch_size));
 }
 
 void backward_fc_gpu(layer* l, network* net) {
@@ -111,7 +111,7 @@ void backward_fc_gpu(layer* l, network* net) {
 	float* grads = l->gpu.grads;
 	size_t out_n = l->out_n;
 	get_activation_grads_gpu(l, batch_size);
-	get_bias_grads_gpu(l->gpu.bias_grads, grads, out_n, 1, batch_size);  // note: biases = betas for batch norm
+	get_bias_grads_gpu(l->gpu.bias_grads, grads, (int)out_n, 1, (int)batch_size);  // note: biases = betas for batch norm
 	if (l->batchnorm) backward_batchnorm_gpu(grads, l->gpu.Z, l->gpu.Z_norm, l->gpu.means, l->gpu.variances, l->gpu.gammas, l->gpu.gamma_grads, 1, (int)out_n, (int)batch_size);
 	float* weight_grads = l->gpu.weight_grads;
 	float* wg0 = weight_grads;
@@ -124,8 +124,8 @@ void backward_fc_gpu(layer* l, network* net) {
 				size_t inl_out_n = l->in_layers[a]->out_n;
 				float* inl_grads = &l->in_layers[a]->gpu.grads[inl_out_n * b];
 				float* inl_output = &l->in_layers[a]->gpu.output[inl_out_n * b];
-				scale_add_array_gpu(inl_output, weight_grads, &grads[offset], inl_out_n);
-				scale_add_array_gpu(weights, inl_grads, &grads[offset], inl_out_n);
+				scale_add_array_gpu(inl_output, weight_grads, &grads[offset], (int)inl_out_n);
+				scale_add_array_gpu(weights, inl_grads, &grads[offset], (int)inl_out_n);
 				weight_grads += inl_out_n;
 				weights += inl_out_n;
 			}

@@ -19,9 +19,6 @@ int main(void) {
 	network* net = create_network_from_cfg(cfgfile);
 	train(net);
 	free_network(net);
-
-	//test_activate_softmax_gpu();
-
 	
 	//print_alloc_list();
 

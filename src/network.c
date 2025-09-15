@@ -7,6 +7,7 @@
 #include "xallocs.h"
 #include "layer_conv.h"
 #include "layer_classify.h"
+#include "layer_fc.h"
 #include "layer_maxpool.h"
 #include "layer_residual.h"
 #include "layer_detect.h"

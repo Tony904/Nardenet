@@ -43,7 +43,7 @@ extern "C" {
 	void print_gpu_float_array(float* gpu_array, size_t size);
 
 	// blas.cu
-	void add_biases_gpu(float* arr, int spatial, float* biases, int n_filters, int batch_size);
+	void add_biases_gpu(float* output, float* biases, int n_filters, int spatial, int batch_size);
 	void get_bias_grads_gpu(float* bias_grads, float* grads, int n_filters, int spatial, int batch_size);
 	void dot_product_gpu(float* A, float* B, int n, float* result);
 	void sum_array_gpu(float* A, int n, float* sum);
@@ -85,7 +85,6 @@ extern "C" {
 	void gemm_gpu(int M, int N, int K, float* A, float* B, float* C, int n_groups);
 	void gemm_atb_gpu(int M, int N, int K, float* A, float* B, float* C, int n_groups);
 	void gemm_tab_gpu(int M, int N, int K, float* A, float* B, float* C, int n_groups);
-	void add_biases_gpu(float* arr, int spatial, float* biases, int channels, int batch_size);
 
 	// batchnorm.cu
 	void forward_batchnorm_gpu(float* gammas, float* betas, float* means, float* variances, float* rolling_means, float* rolling_variances, float* Z, float* Z_norm, float* act_inputs, int spatial, int n_filters, int batch_size);

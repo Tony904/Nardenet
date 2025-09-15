@@ -16,6 +16,10 @@ void forward_classify(layer* l, network* net) {
 			printf(" : ");
 			print_top_class_name(&l->output[offset], n, net->class_names, 1, 1);
 		}
+		if (l->loss < 0.1F) {
+			printf("done\n");
+			wait_for_key_then_exit();
+		}
 	}
 	else {
 		print_top_class_name(l->output, l->n, net->class_names, 1, 1);

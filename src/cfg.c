@@ -217,7 +217,10 @@ void copy_to_cfg_layer(cfg_layer* l, char** tokens, cfg* c) {
 	else if (strcmp(k, "batchnorm") == 0) {
 		l->batchnorm = str2int(tokens[1]);
 	}
-	else if (strcmp(k, "filters") == 0) {
+	else if (strcmp(k, "filters") == 0 || strcmp(k, "outputs") == 0) {
+		if ((l->type == LAYER_FC && strcmp(k, "filters") == 0) || (l->type != LAYER_FC && strcmp(k, "outputs") == 0)) {
+			return;
+		}
 		if (strcmp(tokens[1], "num_classes") == 0) {
 			l->n_filters = c->n_classes;
 		}

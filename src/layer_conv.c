@@ -203,7 +203,7 @@ void forward_conv_gpu(layer* l, network* net) {
 	}
 	else {
 		// note: l->Z = l->gpu.act_inputs when batchnorm disabled
-		add_biases_gpu(l->gpu.Z, (int)N, l->gpu.biases, (int)M, (int)batch_size);
+		add_biases_gpu(l->gpu.Z, l->gpu.biases, (int)N, (int)M, (int)batch_size);
 		l->activate(l->gpu.Z, l->gpu.output, out_n, batch_size);
 	}
 	if (net->training) zero_array_gpu(l->gpu.grads, (int)(out_n * batch_size));
