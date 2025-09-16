@@ -18,7 +18,7 @@ extern "C" {
     void write_image_test(void);
     void load_image_test(void);
     image* new_image(size_t width, size_t height, size_t channels);
-    void prescale_image(image* img);
+    void normalize_image(image* img);
     void scale_image(image* img, float scalar);
     void clamp_image(image* img);
     void resize_image_bilinear(image* dst, image* src);

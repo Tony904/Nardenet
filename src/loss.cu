@@ -147,7 +147,7 @@ __global__ void loss_l2_kernel(float* weights, int n, float decay, float* loss) 
 			s += __shfl_down_sync(0xffffffff, s, offset);
 		}
 		if (tid == 0) {
-			*loss = s * decay;
+			*loss += s * decay;
 		}
 	}
 }

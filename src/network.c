@@ -210,25 +210,25 @@ void build_conv_layer(int i, network* net) {
 	if (l->batchnorm) {
 		l->Z_norm = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 		l->act_inputs = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-		l->means = (float*)xcalloc(l->out_c, sizeof(float));
-		l->variances = (float*)xcalloc(l->out_c, sizeof(float));
-		l->gammas = (float*)xcalloc(l->out_c, sizeof(float));
-		fill_array(l->gammas, l->out_c, 1.0F);
-		l->gamma_grads = (float*)xcalloc(l->out_c, sizeof(float));
-		l->gamma_velocities = (float*)xcalloc(l->out_c, sizeof(float));
-		l->rolling_means = (float*)xcalloc(l->out_c, sizeof(float));
-		l->rolling_variances = (float*)xcalloc(l->out_c, sizeof(float));
+		l->means = (float*)xcalloc(l->n_filters, sizeof(float));
+		l->variances = (float*)xcalloc(l->n_filters, sizeof(float));
+		l->gammas = (float*)xcalloc(l->n_filters, sizeof(float));
+		fill_array(l->gammas, l->n_filters, 1.0F);
+		l->gamma_grads = (float*)xcalloc(l->n_filters, sizeof(float));
+		l->gamma_velocities = (float*)xcalloc(l->n_filters, sizeof(float));
+		l->rolling_means = (float*)xcalloc(l->n_filters, sizeof(float));
+		l->rolling_variances = (float*)xcalloc(l->n_filters, sizeof(float));
 		if (net->use_gpu) {
 			CUDA_MALLOC(&l->gpu.Z_norm, l->out_n * net->batch_size * sizeof(float));
 			CUDA_MALLOC(&l->gpu.act_inputs, l->out_n * net->batch_size * sizeof(float));
-			CUDA_MALLOC(&l->gpu.means, l->out_c * sizeof(float));
-			CUDA_MALLOC(&l->gpu.variances, l->out_c * sizeof(float));
-			CUDA_MALLOC(&l->gpu.gammas, l->out_c * sizeof(float));
-			CUDA_MEMCPY_H2D(l->gpu.gammas, l->gammas, l->out_c * sizeof(float));
-			CUDA_MALLOC(&l->gpu.gamma_grads, l->out_c * sizeof(float));
-			CUDA_MALLOC(&l->gpu.gamma_velocities, l->out_c * sizeof(float));
-			CUDA_MALLOC(&l->gpu.rolling_means, l->out_c * sizeof(float));
-			CUDA_MALLOC(&l->gpu.rolling_variances, l->out_c * sizeof(float));
+			CUDA_MALLOC(&l->gpu.means, l->n_filters * sizeof(float));
+			CUDA_MALLOC(&l->gpu.variances, l->n_filters * sizeof(float));
+			CUDA_MALLOC(&l->gpu.gammas, l->n_filters * sizeof(float));
+			CUDA_MEMCPY_H2D(l->gpu.gammas, l->gammas, l->n_filters * sizeof(float));
+			CUDA_MALLOC(&l->gpu.gamma_grads, l->n_filters * sizeof(float));
+			CUDA_MALLOC(&l->gpu.gamma_velocities, l->n_filters * sizeof(float));
+			CUDA_MALLOC(&l->gpu.rolling_means, l->n_filters * sizeof(float));
+			CUDA_MALLOC(&l->gpu.rolling_variances, l->n_filters * sizeof(float));
 		}
 	}
 	else {
@@ -332,25 +332,25 @@ void build_fc_layer(int i, network* net) {
 	if (l->batchnorm) {
 		l->Z_norm = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 		l->act_inputs = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-		l->means = (float*)xcalloc(l->out_c, sizeof(float));
-		l->variances = (float*)xcalloc(l->out_c, sizeof(float));
-		l->gammas = (float*)xcalloc(l->out_c, sizeof(float));
-		fill_array(l->gammas, l->out_c, 1.0F);
-		l->gamma_grads = (float*)xcalloc(l->out_c, sizeof(float));
-		l->gamma_velocities = (float*)xcalloc(l->out_c, sizeof(float));
-		l->rolling_means = (float*)xcalloc(l->out_c, sizeof(float));
-		l->rolling_variances = (float*)xcalloc(l->out_c, sizeof(float));
+		l->means = (float*)xcalloc(l->n_filters, sizeof(float));
+		l->variances = (float*)xcalloc(l->n_filters, sizeof(float));
+		l->gammas = (float*)xcalloc(l->n_filters, sizeof(float));
+		fill_array(l->gammas, l->n_filters, 1.0F);
+		l->gamma_grads = (float*)xcalloc(l->n_filters, sizeof(float));
+		l->gamma_velocities = (float*)xcalloc(l->n_filters, sizeof(float));
+		l->rolling_means = (float*)xcalloc(l->n_filters, sizeof(float));
+		l->rolling_variances = (float*)xcalloc(l->n_filters, sizeof(float));
 		if (net->use_gpu) {
 			CUDA_MALLOC(&l->gpu.Z_norm, l->out_n * net->batch_size * sizeof(float));
 			CUDA_MALLOC(&l->gpu.act_inputs, l->out_n * net->batch_size * sizeof(float));
-			CUDA_MALLOC(&l->gpu.means, l->out_c * sizeof(float));
-			CUDA_MALLOC(&l->gpu.variances, l->out_c * sizeof(float));
-			CUDA_MALLOC(&l->gpu.gammas, l->out_c * sizeof(float));
-			CUDA_MEMCPY_H2D(l->gpu.gammas, l->gammas, l->out_c * sizeof(float));
-			CUDA_MALLOC(&l->gpu.gamma_grads, l->out_c * sizeof(float));
-			CUDA_MALLOC(&l->gpu.gamma_velocities, l->out_c * sizeof(float));
-			CUDA_MALLOC(&l->gpu.rolling_means, l->out_c * sizeof(float));
-			CUDA_MALLOC(&l->gpu.rolling_variances, l->out_c * sizeof(float));
+			CUDA_MALLOC(&l->gpu.means, l->n_filters * sizeof(float));
+			CUDA_MALLOC(&l->gpu.variances, l->n_filters * sizeof(float));
+			CUDA_MALLOC(&l->gpu.gammas, l->n_filters * sizeof(float));
+			CUDA_MEMCPY_H2D(l->gpu.gammas, l->gammas, l->n_filters * sizeof(float));
+			CUDA_MALLOC(&l->gpu.gamma_grads, l->n_filters * sizeof(float));
+			CUDA_MALLOC(&l->gpu.gamma_velocities, l->n_filters * sizeof(float));
+			CUDA_MALLOC(&l->gpu.rolling_means, l->n_filters * sizeof(float));
+			CUDA_MALLOC(&l->gpu.rolling_variances, l->n_filters * sizeof(float));
 		}
 	}
 	else {
@@ -1060,12 +1060,12 @@ void get_activation_grads(layer* l, size_t batch_size) {
 #pragma warning (suppress:4100)
 void get_activation_grads_gpu(layer* l, size_t batch_size) {
 #ifdef GPU
-	if (l->activation == ACT_MISH) get_grads_mish_gpu(l->grads, l->act_inputs, (int)l->out_n, (int)batch_size);
-	else if (l->activation == ACT_RELU) get_grads_relu_gpu(l->grads, l->act_inputs, (int)l->out_n, (int)batch_size);
-	else if (l->activation == ACT_LEAKY) get_grads_leaky_relu_gpu(l->grads, l->act_inputs, (int)l->out_n, (int)batch_size);
-	else if (l->activation == ACT_SIGMOID) get_grads_sigmoid_gpu(l->grads, l->output, (int)l->out_n, (int)batch_size);
+	if (l->activation == ACT_MISH) get_grads_mish_gpu(l->gpu.grads, l->gpu.act_inputs, (int)l->out_n, (int)batch_size);
+	else if (l->activation == ACT_RELU) get_grads_relu_gpu(l->gpu.grads, l->gpu.act_inputs, (int)l->out_n, (int)batch_size);
+	else if (l->activation == ACT_LEAKY) get_grads_leaky_relu_gpu(l->gpu.grads, l->gpu.act_inputs, (int)l->out_n, (int)batch_size);
+	else if (l->activation == ACT_SIGMOID) get_grads_sigmoid_gpu(l->gpu.grads, l->gpu.output, (int)l->out_n, (int)batch_size);
 	else if (l->activation == ACT_SOFTMAX);
-	else if (l->activation == ACT_TANH) get_grads_tanh_gpu(l->grads, l->act_inputs, (int)l->out_n, (int)batch_size);
+	else if (l->activation == ACT_TANH) get_grads_tanh_gpu(l->gpu.grads, l->gpu.act_inputs, (int)l->out_n, (int)batch_size);
 	else if (l->activation == ACT_NONE);
 	else {
 		printf("Invalid activation function.");

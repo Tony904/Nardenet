@@ -202,7 +202,6 @@ void forward_conv_gpu(layer* l, network* net) {
 		l->activate(l->gpu.act_inputs, l->gpu.output, out_n, batch_size);
 	}
 	else {
-		// note: l->Z = l->gpu.act_inputs when batchnorm disabled
 		add_biases_gpu(l->gpu.Z, l->gpu.biases, (int)N, (int)M, (int)batch_size);
 		l->activate(l->gpu.Z, l->gpu.output, out_n, batch_size);
 	}
@@ -265,12 +264,12 @@ void backward_conv_gpu(layer* l, network* net) {
 void update_conv_gpu(layer* l, network* net) {
 	float rate = net->current_learning_rate;
 	float momentum = net->momentum;
-	size_t n = l->n_weights;
+	size_t n_weights = l->n_weights;
 	launch_update_kernel(l->gpu.biases, l->gpu.bias_grads, l->gpu.bias_velocities, (int)l->n_filters, momentum, rate);
-	net->regularize_weights(l->gpu.weight_grads, l->gpu.weights, n, net->decay);
-	launch_update_kernel(l->gpu.weights, l->gpu.weight_grads, l->gpu.weight_velocities, (int)n, momentum, rate);
+	net->regularize_weights(l->gpu.weight_grads, l->gpu.weights, n_weights, net->decay);
+	launch_update_kernel(l->gpu.weights, l->gpu.weight_grads, l->gpu.weight_velocities, (int)n_weights, momentum, rate);
 	if (l->batchnorm) {
-		launch_update_kernel(l->gpu.gammas, l->gpu.gamma_grads, l->gpu.gamma_velocities, (int)l->out_c, momentum, rate);
+		launch_update_kernel(l->gpu.gammas, l->gpu.gamma_grads, l->gpu.gamma_velocities, (int)l->n_filters, momentum, rate);
 	}
 }
 #else

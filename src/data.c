@@ -38,7 +38,7 @@ void detector_get_next_batch(network* net) {
 		img.c = c;
 		img.data = &net->input->output[b * n];
 		batch_samples[b] = detector_dataset_get_next_sample(dataset, &img);
-		prescale_image(&img);
+		normalize_image(&img);
 		randomize_colorspace(&img, brightness_lower, brightness_upper, contrast_lower, contrast_upper, saturation_lower, saturation_upper, hue_lower, hue_upper);
 	}
 }
@@ -101,6 +101,7 @@ void classifier_get_next_batch(network* net) {
 		img.c = c;
 		img.data = &data[s * n];
 		classifier_dataset_get_next_image(dataset, &img, &truth[s * n_classes]);
+		normalize_image(&img);
 		randomize_colorspace(&img, brightness_lower, brightness_upper, contrast_lower, contrast_upper, saturation_lower, saturation_upper, hue_lower, hue_upper);
 	}
 	if (net->use_gpu) {

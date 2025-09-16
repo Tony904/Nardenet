@@ -15,7 +15,7 @@ int main(void) {
 
 	activate_xalloc_tracking();
 	
-	char* cfgfile = "C:\\Users\\TNard\\OneDrive\\Desktop\\dev\\Nardenet\\cfg\\gpu-testing.cfg";
+	char* cfgfile = "C:\\Users\\TNard\\OneDrive\\Desktop\\dev\\Nardenet\\cfg\\nardenet-residuals.cfg";
 	network* net = create_network_from_cfg(cfgfile);
 	train(net);
 	free_network(net);

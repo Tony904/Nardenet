@@ -44,7 +44,7 @@ __global__ void get_bias_grads_kernel(float* bias_grads, float* grads, int spati
 	float thread_sum = 0.0F;
 	int offset = channel * spatial;
 	for (int s = tid; s < spatial; s += BLOCKSIZE) {
-		if (s < spatial) thread_sum += grads[offset + s];
+		thread_sum += grads[offset + s];
 	}
 
 	for (int offset = 16; offset > 0; offset >>= 1) {

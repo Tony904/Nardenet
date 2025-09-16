@@ -1,5 +1,6 @@
 #include "layer_classify.h"
 #include <stdio.h>
+#include <math.h>
 #include "utils.h"
 #include "xcuda.h"
 
@@ -16,8 +17,8 @@ void forward_classify(layer* l, network* net) {
 			printf(" : ");
 			print_top_class_name(&l->output[offset], n, net->class_names, 1, 1);
 		}
-		if (l->loss < 0.1F) {
-			printf("done\n");
+		if (l->loss < 0.1F || isnan(l->loss)) {
+			printf("\n[DONE]\n");
 			wait_for_key_then_exit();
 		}
 	}
@@ -32,7 +33,7 @@ void forward_classify_gpu(layer* l, network* net) {
 		size_t batch_size = net->batch_size;
 		size_t n = l->n;
 		l->get_loss(l, net);
-		sum_array_gpu(l->gpu.errors, (int)n, l->gpu.loss);
+		sum_array_gpu(l->gpu.errors, (int)(n * batch_size), l->gpu.loss);
 		CUDA_MEMCPY_D2H(&l->loss, l->gpu.loss, sizeof(float));
 		float avg_loss = l->loss / (float)batch_size;
 		l->loss = avg_loss;
@@ -45,8 +46,8 @@ void forward_classify_gpu(layer* l, network* net) {
 			printf(" : ");
 			print_top_class_name(&l->output[offset], n, net->class_names, 1, 1);
 		}
-		if (avg_loss < 0.1F) {
-			printf("done\n");
+		if (avg_loss < 0.1F || isnan(avg_loss)) {
+			printf("\n[DONE]\n");
 			wait_for_key_then_exit();
 		}
 	}

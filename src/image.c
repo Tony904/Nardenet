@@ -50,7 +50,7 @@ image* load_image(char* filename) {
     return img;
 }
 
-void prescale_image(image* img) {
+void normalize_image(image* img) {
     float* data = img->data;
     size_t n = img->w * img->h * img->c;
     size_t i;
@@ -206,6 +206,7 @@ void scale_contrast_rgb(image* img, float scalar) {
     }
 }
 
+// Expected img values are normalized between 0 and 1
 void randomize_colorspace(image* img, float brightness_lower, float brightness_upper, float contrast_lower, float contrast_upper, float saturation_lower, float saturation_upper, float hue_lower, float hue_upper) {
     float brightness_scalar = randu(brightness_lower, brightness_upper);
     float contrast_scalar = randu(contrast_lower, contrast_upper);
