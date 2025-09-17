@@ -56,8 +56,63 @@ __global__ void im2col_kernel_no_share(const float* __restrict__ data_im,
     }
 }
 
+
+__global__ void im2ex_kernel(float* im, float* ex,
+    int im_width, int im_height, int im_channels,
+    int out_width, int out_height,
+    int ksize, int stride, int pad) {
+
+    extern __shared__ float shared[];
+
+    int block_start_im_row = blockIdx.y * blockDim.y;
+    int block_start_im_col = blockIdx.x * blockDim.x;
+    int shared_width = blockDim.x + pad * 2;
+    int shared_height = blockDim.y + pad * 2;
+
+    for (int row = threadIdx.y; row < shared_height; row+=blockDim.y) {
+        for (int col = threadIdx.x; col < shared_width; col+=blockDim.x) {
+            int im_row = block_start_im_row + row - pad;
+            int im_col = block_start_im_col + col - pad;
+            if (im_row >= 0 && im_col >= 0 && im_row < im_height && im_col < im_width) {
+                shared[row * shared_width + col] = im[im_row * im_width + im_col];
+            }
+            else shared[row * shared_width + col] = 0.0F;
+        }
+    }
+    __syncthreads();
+
+    int thread_im_row = block_start_im_row + threadIdx.y;
+    int thread_im_col = block_start_im_col + threadIdx.x;
+    if (thread_im_row < im_height && thread_im_col < im_width) {
+        int x0 = ((ksize - 1) / 2) - pad;
+        int y0 = x0;  // since kernel, padding, and input are squares
+        if (((thread_im_row - y0) % stride) == 0 && ((thread_im_col - x0) % x0) == 0) {  // if position corresponds to center of a filter kernel stride
+            int out_row = thread_im_row / stride;
+            int out_col = thread_im_col / stride;
+            for (int krow = 0; krow < ksize; krow++) {
+                for (int kcol = 0; kcol < ksize; kcol++) {
+                    //int im_row = thread_im_row + krow - pad;
+                    //int im_col = thread_im_col + kcol - pad;
+                    int shared_index = (threadIdx.y + krow) * shared_width + threadIdx.x + kcol;
+                    int ex_index = ((blockIdx.z * ksize * ksize) + (krow * ksize) + kcol) * (out_width * out_height) + (out_row * out_width) + out_col;
+                    ex[ex_index] = shared[shared_index];
+                }
+            }
+        }
+    }
+}
+void im2ex_gpu(float* im, float* ex, int im_w, int im_h, int im_channels, int out_w, int out_h, int ksize, int stride, int pad) {
+    dim3 block_size(16, 16);
+    dim3 grid_size(((im_w - 1) / block_size.x) + 1, ((im_h - 1) / block_size.x) + 1, im_channels);
+    size_t shared_memory_size = (block_size.x + 2 * pad) * (block_size.y + 2 * pad) * sizeof(float);
+    im2ex_kernel KARGS(grid_size, block_size, shared_memory_size) (im, ex, im_w, im_h, im_channels, out_w, out_h, ksize, stride, pad);
+    CHECK_CUDA(cudaPeekAtLastError());
+}
+
+
+
 __global__ void im2col_kernel(
-    float* input, float* output,
+    const float* __restrict__ input, float* __restrict__ output,
     const int channels, const int height, const int width,
     const int ksize, const int stride, const int pad,
     const int out_height, const int out_width) {
@@ -75,7 +130,7 @@ __global__ void im2col_kernel(
     int shared_width = blockDim.x + ksize - 1;
 
     // Load data from global memory to shared memory
-    // Each thread may need to load multiple elements to cover the padded region
+    // Some threads may need to load multiple elements to cover the padded region
     for (int i = thread_row; i < shared_height; i += blockDim.y) {
         for (int j = thread_col; j < shared_width; j += blockDim.x) {
             int input_row = start_input_row + i;
@@ -112,20 +167,16 @@ void im2col_gpu(float* data_im, float* data_col, int channels, int h, int w, int
 void cuda_test_im2col(void) {
     int width = 32;
     int height = 32;
-    int channels = 4;
-    if (width % 32 != 0) {
+    int channels = 3;
+    /*if (width % 32 != 0) {
         printf("Input width must be a multiple of 32.\n");
         exit(EXIT_FAILURE);
-    }
+    }*/
     int im_n = width * height * channels;
     float* im = (float*)xmalloc(im_n * sizeof(float));
     int pad = 1;
     int stride = 1;
     int ksize = 3;
-    /*if (pad != (ksize - 1) / 2) {
-        printf("Pad must equal (ksize - 1) / 2.\n");
-        exit(EXIT_FAILURE);
-    }*/
     int out_w = (width + pad * 2 - ksize) / stride + 1;
     int out_h = (height + pad * 2 - ksize) / stride + 1;
 
@@ -149,7 +200,7 @@ void cuda_test_im2col(void) {
     cudaEventCreate(&stop);
     cudaEventRecord(start);
 
-    im2col_gpu(d_im, d_col, channels, height, width, ksize, stride, pad, out_h, out_w);
+    im2ex_gpu(d_im, d_col, width, height, channels, out_w, out_h , ksize, stride, pad);
 
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);

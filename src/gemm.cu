@@ -72,7 +72,7 @@ __global__ void gemm_kernel(
 void gemm_gpu(int M, int N, int K, float* A, float* B, float* C, int n_groups) {
 	/*
 	M = # of filters
-	N = # of outputs per filter
+	N = out_w * out_h
 	K = # of weights per filter (as if n_groups = 1)
 	A = weight matrix (M * K)
 	B = expanded input matrix (K * N)
@@ -88,15 +88,15 @@ void gemm_gpu(int M, int N, int K, float* A, float* B, float* C, int n_groups) {
 			int b_offset = g * N * K;
 			int c_offset = g * M * N;
 			gemm_kernel KARGS(blocks, threads) (A, B, C, M, N, K, a_offset, b_offset, c_offset);
+			CHECK_CUDA(cudaPeekAtLastError());
 		}
 	}
 	else {
 		dim3 threads(TILE_SIZE, TILE_SIZE);
 		dim3 blocks((N + TILE_SIZE - 1) / TILE_SIZE, (M + TILE_SIZE - 1) / TILE_SIZE);
 		gemm_kernel KARGS(blocks, threads) (A, B, C, M, N, K, 0, 0, 0);
+		CHECK_CUDA(cudaPeekAtLastError());
 	}
-	
-	CHECK_CUDA(cudaPeekAtLastError());
 }
 
 void cuda_test_gemm(void) {
@@ -108,24 +108,24 @@ void cuda_test_gemm(void) {
 	B = expanded input matrix (K * N)
 	C = output dot products (M * N)
 	*/
-	int width = 320;
+	int width = 227;
 	//int height = width;
-	int channels = 16;
-	if (width % 32 != 0) {
+	int channels = 3;
+	/*if (width % 32 != 0) {
 		printf("Input width must be a multiple of 32.\n");
 		exit(EXIT_FAILURE);
-	}
+	}*/
 
-	size_t n_filters = 32;
-	size_t pad = 1;
-	size_t stride = 1;
-	size_t ksize = 3;
+	size_t n_filters = 96;
+	size_t pad = 0;
+	size_t stride = 4;
+	size_t ksize = 11;
 	size_t out_size = (width + 2 * pad - ksize) / stride + 1; // square image
 
 	size_t M = n_filters;
 	size_t N = out_size * out_size;
 	size_t K = ksize * ksize * channels;
-	size_t n_groups = 2;
+	size_t n_groups = 1;
 
 	if (M % n_groups > 0 || K % n_groups > 0) {
 		printf("Cannot divide filters or weights evenly between groups.\n");
@@ -166,7 +166,7 @@ void cuda_test_gemm(void) {
 	cudaEventDestroy(start);
 	cudaEventDestroy(stop);
 
-	CHECK_CUDA(cudaGetLastError());
+	CHECK_CUDA(cudaPeekAtLastError());
 	CHECK_CUDA(cudaDeviceSynchronize());
 
 	CHECK_CUDA(cudaMemcpy(C, d_c, sizeof(float) * M * N, cudaMemcpyDeviceToHost));
@@ -182,7 +182,7 @@ void cuda_test_gemm(void) {
 	size_t zero_count = 0;
 	printf("Verifiying......\n");
 	for (size_t i = 0; i < M * N; i++) {
-		//printf("%f : %f\n", gemm_cpu[i], C[i]);
+		printf("%f : %f\n", gemm_cpu[i], C[i]);
 		if (fabs(gemm_cpu[i] - C[i]) > epsilon || isnan(gemm_cpu[i]) || isnan(C[i])) {
 			printf("Verification Failed: i = %zu, (gemm_cpu)%f != (gemm_gpu)%f\n", i, gemm_cpu[i], C[i]);
 			wait_for_key_then_exit();

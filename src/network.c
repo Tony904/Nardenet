@@ -182,6 +182,17 @@ void build_conv_layer(int i, network* net) {
 		wait_for_key_then_exit();
 	}
 
+	if (((l->w + (l->pad * 2)) - l->ksize) % l->stride != 0) {
+		printf("Invalid kernel size or stride for input width.\n");
+		printf("Layer %d width %zu (w/ padding), kernel size %zu, stride %zu\n", i, l->w + l->pad, l->ksize, l->stride);
+		wait_for_key_then_exit();
+	}
+	if (((l->h + (l->pad * 2)) - l->ksize) % l->stride != 0) {
+		printf("Invalid kernel size or stride for input height.\n");
+		printf("Layer %d height %zu (w/ padding), kernel size %zu, stride %zu\n", i, l->h + l->pad, l->ksize, l->stride);
+		wait_for_key_then_exit();
+	}
+
 	// Calculate output dimensions.
 	l->out_w = ((l->w + (l->pad * 2) - l->ksize) / l->stride) + 1;
 	l->out_h = ((l->h + (l->pad * 2) - l->ksize) / l->stride) + 1;
@@ -507,8 +518,8 @@ void build_maxpool_layer(int i, network* net) {
 	l->n = l->w * l->h * l->c;
 
 	// Calculate output dimensions.
-	l->out_w = ((l->w + (l->pad * 2) - l->ksize) / l->stride) + 1;
-	l->out_h = ((l->h + (l->pad * 2) - l->ksize) / l->stride) + 1;
+	l->out_w = ((l->w - l->ksize) / l->stride) + 1;
+	l->out_h = ((l->h - l->ksize) / l->stride) + 1;
 	l->out_c = l->c;
 	l->out_n = l->out_w * l->out_h * l->out_c;
 
@@ -522,15 +533,12 @@ void build_maxpool_layer(int i, network* net) {
 	}
 
 	if (net->use_gpu) {
-		if (l->ksize != 2 || l->stride != 2) {
-			printf("No GPU support for maxpool layers with ksize or stride other than 2.");
-			wait_for_key_then_exit();
-		}
 		l->forward = forward_maxpool_gpu;
 		l->backward = backward_maxpool_gpu;
 	}
 	else {
-		l->forward = (l->ksize != 2 || l->stride != 2) ? forward_maxpool_general : forward_maxpool;
+		//l->forward = (l->ksize != 2 || l->stride != 2) ? forward_maxpool_general : forward_maxpool;
+		l->forward = forward_maxpool_general;
 		l->backward = backward_maxpool;
 	}
 	l->update = update_none;

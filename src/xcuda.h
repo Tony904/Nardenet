@@ -61,7 +61,8 @@ extern "C" {
 	void launch_backward_avgpool_kernel(float* grads_x, float* grads_y, int spatial, int c, int batch_size);
 
 	// maxpool.cu
-	void launch_forward_maxpool_kernel(float* src, float* dst, float** max_ptrs, int src_w, int src_h, int dst_w, int dst_h, int dst_n, int batch_size);
+	void launch_forward_maxpool_general_kernel(float* src, float* dst, float** max_ptrs, int src_w, int src_h, int dst_w, int dst_h, int dst_n, int ksize, int stride);
+	void launch_forward_maxpool_standard_kernel(float* src, float* dst, float** max_ptrs, int src_w, int src_h, int dst_w, int dst_h, int dst_n);
 	void launch_backward_maxpool_kernel(float* grads, float** max_ptrs, int n);
 
 	// upsample.cu
@@ -109,6 +110,10 @@ extern "C" {
 	void activate_tanh_gpu(float* Z, float* output, size_t out_n, size_t batch_size);
 	void activate_softmax_gpu(float* Z, float* output, size_t size, size_t batch_size);
 	void test_activate_softmax_gpu(void);
+
+	// TESTING FUNCTIONS
+	void cuda_test_gemm(void);
+	void cuda_test_im2col(void);
 
 #endif  // GPU
 
