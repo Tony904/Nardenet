@@ -79,8 +79,8 @@ extern "C" {
 	void regularize_l2_gpu(float* weight_grads, float* weights, size_t size, float decay);
 
 	// im2col.cu
-	void im2col_gpu(float* data_im, float* data_col, int channels, int h, int w, int ksize, int stride, int pad, int out_h, int out_w);
-	void col2im_gpu(float* data_col, float* data_im, int h, int w, int ksize, int stride, int pad, int n);
+	void im2col_gpu(float* data_im, float* data_col, int im_w, int im_h, int im_c, int out_w, int out_h, int ksize, int stride, int pad);
+	void col2im_gpu(float* data_col, float* data_im, int im_w, int im_h, int out_w, int out_h, int ksize, int stride, int pad, int n);
 
 	// gemm.cu
 	void gemm_gpu(int M, int N, int K, float* A, float* B, float* C, int n_groups);
@@ -110,10 +110,6 @@ extern "C" {
 	void activate_tanh_gpu(float* Z, float* output, size_t out_n, size_t batch_size);
 	void activate_softmax_gpu(float* Z, float* output, size_t size, size_t batch_size);
 	void test_activate_softmax_gpu(void);
-
-	// TESTING FUNCTIONS
-	void cuda_test_gemm(void);
-	void cuda_test_im2col(void);
 
 #endif  // GPU
 

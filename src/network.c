@@ -182,14 +182,14 @@ void build_conv_layer(int i, network* net) {
 		wait_for_key_then_exit();
 	}
 
-	if (((l->w + (l->pad * 2)) - l->ksize) % l->stride != 0) {
+	if (((l->w + (l->pad * 2)) - l->ksize) % l->stride != 0 || l->ksize > l->w) {
 		printf("Invalid kernel size or stride for input width.\n");
-		printf("Layer %d width %zu (w/ padding), kernel size %zu, stride %zu\n", i, l->w + l->pad, l->ksize, l->stride);
+		printf("Layer %d width %zu (w/ padding), kernel size %zu, stride %zu\n", i, l->w + 2 * l->pad, l->ksize, l->stride);
 		wait_for_key_then_exit();
 	}
-	if (((l->h + (l->pad * 2)) - l->ksize) % l->stride != 0) {
+	if (((l->h + (l->pad * 2)) - l->ksize) % l->stride != 0 || l->ksize > l->h) {
 		printf("Invalid kernel size or stride for input height.\n");
-		printf("Layer %d height %zu (w/ padding), kernel size %zu, stride %zu\n", i, l->h + l->pad, l->ksize, l->stride);
+		printf("Layer %d height %zu (w/ padding), kernel size %zu, stride %zu\n", i, l->h + 2 * l->pad, l->ksize, l->stride);
 		wait_for_key_then_exit();
 	}
 

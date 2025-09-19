@@ -23,15 +23,14 @@
 #endif
 
 
-
 /*******************************************
                    IM2COL
 *******************************************/
 
-__global__ void im2col_kernel_no_share(const float* __restrict__ data_im,
-    const int height, const int width, const int channels,
+__global__ void im2col_kernel(const float* __restrict__ data_im,
+    const int width, const int height, const int channels,
     const int ksize, const int pad, const int stride,
-    const int height_out, const int width_out,
+    const int width_out, const int height_out,
     float* __restrict__ data_col,
     int n) {
     for (int index = blockIdx.x * blockDim.x + threadIdx.x; index < n; index += blockDim.x * gridDim.x) {
@@ -55,12 +54,18 @@ __global__ void im2col_kernel_no_share(const float* __restrict__ data_im,
         }
     }
 }
+void im2col_gpu(float* data_im, float* data_col, int im_w, int im_h, int im_c, int out_w, int out_h, int ksize, int stride, int pad) {
+    int n = out_w * out_h * im_c;
+    int grid_size = GET_GRIDSIZE(n, BLOCKSIZE);
+    im2col_kernel KARGS(grid_size, BLOCKSIZE) (data_im, im_w, im_h, im_c, ksize, pad, stride, out_w, out_h, data_col, n);
+    CHECK_CUDA(cudaPeekAtLastError());
+}
 
-
-__global__ void im2ex_kernel(float* im, float* ex,
-    int im_width, int im_height, int im_channels,
-    int out_width, int out_height,
-    int ksize, int stride, int pad) {
+// leaving this here for future me as a reminder that this is not faster
+__global__ void im2col_kernel_that_uses_shared_memory_but_is_somehow_slower(const float* __restrict__ im, float* __restrict__ ex,
+    const int im_width, const int im_height, const int im_channels,
+    const int out_width, const int out_height,
+    const int ksize, const int stride, const int pad) {
 
     extern __shared__ float shared[];
 
@@ -87,15 +92,13 @@ __global__ void im2ex_kernel(float* im, float* ex,
     int thread_im_col = block_start_im_col + threadIdx.x;
     
     int x0 = k - pad;  // 0th stride row of kernel center
-    int y0 = x0;  // since kernel, padding, and input are squares
-    if (thread_im_row < im_height && thread_im_col < im_width && thread_im_row >= y0 && thread_im_col >= x0) {
+    int y0 = x0;  // y0 is same as x0 since kernel, padding, and input are squares
+    if (thread_im_row + k < im_height + pad && thread_im_col + k < im_width + pad && thread_im_row >= y0 && thread_im_col >= x0) {  // valid range check
         if (((thread_im_row - y0) % stride) == 0 && ((thread_im_col - x0) % stride) == 0) {  // if position corresponds to center of a kernel stride
             int out_row = (thread_im_row - y0) / stride;
             int out_col = (thread_im_col - x0) / stride;
             for (int krow = 0; krow < ksize; krow++) {
                 for (int kcol = 0; kcol < ksize; kcol++) {
-                    int im_row = thread_im_row - k + krow;
-                    int im_col = thread_im_col - k + krow;
                     int shared_index = (threadIdx.y + krow) * shared_width + threadIdx.x + kcol;
                     int ex_index = ((blockIdx.z * ksize * ksize) + (krow * ksize) + kcol) * (out_width * out_height) + (out_row * out_width) + out_col;
                     ex[ex_index] = shared[shared_index];
@@ -104,78 +107,23 @@ __global__ void im2ex_kernel(float* im, float* ex,
         }
     }
 }
-void im2ex_gpu(float* im, float* ex, int im_w, int im_h, int im_channels, int out_w, int out_h, int ksize, int stride, int pad) {
-    dim3 block_size(16, 16);
-    dim3 grid_size(((im_w - 1) / block_size.x) + 1, ((im_h - 1) / block_size.x) + 1, im_channels);
-    size_t shared_memory_size = (block_size.x + ksize - 1) * (block_size.y + ksize - 1) * sizeof(float);
-    im2ex_kernel KARGS(grid_size, block_size, shared_memory_size) (im, ex, im_w, im_h, im_channels, out_w, out_h, ksize, stride, pad);
-    CHECK_CUDA(cudaPeekAtLastError());
-}
-
-
-
-__global__ void im2col_kernel(
-    const float* __restrict__ input, float* __restrict__ output,
-    const int channels, const int height, const int width,
-    const int ksize, const int stride, const int pad,
-    const int out_height, const int out_width) {
-
-    extern __shared__ float shared_input[];
-
-    int block_row = blockIdx.y * blockDim.y;
-    int block_col = blockIdx.x * blockDim.x;
-    int c = blockIdx.z;
-    int thread_row = threadIdx.y;
-    int thread_col = threadIdx.x;
-    int start_input_row = block_row * stride - pad;
-    int start_input_col = block_col * stride - pad;
-    int shared_height = blockDim.y + ksize - 1;
-    int shared_width = blockDim.x + ksize - 1;
-
-    // Load data from global memory to shared memory
-    // Some threads may need to load multiple elements to cover the padded region
-    for (int i = thread_row; i < shared_height; i += blockDim.y) {
-        for (int j = thread_col; j < shared_width; j += blockDim.x) {
-            int input_row = start_input_row + i;
-            int input_col = start_input_col + j;
-            if (input_row >= 0 && input_row < height && input_col >= 0 && input_col < width) {
-                shared_input[i * shared_width + j] = input[c * height * width + input_row * width + input_col];
-            }
-            else shared_input[i * shared_width + j] = 0.0F; // Zero padding
-        }
-    }
-    __syncthreads();
-    if (thread_row < out_height && thread_col < out_width) {
-        int output_index = (block_row + thread_row) * out_width + (block_col + thread_col);
-        for (int i = 0; i < ksize; ++i) {
-            for (int j = 0; j < ksize; ++j) {
-                // Calculate the position in shared memory to read from
-                int local_row = thread_row + i;
-                int local_col = thread_col + j;
-                int output_channel_offset = (c * ksize * ksize + i * ksize + j) * out_height * out_width;
-                output[output_channel_offset + output_index] = shared_input[local_row * shared_width + local_col];
-            }
-        }
-    }
-}
-
-void im2col_gpu(float* data_im, float* data_col, int channels, int h, int w, int ksize, int stride, int pad, int out_h, int out_w) {
+void im2col_gpu_shared_memory_and_slower(float* data_im, float* data_col, int channels, int h, int w, int ksize, int stride, int pad, int out_h, int out_w) {
     dim3 block_size(16, 16);
     dim3 grid_size((out_w + block_size.x - 1) / block_size.x, (out_h + block_size.y - 1) / block_size.y, channels);
     size_t shared_memory_size = (block_size.x + 2 * pad) * (block_size.y + 2 * pad) * sizeof(float);
-    im2col_kernel KARGS(grid_size, block_size, shared_memory_size) (data_im, data_col, channels, h, w, ksize, stride, pad, out_h, out_w);
+    im2col_kernel_that_uses_shared_memory_but_is_somehow_slower KARGS(grid_size, block_size, shared_memory_size) (data_im, data_col, channels, h, w, ksize, stride, pad, out_h, out_w);
     CHECK_CUDA(cudaPeekAtLastError());
 }
 
 void cuda_test_im2col(void) {
-    int width = 227;
+    int width = 123;
     int height = width;
-    int channels = 3;
+    int channels = 32;
     int pad = 0;
-    int stride = 4;
-    int ksize = 11;
+    int stride = 3;
+    int ksize = 5;
     if (ksize % 2 == 0) {
-        printf("ksize must be even, is %f\n", ksize);
+        printf("ksize must be even, is %d\n", ksize);
         wait_for_key_then_exit();
     }
 
@@ -207,7 +155,7 @@ void cuda_test_im2col(void) {
     cudaEventRecord(start);
 
 
-    im2ex_gpu(d_im, d_col, width, height, channels, out_w, out_h , ksize, stride, pad);
+    im2col_gpu(d_im, d_col, width, height, channels, out_w, out_h , ksize, stride, pad);
 
 
     cudaEventRecord(stop);
@@ -256,25 +204,25 @@ void cuda_test_im2col(void) {
 // src: https://github.com/BVLC/caffe/blob/master/src/caffe/util/im2col.cu
 // You may also want to read: https://github.com/BVLC/caffe/blob/master/LICENSE
 __global__ void col2im_kernel(const float* __restrict__ data_col,
-    const int width_col, const int height_col,
+    const int out_w, const int out_h,
     const int ksize, const int pad, const int stride,
-    const int width, const int height,
+    const int im_w, const int im_h,
     float* __restrict__ data_im,
     const int n) {
 
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     for (; index < n; index += blockDim.x * gridDim.x) {
         float val = 0;
-        int w = index % width + pad;
-        int h = (index / width) % height + pad;
-        int c = index / (width * height);
+        int w = index % im_w + pad;
+        int h = (index / im_w) % im_h + pad;
+        int c = index / (im_w * im_h);
         int w_col_start = (w < ksize) ? 0 : (w - ksize) / stride + 1;
-        int w_col_end = min(w / stride + 1, width_col);
+        int w_col_end = min(w / stride + 1, out_w);
         int h_col_start = (h < ksize) ? 0 : (h - ksize) / stride + 1;
-        int h_col_end = min(h / stride + 1, height_col);
-        int offset = (c * ksize * ksize + h * ksize + w) * height_col * width_col;
-        int coeff_h_col = (1 - stride * ksize * height_col) * width_col;
-        int coeff_w_col = (1 - stride * height_col * width_col);
+        int h_col_end = min(h / stride + 1, out_h);
+        int offset = (c * ksize * ksize + h * ksize + w) * out_h * out_w;
+        int coeff_h_col = (1 - stride * ksize * out_h) * out_w;
+        int coeff_w_col = (1 - stride * out_h * out_w);
         for (int h_col = h_col_start; h_col < h_col_end; ++h_col) {
             for (int w_col = w_col_start; w_col < w_col_end; ++w_col) {
                 val += data_col[offset + h_col * coeff_h_col + w_col * coeff_w_col];
@@ -283,15 +231,9 @@ __global__ void col2im_kernel(const float* __restrict__ data_col,
         data_im[index] += val;
     }
 }
-
-void col2im_gpu(float* data_col, float* data_im, int height, int width, int ksize, int stride, int pad, int n) {
-    int out_size = (width + 2 * pad - ksize) / stride + 1;
+void col2im_gpu(float* data_col, float* data_im, int im_width, int im_height, int out_w, int out_h, int ksize, int stride, int pad, int n) {
     int grid_size = GET_GRIDSIZE(n, BLOCKSIZE);
-    col2im_kernel KARGS(grid_size, BLOCKSIZE) (data_col, out_size, out_size,
-        ksize, pad, stride,
-        height, width,
-        data_im,
-        n);
+    col2im_kernel KARGS(grid_size, BLOCKSIZE) (data_col, out_w, out_h, ksize, pad, stride, im_width, im_height, data_im, n);
     CHECK_CUDA(cudaPeekAtLastError());
 }
 
@@ -327,8 +269,12 @@ void cuda_test_col2im(void) {
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
     cudaEventRecord(start);
+
+
 #pragma warning (suppress:4267)
-    col2im_gpu(d_col, d_im, height, width, ksize, stride, pad, im_n);
+    col2im_gpu(d_col, d_im, height, width, col_size, col_size, ksize, stride, pad, im_n);
+
+
 
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);

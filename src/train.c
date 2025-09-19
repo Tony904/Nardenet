@@ -82,7 +82,6 @@ void train_classifer(network* net) {
 		printf("Learning rate: %f\n", net->current_learning_rate * (float)batch_size);
 		classifier_get_next_batch(net);
 		for (size_t i = 0; i < n_layers; i++) {
-			printf("Forward layer id: %d\n", layers[i].id);
 			layers[i].forward(&layers[i], net);
 		}
 		if (net->regularization != REG_NONE) {
