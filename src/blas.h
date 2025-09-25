@@ -7,8 +7,8 @@
 extern "C" {
 #endif
 
-	void add_biases(float* output, float* biases, size_t F, size_t S, size_t batch_size);
-	void get_bias_grads(float* bias_grads, float* grads, size_t F, size_t S, size_t batch_size);
+	void add_biases(float* output, float* biases, size_t n_filters, size_t spatial, size_t batch_size);
+	void get_bias_grads(float* bias_grads, float* grads, size_t n_filters, size_t spatial, size_t batch_size);
 	void fill_array(float* arr, size_t size, float val);
 	void fill_array_increment(float* arr, size_t size, float start_val, float increment);
 	void fill_array_rand_float(float* arr, size_t size, double mean, double sdev);

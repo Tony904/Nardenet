@@ -20,14 +20,13 @@ void add_biases(float* output, float* biases, size_t n_filters, size_t spatial, 
 }
 
 void get_bias_grads(float* bias_grads, float* grads, size_t n_filters, size_t spatial, size_t batch_size) {
-	size_t B = batch_size;
 	size_t out_n = n_filters * spatial;
 	size_t f;
-#pragma omp parallel for firstprivate(out_n, spatial)
+#pragma omp parallel for firstprivate(out_n, spatial, batch_size)
 	for (f = 0; f < n_filters; f++) {
 		float sum = 0.0F;
 		size_t fS = f * spatial;
-		for (size_t b = 0; b < B; b++) {
+		for (size_t b = 0; b < batch_size; b++) {
 			size_t offset = b * out_n + fS;
 			for (size_t s = 0; s < spatial; s++) {
 				sum += grads[offset + s];

@@ -91,7 +91,6 @@ __global__ void get_bias_grads_kernel(float* bias_grads, float* grads, int spati
 }
 void get_bias_grads_gpu(float* bias_grads, float* grads, int n_filters, int spatial, int batch_size) {
 	get_bias_grads_kernel2 KARGS(n_filters, BLOCKSIZE) (bias_grads, grads, spatial, batch_size);
-	CHECK_CUDA(cudaDeviceSynchronize());
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 

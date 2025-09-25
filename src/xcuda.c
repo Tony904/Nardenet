@@ -54,7 +54,7 @@ void compare_cpu_gpu_arrays(float* cpu_array, float* gpu_array, size_t size, int
     }
     CUDA_MEMCPY_D2H(buff, gpu_array, size * sizeof(float));
 
-    float epsilon = 1e-4f;
+    float epsilon = 1e-5f;
     size_t zero_count = 0;
     for (size_t i = 0; i < size; i++) {
         //printf("%f =? %f\n", cpu_array[i], buff[i]);
@@ -62,8 +62,7 @@ void compare_cpu_gpu_arrays(float* cpu_array, float* gpu_array, size_t size, int
             printf("[CPU/GPU COMPARE - (layer id=%d) %s]\n", layer_id, text);
             printf("Large delta found: i = %zu, (cpu)%f, (gpu)%f\n", i, cpu_array[i], buff[i]);
             printf("zero count: %zu\r", zero_count);
-            free(buff);
-            wait_for_key_then_exit();
+            wait_for_key_then_continue();
         }
         if (cpu_array[i] == 0.0F && buff[i] == 0.0F) {
             zero_count++;
