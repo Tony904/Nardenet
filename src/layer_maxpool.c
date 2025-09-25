@@ -186,14 +186,13 @@ void forward_maxpool_gpu(layer* l, network* net) {
 			layer* inl = l->in_layers[i];
 			int inl_out_c = (int)inl->out_c;
 			float* inl_output = &inl->gpu.output[bwh * inl_out_c];
-			//float* src, float* dst, float** max_ptrs, int src_w, int src_h, int dst_w, int dst_h, int dst_n
-			launch_forward_maxpool_general_kernel(inl_output, b_output, b_max_ptrs, w, h, out_w, out_h, out_n, ksize, stride);
-			// shift pointers by the size of the output of the input layer that was just processed
+			float* inl_grads = &inl->gpu.grads[bwh * inl_out_c];
+			launch_forward_maxpool_general_kernel(inl_output, b_output, inl_grads, b_max_ptrs, w, h, out_w, out_h, out_n, ksize, stride);
 			b_output += out_wh * inl_out_c;
 			b_max_ptrs += out_wh * inl_out_c;
 		}
 	}
-	if (net->training) zero_array_gpu(l->gpu.grads, (int)(l->out_n * batch_size));
+	if (net->training) zero_array_gpu(l->gpu.grads, out_n * batch_size);
 }
 
 void backward_maxpool_gpu(layer* l, network* net) {

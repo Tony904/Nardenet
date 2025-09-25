@@ -33,7 +33,7 @@ void get_bias_grads(float* bias_grads, float* grads, size_t n_filters, size_t sp
 				sum += grads[offset + s];
 			}
 		}
-		bias_grads[f] += sum;  // += because they will be divided by batch size during update step
+		bias_grads[f] = sum;  // divided by batch size during update step
 	}
 }
 

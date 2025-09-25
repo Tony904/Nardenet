@@ -1,6 +1,7 @@
 #include "activations.h"
 
 
+
 void activate_relu(float* Z, float* output, size_t out_n, size_t batch_size) {
 	size_t n = out_n * batch_size;
 	size_t i;

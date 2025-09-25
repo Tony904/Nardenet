@@ -16,35 +16,59 @@
 
 
 
-__global__ void add_biases_kernel(float* output, int spatial, float* biases) {
-	__shared__ float bias;
+__global__ void add_biases_kernel(float* output, int spatial, float* biases, int n_filters, int n) {
+	const int index = blockIdx.x * blockDim.x + threadIdx.x;
+	if (index >= n) return;
 
-	int channel = blockIdx.x;
-	if (threadIdx.x == 0) bias = biases[channel];
-	__syncthreads();
-
-	int offset = channel * spatial;
-	int i = threadIdx.x + blockIdx.x * blockDim.x;
-	for (; i < spatial; i += blockDim.x) output[offset + i] += bias;
+	int f = (index / spatial) % n_filters;
+	output[index] += biases[f];
 }
 void add_biases_gpu(float* output, float* biases, int n_filters, int spatial, int batch_size) {
-	add_biases_kernel KARGS(n_filters * batch_size, BLOCKSIZE) (output, spatial, biases);
+	int n = n_filters * spatial * batch_size;
+	int grid_size = GET_GRIDSIZE(n, BLOCKSIZE);
+	add_biases_kernel KARGS(grid_size, BLOCKSIZE) (output, spatial, biases, n_filters, n);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
 
-__global__ void get_bias_grads_kernel(float* bias_grads, float* grads, int spatial) {
+__global__ void get_bias_grads_kernel2(float* bias_grads, float* grads, int spatial, int batch_size) {
+	__shared__ float shared[BLOCKSIZE];
+
+	int tid = threadIdx.x;
+	int filter = blockIdx.x;
+
+	float thread_sum = 0.0F;
+	for (int b = 0; b < batch_size; b++) {
+		int offset = (b * gridDim.x + filter) * spatial;
+		for (int s = tid; s < spatial; s += BLOCKSIZE) {
+			thread_sum += grads[offset + s];
+		}
+	}
+	shared[tid] = thread_sum;
+	__syncthreads();
+
+	if (tid == 0) {
+		for (int i = 0; i < BLOCKSIZE; i++) {
+			bias_grads[filter] += shared[i];
+		}
+	}
+	
+}
+
+__global__ void get_bias_grads_kernel(float* bias_grads, float* grads, int spatial, int batch_size) {
 	__shared__ float shared[BLOCKSIZE >> 5];
 
 	int tid = threadIdx.x;
-	int channel = blockIdx.x;
+	int filter = blockIdx.x;
 	int lane = threadIdx.x & 31;
 	int warp_id = threadIdx.x >> 5;
 
 	float thread_sum = 0.0F;
-	int offset = channel * spatial;
-	for (int s = tid; s < spatial; s += BLOCKSIZE) {
-		thread_sum += grads[offset + s];
+	for (int b = 0; b < batch_size; b++) {
+		int offset = (b * gridDim.x + filter) * spatial;
+		for (int s = tid; s < spatial; s += BLOCKSIZE) {
+			thread_sum += grads[offset + s];
+		}
 	}
 
 	for (int offset = 16; offset > 0; offset >>= 1) {
@@ -61,12 +85,13 @@ __global__ void get_bias_grads_kernel(float* bias_grads, float* grads, int spati
 			sum += __shfl_down_sync(0xffffffff, sum, offset);
 		}
 		if (tid == 0) {
-			bias_grads[channel] = sum;
+			bias_grads[filter] = sum;
 		}
 	}
 }
 void get_bias_grads_gpu(float* bias_grads, float* grads, int n_filters, int spatial, int batch_size) {
-	get_bias_grads_kernel KARGS(n_filters * batch_size, BLOCKSIZE) (bias_grads, grads, spatial);
+	get_bias_grads_kernel2 KARGS(n_filters, BLOCKSIZE) (bias_grads, grads, spatial, batch_size);
+	CHECK_CUDA(cudaDeviceSynchronize());
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 

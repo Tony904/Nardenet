@@ -11,6 +11,7 @@ extern "C" {
 
 	void forward_classify(layer* l, network* net);
 	void forward_classify_gpu(layer* l, network* net);
+	void forward_classify_cpu_gpu_compare(layer* l, network* net);
 
 #ifdef __cplusplus
 }

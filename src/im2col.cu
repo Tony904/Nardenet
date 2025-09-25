@@ -175,7 +175,7 @@ void cuda_test_im2col(void) {
     CHECK_CUDA(cudaFree(d_im));
 
     float* col_cpu = (float*)xcalloc(dst_n, sizeof(float));
-    im2col(im, channels, height, width, ksize, pad, stride, col_cpu);  // gives known correct result
+    im2col(im, col_cpu, width, height, channels, out_w, out_h, ksize, stride, pad);
 
     printf("Verifiying......\n");
     float epsilon = 1e-5f;
@@ -206,16 +206,16 @@ void cuda_test_im2col(void) {
 __global__ void col2im_kernel(const float* __restrict__ data_col,
     const int out_w, const int out_h,
     const int ksize, const int pad, const int stride,
-    const int im_w, const int im_h,
+    const int width, const int height,
     float* __restrict__ data_im,
     const int n) {
 
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     for (; index < n; index += blockDim.x * gridDim.x) {
         float val = 0;
-        int w = index % im_w + pad;
-        int h = (index / im_w) % im_h + pad;
-        int c = index / (im_w * im_h);
+        int w = index % width + pad;
+        int h = (index / width) % height + pad;
+        int c = index / (width * height);
         int w_col_start = (w < ksize) ? 0 : (w - ksize) / stride + 1;
         int w_col_end = min(w / stride + 1, out_w);
         int h_col_start = (h < ksize) ? 0 : (h - ksize) / stride + 1;
@@ -249,8 +249,9 @@ void cuda_test_col2im(void) {
     size_t pad = 1;
     size_t stride = 1;
     size_t ksize = 3;
-    size_t col_size = (width + 2 * pad - ksize) / stride + 1; // square image
-    size_t col_n = ksize * ksize * channels * col_size * col_size;
+    size_t out_w = (width + 2 * pad - ksize) / stride + 1;
+    size_t out_h = out_w; // square image
+    size_t col_n = ksize * ksize * channels * out_w * out_h;
     float* col = (float*)xmalloc(col_n * sizeof(float));
     fill_array_rand_float(col, col_n, 0., 1.);
 
@@ -262,32 +263,15 @@ void cuda_test_col2im(void) {
 
     CHECK_CUDA(cudaMalloc(&d_im, im_n * sizeof(float)));
     CHECK_CUDA(cudaMalloc(&d_col, col_n * sizeof(float)));
-
     CHECK_CUDA(cudaMemcpy(d_col, col, sizeof(float) * col_n, cudaMemcpyHostToDevice));
-
-    cudaEvent_t start, stop;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
-    cudaEventRecord(start);
 
 
 #pragma warning (suppress:4267)
-    col2im_gpu(d_col, d_im, height, width, col_size, col_size, ksize, stride, pad, im_n);
+    col2im_gpu(d_col, d_im, height, width, out_w, out_h, ksize, stride, pad, im_n);
 
-
-
-    cudaEventRecord(stop);
-    cudaEventSynchronize(stop);
-    float milliseconds = 0;
-    cudaEventElapsedTime(&milliseconds, start, stop);
-    printf("col2im kernel execution time: %f ms\n", milliseconds);
-    cudaEventDestroy(start);
-    cudaEventDestroy(stop);
 
     CHECK_CUDA(cudaGetLastError());
-
     CHECK_CUDA(cudaDeviceSynchronize());
-
     CHECK_CUDA(cudaMemcpy(im, d_im, sizeof(float) * im_n, cudaMemcpyDeviceToHost));
     CHECK_CUDA(cudaFree(d_col));
     CHECK_CUDA(cudaFree(d_im));
@@ -295,13 +279,13 @@ void cuda_test_col2im(void) {
     //pprint_mat(col, dst_w, dst_h, 1);
     float* im_cpu = (float*)xcalloc(im_n, sizeof(float));
 #pragma warning (suppress:4267)
-    col2im(col, channels, height, width, ksize, pad, stride, im_cpu);
+    col2im(col, im_cpu, width, height, channels, out_w, out_h, ksize, stride, pad);
 
     float epsilon = 1e-5f;
     size_t zero_count = 0;
     printf("Verifiying......\n");
     for (size_t i = 0; i < im_n; i++) {
-        //printf("%f =? %f\n", col_cpu[i], col[i]);
+        //printf("%f =? %f\n", im_cpu[i], im[i]);
         if (fabs(im_cpu[i] - im[i]) > epsilon) {
             printf("Verification Failed: i = %zu, (im_cpu)%f != (im_gpu)%f\n", i, im_cpu[i], im[i]);
             wait_for_key_then_exit();

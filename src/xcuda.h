@@ -40,7 +40,8 @@ extern "C" {
 
 
 	void print_gpu_props(void);
-	void print_gpu_float_array(float* gpu_array, size_t size);
+	void print_gpu_float_array(float* gpu_array, size_t size, char* text);
+	void compare_cpu_gpu_arrays(float* cpu_array, float* gpu_array, size_t size, int layer_id, char* text);
 
 	// blas.cu
 	void add_biases_gpu(float* output, float* biases, int n_filters, int spatial, int batch_size);
@@ -61,8 +62,8 @@ extern "C" {
 	void launch_backward_avgpool_kernel(float* grads_x, float* grads_y, int spatial, int c, int batch_size);
 
 	// maxpool.cu
-	void launch_forward_maxpool_general_kernel(float* src, float* dst, float** max_ptrs, int src_w, int src_h, int dst_w, int dst_h, int dst_n, int ksize, int stride);
-	void launch_forward_maxpool_standard_kernel(float* src, float* dst, float** max_ptrs, int src_w, int src_h, int dst_w, int dst_h, int dst_n);
+	void launch_forward_maxpool_general_kernel(float* input, float* output, float* grads, float** max_ptrs, int src_w, int src_h, int dst_w, int dst_h, int dst_n, int ksize, int stride);
+	void launch_forward_maxpool_standard_kernel(float* input, float* output, float* grads, float** max_ptrs, int src_w, int src_h, int dst_w, int dst_h, int dst_n);
 	void launch_backward_maxpool_kernel(float* grads, float** max_ptrs, int n);
 
 	// upsample.cu
@@ -79,8 +80,8 @@ extern "C" {
 	void regularize_l2_gpu(float* weight_grads, float* weights, size_t size, float decay);
 
 	// im2col.cu
-	void im2col_gpu(float* data_im, float* data_col, int im_w, int im_h, int im_c, int out_w, int out_h, int ksize, int stride, int pad);
-	void col2im_gpu(float* data_col, float* data_im, int im_w, int im_h, int out_w, int out_h, int ksize, int stride, int pad, int n);
+	void im2col_gpu(float* data_im, float* data_col, int w, int h, int c, int out_w, int out_h, int ksize, int stride, int pad);
+	void col2im_gpu(float* data_col, float* data_im, int w, int h, int out_w, int out_h, int ksize, int stride, int pad, int n);
 
 	// gemm.cu
 	void gemm_gpu(int M, int N, int K, float* A, float* B, float* C, int n_groups);
@@ -110,6 +111,7 @@ extern "C" {
 	void activate_tanh_gpu(float* Z, float* output, size_t out_n, size_t batch_size);
 	void activate_softmax_gpu(float* Z, float* output, size_t size, size_t batch_size);
 	void test_activate_softmax_gpu(void);
+
 
 #endif  // GPU
 

@@ -36,6 +36,8 @@ extern "C" {
     void get_activation_grads(layer* l, size_t batch_size);
     void get_activation_grads_gpu(layer* l, size_t batch_size);
 
+    void activate(float* Z, float* output, size_t out_n, size_t batch_size, ACTIVATION act, int use_gpu);
+
     void print_layers(network* net);
     void print_layer(layer* l);
     void print_network(network* net);

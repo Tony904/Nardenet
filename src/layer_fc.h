@@ -14,6 +14,9 @@ extern "C" {
 	void forward_fc_gpu(layer* l, network* net);
 	void backward_fc_gpu(layer* l, network* net);
 
+	void forward_fc_cpu_gpu_compare(layer* l, network* net);
+	void backward_fc_cpu_gpu_compare(layer* l, network* net);
+
 #ifdef __cplusplus
 }
 #endif

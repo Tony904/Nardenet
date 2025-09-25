@@ -56,7 +56,7 @@ __global__ void forward_maxpool_even_dst_wh_k2s2_kernel(float* src, float* dst, 
 	}
 }
 
-__global__ void forward_maxpool_general_kernel(float* src, float* dst, float** max_ptrs, int src_w, int src_h, int dst_w, int dst_h, int dst_n, int ksize, int stride) {
+__global__ void forward_maxpool_general_kernel(float* src, float* dst, float* grads, float** max_ptrs, int src_w, int src_h, int dst_w, int dst_h, int dst_n, int ksize, int stride) {
 	int gtid = threadIdx.x + blockIdx.x * blockDim.x;
 
 	if (gtid < dst_n) {
@@ -67,7 +67,7 @@ __global__ void forward_maxpool_general_kernel(float* src, float* dst, float** m
 		int dst_col = s % dst_w;
 		int src_row = dst_row * stride;
 		int src_col = dst_col * stride;
-		int src_index = ch * (src_w * src_h) + src_w * src_row + src_col;
+		int src_index = ch * (src_w * src_h) + src_row * src_w + src_col;
 
 		float max_val = -FLT_MAX;
 		int max_index = -1;
@@ -87,17 +87,17 @@ __global__ void forward_maxpool_general_kernel(float* src, float* dst, float** m
 		}
 
 		dst[gtid] = max_val;
-		max_ptrs[gtid] = &src[max_index];
+		max_ptrs[gtid] = &grads[max_index];
 	}
 }
-void launch_forward_maxpool_general_kernel(float* src, float* dst, float** max_ptrs, int src_w, int src_h, int dst_w, int dst_h, int dst_n, int ksize, int stride) {
+void launch_forward_maxpool_general_kernel(float* input, float* output, float* grads, float** max_ptrs, int src_w, int src_h, int dst_w, int dst_h, int dst_n, int ksize, int stride) {
 	int grid_size = GET_GRIDSIZE(dst_n, BLOCKSIZE);
-	forward_maxpool_general_kernel KARGS(grid_size, BLOCKSIZE) (src, dst, max_ptrs, src_w, src_h, dst_w, dst_h, dst_n, ksize, stride);
+	forward_maxpool_general_kernel KARGS(grid_size, BLOCKSIZE) (input, output, grads, max_ptrs, src_w, src_h, dst_w, dst_h, dst_n, ksize, stride);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
 // ksize = 2, stride = 2, n = batch_size * dst_n
-__global__ void forward_maxpool_standard_kernel(float* src, float* dst, float** max_ptrs, int src_w, int src_h, int dst_w, int dst_h, int dst_n) {
+__global__ void forward_maxpool_standard_kernel(float* src, float* dst, float* grads, float** max_ptrs, int src_w, int src_h, int dst_w, int dst_h, int dst_n) {
 	int gtid = threadIdx.x + blockIdx.x * blockDim.x;
 
 	if (gtid < dst_n) {
@@ -138,12 +138,12 @@ __global__ void forward_maxpool_standard_kernel(float* src, float* dst, float** 
 		}
 
 		dst[gtid] = max_val;
-		max_ptrs[gtid] = &src[max_index];
+		max_ptrs[gtid] = &grads[max_index];
 	}
 }
-void launch_forward_maxpool_standard_kernel(float* src, float* dst, float** max_ptrs, int src_w, int src_h, int dst_w, int dst_h, int dst_n) {
+void launch_forward_maxpool_standard_kernel(float* src, float* dst, float* grads, float** max_ptrs, int src_w, int src_h, int dst_w, int dst_h, int dst_n) {
 	int grid_size = GET_GRIDSIZE(dst_n, BLOCKSIZE);
-	forward_maxpool_standard_kernel KARGS(grid_size, BLOCKSIZE) (src, dst, max_ptrs, src_w, src_h, dst_w, dst_h, dst_n);
+	forward_maxpool_standard_kernel KARGS(grid_size, BLOCKSIZE) (src, dst, grads, max_ptrs, src_w, src_h, dst_w, dst_h, dst_n);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 

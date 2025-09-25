@@ -96,6 +96,7 @@ void copy_to_cfg(cfg* c, char** tokens, char* header) {
 	size_t t = tokens_length(tokens);
 	if (t < 2) {
 		printf("Error. Tokens must have a minimum length of 2, has %zu.\n", t);
+		printf("Tokens %s\n", *tokens);
 		wait_for_key_then_exit();
 	}
 	char* k = tokens[0];
@@ -202,6 +203,7 @@ void copy_to_cfg_layer(cfg_layer* l, char** tokens, cfg* c) {
 	size_t t = tokens_length(tokens);
 	if (t < 2) {
 		printf("Error. Tokens must have a minimum length of 2, has %zu.\n", t);
+		printf("Tokens %s\n", *tokens);
 		wait_for_key_then_exit();
 	}
 	char* k = tokens[0];

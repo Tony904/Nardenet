@@ -10,14 +10,18 @@
 
 
 int main(void) {
+#ifdef _DEBUG
+	cudaSetDeviceFlags(cudaDeviceScheduleBlockingSync);
+#endif
+
 	//srand(time(NULL));
 	srand(7777777);
-
 	activate_xalloc_tracking();
-	char* cfgfile = "C:\\Users\\TNard\\OneDrive\\Desktop\\dev\\Nardenet\\cfg\\testing.cfg";
+	char* cfgfile = "C:\\Users\\TNard\\OneDrive\\Desktop\\dev\\Nardenet\\cfg\\testing2.cfg";
 	network* net = create_network_from_cfg(cfgfile);
 	train(net);
 	//free_network(net);
+
 	
 	//print_alloc_list();
 

@@ -30,7 +30,8 @@ __device__ __forceinline__ float mish_x_kernel(float x, float thresh) { return x
 
 __global__ void activate_relu_kernel(float* Z, float* output, int n) {
 	int gtid = threadIdx.x + blockIdx.x * blockDim.x;
-	if (gtid < n) output[gtid] = relu_x_kernel(Z[gtid]);
+	//if (gtid < n) output[gtid] = relu_x_kernel(Z[gtid]);
+	if (gtid < n) output[gtid] = (Z[gtid]) * (Z[gtid] > 0.0F);
 }
 void activate_relu_gpu(float* Z, float* output, size_t out_n, size_t batch_size) {
 	int n = (int)(out_n * batch_size);

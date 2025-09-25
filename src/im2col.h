@@ -6,14 +6,14 @@
 extern "C" {
 #endif
 
-	void im2col(float* data_im, int channels,
-		int height, int width, int ksize,
-		int pad, int stride,
-		float* data_col);
-	void col2im(float* data_col,
-		int channels, int height, int width,
-		int kernel_size, int pad, int stride,
-		float* data_im);
+	void im2col(float* data_im, float* data_col,
+		int im_w, int im_h, int im_channels,
+		int out_w, int out_h,
+		int ksize, int stride, int pad);
+	void col2im(float* data_col, float* data_im,
+		int im_w, int im_h, int im_channels,
+		int out_w, int out_h,
+		int ksize, int stride, int pad);
 	void test_col2im(void);
 	void test_im2col(void);
 

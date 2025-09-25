@@ -53,7 +53,7 @@ void get_grads_mish_gpu(float* grads, float* act_inputs, int out_n, int batch_si
 
 __global__ void grads_relu_kernel(float* grads, float* act_inputs, int n) {
 	int i = threadIdx.x + blockIdx.x * blockDim.x;
-	if (i < n) grads[i] *= (act_inputs[i] > 0);
+	if (i < n) grads[i] *= (act_inputs[i] > 0.0F);
 }
 void get_grads_relu_gpu(float* grads, float* act_inputs, int out_n, int batch_size) {
 	int n = out_n * batch_size;

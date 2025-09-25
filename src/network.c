@@ -130,6 +130,7 @@ void build_conv_layer(int i, network* net) {
 	layer* ls = net->layers;
 	l->id = i;
 	if (l->n_groups < 1) l->n_groups = 1;
+	if (l->stride < 1) l->stride = 1;
 	if (l->n_filters % l->n_groups > 0) {
 		printf("Cannot evenly distribute %zu filters between %zu groups. (layer %d)\n", l->n_filters, l->n_groups, i);
 		wait_for_key_then_exit();
@@ -257,7 +258,12 @@ void build_conv_layer(int i, network* net) {
 		l->gpu.output = l->gpu.act_inputs;
 	}
 	
-	if (net->use_gpu) {
+	if (net->use_gpu == 2) {
+		l->forward = forward_conv_cpu_gpu_compare;
+		l->backward = backward_conv_cpu_gpu_compare;
+		l->update = update_conv_cpu_gpu_compare;
+	}
+	else if (net->use_gpu == 1) {
 		l->forward = forward_conv_gpu;
 		l->backward = backward_conv_gpu;
 		l->update = update_conv_gpu;
@@ -380,7 +386,12 @@ void build_fc_layer(int i, network* net) {
 		l->gpu.output = l->gpu.act_inputs;
 	}
 
-	if (net->use_gpu) {
+	if (net->use_gpu == 2) {
+		l->forward = forward_fc_cpu_gpu_compare;
+		l->backward = backward_fc_cpu_gpu_compare;
+		l->update = update_conv_cpu_gpu_compare;
+	}
+	else if (net->use_gpu == 1) {
 		l->forward = forward_fc_gpu;
 		l->backward = backward_fc_gpu;
 		l->update = update_conv_gpu;
@@ -461,7 +472,8 @@ void build_classify_layer(int i, network* net) {
 		CUDA_MALLOC(&l->gpu.loss, sizeof(float));
 	}
 
-	if (net->use_gpu) l->forward = forward_classify_gpu;
+	if (net->use_gpu == 2) l->forward = forward_classify_cpu_gpu_compare;
+	else if (net->use_gpu == 1) l->forward = forward_classify_gpu;
 	else l->forward = forward_classify;
 	l->backward = backward_none;  // all backprop stuff is done in forward pass
 	l->update = update_none;
@@ -1047,6 +1059,61 @@ void set_activate(layer* l, int use_gpu) {
 			break;
 		default:
 			l->activate = activate_none;
+		}
+	}
+}
+
+void activate(float* Z, float* output, size_t out_n, size_t batch_size, ACTIVATION act, int use_gpu) {
+	if (use_gpu) {
+#ifndef GPU
+		gpu_not_defined();
+#else
+		switch (act) {
+		case ACT_RELU:
+			activate_relu_gpu(Z, output, out_n, batch_size);
+			break;
+		case ACT_MISH:
+			activate_mish_gpu(Z, output, out_n, batch_size);
+			break;
+		case ACT_SIGMOID:
+			activate_sigmoid_gpu(Z, output, out_n, batch_size);
+			break;
+		case ACT_LEAKY:
+			activate_leaky_relu_gpu(Z, output, out_n, batch_size);
+			break;
+		case ACT_TANH:
+			activate_tanh_gpu(Z, output, out_n, batch_size);
+			break;
+		case ACT_SOFTMAX:
+			activate_softmax_gpu(Z, output, out_n, batch_size);
+			break;
+		default:
+			activate_none(Z, output, out_n, batch_size);
+		}
+#endif
+	}
+	else {
+		switch (act) {
+		case ACT_RELU:
+			activate_relu(Z, output, out_n, batch_size);
+			break;
+		case ACT_MISH:
+			activate_mish(Z, output, out_n, batch_size);
+			break;
+		case ACT_SIGMOID:
+			activate_sigmoid(Z, output, out_n, batch_size);
+			break;
+		case ACT_LEAKY:
+			activate_leaky_relu(Z, output, out_n, batch_size);
+			break;
+		case ACT_TANH:
+			activate_tanh(Z, output, out_n, batch_size);
+			break;
+		case ACT_SOFTMAX:
+			activate_softmax(Z, output, out_n, batch_size);
+			break;
+		default:
+			activate_none(Z, output, out_n, batch_size);
 		}
 	}
 }

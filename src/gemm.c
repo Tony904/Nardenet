@@ -7,7 +7,11 @@
 void print_test_matrix(size_t rows, size_t cols, size_t channels, float* matrix);
 
 
-void gemm(size_t M, size_t N, size_t K, float* A, float* B, float* C) {
+void gemm(size_t M, size_t N, size_t K, float* A, float* B, float* C, size_t n_groups) {
+	if (n_groups > 1) {
+		gemm_groups(M, N, K, A, B, C, n_groups);
+		return;
+	}
 	/*
 	M = # of filters
 	N = # of patches (# of dot products performed per filter)
@@ -66,7 +70,11 @@ void gemm_groups(size_t M, size_t N, size_t K, float* A, float* B, float* C, siz
 }
 
 /*A[M*K], B[N*K], BT[K*N], C[M*N]*/
-void gemm_atb(size_t M, size_t N, size_t K, float* A, float* B, float* C) {
+void gemm_atb(size_t M, size_t N, size_t K, float* A, float* B, float* C, size_t n_groups) {
+	if (n_groups > 1) {
+		gemm_atb_groups(M, N, K, A, B, C, n_groups);
+		return;
+	}
 	// M = # of filters
 	// N = # of weights per filter
 	// K = # of patches
@@ -121,7 +129,11 @@ void gemm_atb_groups(size_t M, size_t N, size_t K, float* A, float* B, float* C,
 }
 
 /*A[M*N], AT[N*M], B[M*K], C[N*K]*/
-void gemm_tab(size_t M, size_t N, size_t K, float* A, float* B, float* C) {
+void gemm_tab(size_t M, size_t N, size_t K, float* A, float* B, float* C, size_t n_groups) {
+	if (n_groups > 1) {
+		gemm_tab_groups(M, N, K, A, B, C, n_groups);
+		return;
+	}
 	// M = # of filters
 	// N = # of weights per filter
 	// K = # of outputs per filter
@@ -218,7 +230,7 @@ void test_gemm_atb(void) {
 		B[i] = (float)(i + 2);
 	}
 	print_test_matrix(N, K, 1, B);
-	gemm_atb(M, N, K, A, B, C);
+	gemm_atb(M, N, K, A, B, C, 1);
 	print_test_matrix(M, N, 1, C);
 }
 
@@ -257,7 +269,7 @@ void test_gemm_tab(void) {
 	print_test_matrix(M, N, 1, A);
 	for (size_t i = 0; i < M * K; i++) B[i] = (float)(i + 2);
 	print_test_matrix(M, K, 1, B);
-	gemm_tab(M, N, K, A, B, C);
+	gemm_tab(M, N, K, A, B, C, 1);
 	print_test_matrix(N, K, 1, C);
 }
 

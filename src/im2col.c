@@ -10,26 +10,23 @@ inline static int is_a_ge_zero_and_a_lt_b(int aa, int bb) {
 	return (unsigned)(aa) < (unsigned)(bb);
 }
 
-/* channels, height, width are dimensions of input image data_im */
-void im2col(float* data_im, int channels,
-	int height, int width, int ksize,
-	int pad, int stride,
-	float* data_col)
+void im2col(float* data_im, float* data_col,
+	int im_w, int im_h, int im_channels,
+	int out_w, int out_h,
+	int ksize, int stride, int pad)
 {
-	int out_h = (height + 2 * pad - ksize) / stride + 1;
-	int out_w = (width + 2 * pad - ksize) / stride + 1;
 	int out_wh = out_w * out_h;
-	int im_wh = width * height;
+	int im_wh = im_w * im_h;
 	int ch;
-#pragma omp parallel for firstprivate(width, height, out_h, out_w, ksize, pad, stride)
-	for (ch = 0; ch < channels; ch++) {
+#pragma omp parallel for firstprivate(im_w, im_h, out_w, out_h, ksize, pad, stride)
+	for (ch = 0; ch < im_channels; ch++) {
 		float* im = &data_im[ch * im_wh];
 		float* cm = &data_col[ch * out_wh * ksize * ksize];
 		for (int krow = 0; krow < ksize; krow++) {
 			for (int kcol = 0; kcol < ksize; kcol++) {
 				int im_row = krow - pad;
 				for (int out_rows = out_h; out_rows; out_rows--) {
-					if (!is_a_ge_zero_and_a_lt_b(im_row, height)) {
+					if (!is_a_ge_zero_and_a_lt_b(im_row, im_h)) {
 						for (int out_cols = out_w; out_cols; out_cols--) {
 							*(cm++) = 0;
 						}
@@ -37,8 +34,8 @@ void im2col(float* data_im, int channels,
 					else {
 						int im_col = kcol - pad;
 						for (int out_cols = out_w; out_cols; out_cols--) {
-							if (is_a_ge_zero_and_a_lt_b(im_col, width)) {
-								*(cm++) = im[im_row * width + im_col];
+							if (is_a_ge_zero_and_a_lt_b(im_col, im_w)) {
+								*(cm++) = im[im_row * im_w + im_col];
 							}
 							else {
 								*(cm++) = 0;
@@ -73,7 +70,7 @@ void test_im2col(void) {
 		img[i] = (float)(i + 1);
 	}
 	pprint_mat(img, width, height, channels);
-	im2col(img, channels, height, width, ksize, pad, stride, dst);
+	im2col(img, dst, width, height, channels, out_w, out_h, ksize, stride, pad);
 	float* dst0 = dst;
 	dst += dst_w * dst_h;
 	dst[0] = -1;
@@ -130,18 +127,15 @@ void col2im_cpu(const float* data_col,
 	}
 }
 
-/*height and width are of data_im.*/
-void col2im(float* data_col,
-	int channels, int height, int width,
-	int ksize, int pad, int stride,
-	float* data_im)
+void col2im(float* data_col, float* data_im,
+	int w, int h, int channels,
+	int out_w, int out_h,
+	int ksize, int stride, int pad)
 {
-	int out_h = (height + 2 * pad - ksize) / stride + 1;
-	int out_w = (width + 2 * pad - ksize) / stride + 1;
 	int out_wh = out_w * out_h;
-	int im_wh = width * height;
+	int im_wh = w * h;
 	int ch;
-#pragma omp parallel for firstprivate(width, height, out_h, out_w, ksize, pad, stride)
+#pragma omp parallel for firstprivate(w, h, out_w, out_h, ksize, pad, stride)
 	for (ch = 0; ch < channels; ch++) {
 		float* im = &data_im[ch * im_wh];
 		float* cm = &data_col[ch * out_wh * ksize * ksize];
@@ -149,14 +143,14 @@ void col2im(float* data_col,
 			for (int kcol = 0; kcol < ksize; kcol++) {
 				int im_row = krow - pad;
 				for (int out_rows = out_h; out_rows; out_rows--) {
-					if (!is_a_ge_zero_and_a_lt_b(im_row, height)) {
+					if (!is_a_ge_zero_and_a_lt_b(im_row, h)) {
 						cm += out_w;
 					}
 					else {
 						int im_col = kcol - pad;
 						for (int out_col = out_w; out_col; out_col--) {
-							if (is_a_ge_zero_and_a_lt_b(im_col, width)) {
-								im[im_row * width + im_col] += *cm;
+							if (is_a_ge_zero_and_a_lt_b(im_col, w)) {
+								im[im_row * w + im_col] += *cm;
 							}
 							cm++;
 							im_col += stride;

@@ -541,7 +541,8 @@ void print_str_array(char** strs, size_t count) {
 	}
 }
 
-void print_float_array(float* array, size_t size) {
+void print_float_array(float* array, size_t size, char* text) {
+	printf("%s\n", text);
 	for (size_t i = 0; i < size; i++) {
 		printf("%f\n", array[i]);
 	}
@@ -589,6 +590,11 @@ void wait_for_key_then_exit(void) {
 	printf("\n\nPress ENTER to exit the program.");
 	(void)getchar();
 	exit(EXIT_FAILURE);
+}
+
+void wait_for_key_then_continue(void) {
+	printf("\n\nPress ENTER to continue the program.");
+	(void)getchar();
 }
 
 static void print_error_and_exit(const char* const filename) {

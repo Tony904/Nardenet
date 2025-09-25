@@ -1,5 +1,6 @@
 #include "xcuda.h"
 #include <stdio.h>
+#include <math.h>
 #include "utils.h"
 
 
@@ -27,7 +28,7 @@ void ___cudaMemcpy(void* dst, void* src, size_t size, enum cudaMemcpyKind kind, 
     ___check_cuda(cudaMemcpy(dst, src, size, kind), filename, funcname, line, time);
 }
 
-void print_gpu_float_array(float* gpu_array, size_t size) {
+void print_gpu_float_array(float* gpu_array, size_t size, char* text) {
     float* buff = (float*)calloc(size, sizeof(float));
     if (!buff) {
         printf("calloc error");
@@ -35,11 +36,39 @@ void print_gpu_float_array(float* gpu_array, size_t size) {
         wait_for_key_then_exit();
     }
     CUDA_MEMCPY_D2H(buff, gpu_array, size * sizeof(float));
+    printf("%s\n", text);
     printf("[GPU array]\n");
     for (size_t i = 0; i < size; i++) {
         printf("%f\n", buff[i]);
     }
     printf("[End GPU array]\n");
+    free(buff);
+}
+
+void compare_cpu_gpu_arrays(float* cpu_array, float* gpu_array, size_t size, int layer_id, char* text) {
+    float* buff = (float*)calloc(size, sizeof(float));
+    if (!buff) {
+        printf("calloc error");
+        print_location(NARDENET_LOCATION);
+        wait_for_key_then_exit();
+    }
+    CUDA_MEMCPY_D2H(buff, gpu_array, size * sizeof(float));
+
+    float epsilon = 1e-4f;
+    size_t zero_count = 0;
+    for (size_t i = 0; i < size; i++) {
+        //printf("%f =? %f\n", cpu_array[i], buff[i]);
+        if (fabsf(cpu_array[i] - buff[i]) > epsilon) {
+            printf("[CPU/GPU COMPARE - (layer id=%d) %s]\n", layer_id, text);
+            printf("Large delta found: i = %zu, (cpu)%f, (gpu)%f\n", i, cpu_array[i], buff[i]);
+            printf("zero count: %zu\r", zero_count);
+            free(buff);
+            wait_for_key_then_exit();
+        }
+        if (cpu_array[i] == 0.0F && buff[i] == 0.0F) {
+            zero_count++;
+        }
+    }
     free(buff);
 }
 

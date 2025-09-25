@@ -32,7 +32,7 @@ void get_grads_relu(float* grads, float* act_inputs, size_t out_n, size_t batch_
 	size_t i;
 #pragma omp parallel for
 	for (i = 0; i < n; i++) {
-		grads[i] *= (act_inputs[i] > 0);
+		grads[i] *= (act_inputs[i] > 0.0F);
 	}
 }
 
