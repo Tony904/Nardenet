@@ -5,6 +5,10 @@
 
 
 
+static cublasHandle_t cublas_handle;
+static int cublas_handle_init = 0;
+
+
 void gpu_not_defined(void) {
     printf("Cannot run GPU code. Install CUDA and compile Nardenet with preprocessor \"GPU\" defined.");
     wait_for_key_then_exit();
@@ -20,12 +24,28 @@ void ___check_cuda(cudaError_t x, const char* const filename, const char* const 
 	}
 }
 
+void ___check_cublas(cublasStatus_t x, const char* const filename, const char* const funcname, const int line, const char* time) {
+    if (x != CUBLAS_STATUS_SUCCESS) {
+        fprintf(stderr, "CUBLAS error: %s\ntime: %s\n", cudaGetErrorString(x), time);
+        print_location(filename, funcname, line);
+        wait_for_key_then_exit();
+    }
+}
+
 void ___cudaMalloc(void** devPtr, size_t size, const char* const filename, const char* const funcname, const int line, const char* time) {
     ___check_cuda(cudaMalloc(devPtr, size), filename, funcname, line, time);
 }
 
 void ___cudaMemcpy(void* dst, void* src, size_t size, enum cudaMemcpyKind kind, const char* const filename, const char* const funcname, const int line, const char* time) {
     ___check_cuda(cudaMemcpy(dst, src, size, kind), filename, funcname, line, time);
+}
+
+cublasHandle_t* get_cublas_handle(void) {
+    if (!cublas_handle_init) {
+        CHECK_CUBLAS(cublasCreate(&cublas_handle));
+        cublas_handle_init = 1;
+    }
+    return &cublas_handle;
 }
 
 void print_gpu_float_array(float* gpu_array, size_t size, char* text) {
@@ -53,15 +73,24 @@ void compare_cpu_gpu_arrays(float* cpu_array, float* gpu_array, size_t size, int
         wait_for_key_then_exit();
     }
     CUDA_MEMCPY_D2H(buff, gpu_array, size * sizeof(float));
-
+    size_t span = 10;
     float epsilon = 1e-5f;
     size_t zero_count = 0;
     for (size_t i = 0; i < size; i++) {
         //printf("%f =? %f\n", cpu_array[i], buff[i]);
         if (fabsf(cpu_array[i] - buff[i]) > epsilon) {
             printf("[CPU/GPU COMPARE - (layer id=%d) %s]\n", layer_id, text);
-            printf("Large delta found: i = %zu, (cpu)%f, (gpu)%f\n", i, cpu_array[i], buff[i]);
+            printf("Large delta found: i = %zu, (cpu)%f | %f(gpu)\n", i, cpu_array[i], buff[i]);
             printf("zero count: %zu\r", zero_count);
+
+            size_t j = max(0, i - span);
+            printf("[+-%zu elements around large delta]\n", span);
+            for (; j <= i + span; j++) {
+                if (j >= size) break;
+                if (j == i) printf("\n[%zu] (cpu)%f | %f(gpu)\n\n", j, cpu_array[j], buff[j]);
+                else printf("[%zu] (cpu)%f | %f(gpu)\n", j, cpu_array[j], buff[j]);
+            }
+            //wait_for_key_then_exit();
             wait_for_key_then_continue();
         }
         if (cpu_array[i] == 0.0F && buff[i] == 0.0F) {
@@ -69,6 +98,22 @@ void compare_cpu_gpu_arrays(float* cpu_array, float* gpu_array, size_t size, int
         }
     }
     free(buff);
+}
+
+void print_cpu_gpu_arrays(float* cpu_array, float* gpu_array, size_t size, char* text) {
+    float* buff = (float*)calloc(size, sizeof(float));
+    if (!buff) {
+        printf("calloc error");
+        print_location(NARDENET_LOCATION);
+        wait_for_key_then_exit();
+    }
+    CUDA_MEMCPY_D2H(buff, gpu_array, size * sizeof(float));
+    printf("%s\n", text);
+    for (size_t i = 0; i < size; i++) {
+        printf("(cpu)%f | %f(gpu)\n", cpu_array[i], buff[i]);
+    }
+    free(buff);
+    wait_for_key_then_continue();
 }
 
 void print_gpu_props(void) {

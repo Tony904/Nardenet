@@ -10,6 +10,7 @@
 
 #ifdef GPU
 #include <cuda_runtime.h>
+#include <cublas_v2.h>
 #include <device_launch_parameters.h>
 #include "locmacro.h"
 #include "image.h"
@@ -29,19 +30,22 @@ extern "C" {
 #define CUDA_MEMCPY_D2H(dst, src, size) gpu_not_defined()
 #else
 	void ___check_cuda(cudaError_t x, const char* const filename, const char* const funcname, const int line, const char* time);
+	void ___check_cublas(cublasStatus_t x, const char* const filename, const char* const funcname, const int line, const char* time);
 	void ___cudaMalloc(void** devPtr, size_t size, const char* const filename, const char* const funcname, const int line, const char* time);
 	void ___cudaMemcpy(void* dst, void* src, size_t size, enum cudaMemcpyKind kind, const char* const filename, const char* const funcname, const int line, const char* time);
 #define CHECK_CUDA(x) ___check_cuda(x, NARDENET_LOCATION, " - " __TIME__)
+#define CHECK_CUBLAS(x) ___check_cublas(x, NARDENET_LOCATION, " - " __TIME__)
 #define CUDA_MALLOC(pPtr, size) ___cudaMalloc(pPtr, size, NARDENET_LOCATION, " - " __TIME__)
 #define CUDA_MEMCPY_H2D(dst, src, size) ___cudaMemcpy(dst, src, size, cudaMemcpyHostToDevice, NARDENET_LOCATION, " - " __TIME__)
 #define CUDA_MEMCPY_D2H(dst, src, size) ___cudaMemcpy(dst, src, size, cudaMemcpyDeviceToHost, NARDENET_LOCATION, " - " __TIME__)
 #define BLOCKSIZE 512
 #define GET_GRIDSIZE(n, blocksize) (n + blocksize - 1) / blocksize
 
-
+	cublasHandle_t* get_cublas_handle(void);
 	void print_gpu_props(void);
 	void print_gpu_float_array(float* gpu_array, size_t size, char* text);
 	void compare_cpu_gpu_arrays(float* cpu_array, float* gpu_array, size_t size, int layer_id, char* text);
+	void print_cpu_gpu_arrays(float* cpu_array, float* gpu_array, size_t size, char* text);
 
 	// blas.cu
 	void add_biases_gpu(float* output, float* biases, int n_filters, int spatial, int batch_size);

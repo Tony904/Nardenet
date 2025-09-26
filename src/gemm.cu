@@ -1,11 +1,11 @@
 #ifdef GPU
 
 #include <stdio.h>
+#include <math.h>
 #include "xcuda.h"
 #include "xallocs.h"
 #include "utils.h"
 #include "gemm.h"
-#include <math.h>
 #include "blas.h"
 
 
@@ -17,7 +17,9 @@
 #define KARGS(...) <<< __VA_ARGS__ >>>
 #endif
 
-
+void gemm_gpu_cublas(int M, int N, int K, float* A, float* B, float* C);
+void gemm_atb_gpu_cublas(int M, int N, int K, float* A, float* B, float* C);
+void gemm_tab_gpu_cublas(int M, int N, int K, float* A, float* B, float* C);
 void print_test_matrix(size_t rows, size_t cols, size_t channels, float* matrix);
 
 
@@ -28,8 +30,7 @@ __global__ void gemm_kernel(
 	const float* __restrict__ A,
 	const float* __restrict__ B,
 	float* __restrict__ C,
-	int M, int N, int K,
-	int A_offset, int B_offset, int C_offset)
+	int M, int N, int K)
 {
 	// Shared memory for A and B tiles
 	__shared__ float A_shared[TILE_SIZE][TILE_SIZE];
@@ -50,8 +51,8 @@ __global__ void gemm_kernel(
 		int B_row = t * TILE_SIZE + threadIdx.y;
 		int B_col = col;
 
-		A_shared[threadIdx.y][threadIdx.x] = (A_row < M && A_col < K) ? A[A_offset + A_row * K + A_col] : 0.0F;
-		B_shared[threadIdx.y][threadIdx.x] = (B_row < K && B_col < N) ? B[B_offset + B_row * N + B_col] : 0.0F;
+		A_shared[threadIdx.y][threadIdx.x] = (A_row < M && A_col < K) ? A[A_row * K + A_col] : 0.0F;
+		B_shared[threadIdx.y][threadIdx.x] = (B_row < K && B_col < N) ? B[B_row * N + B_col] : 0.0F;
 
 		__syncthreads();
 
@@ -65,7 +66,7 @@ __global__ void gemm_kernel(
 
 	// Write the result back to global memory
 	if (row < M && col < N) {
-		C[C_offset + row * N + col] += c_partial;
+		C[row * N + col] += c_partial;
 	}
 }
 
@@ -81,22 +82,44 @@ void gemm_gpu(int M, int N, int K, float* A, float* B, float* C, int n_groups) {
 	if (n_groups > 1) {
 		M = M / n_groups;  // # of filters per group
 		K = K / n_groups;  // # of weights per filter per group
-		dim3 threads(TILE_SIZE, TILE_SIZE);
-		dim3 blocks((N + TILE_SIZE - 1) / TILE_SIZE, (M + TILE_SIZE - 1) / TILE_SIZE);
+		//dim3 threads(TILE_SIZE, TILE_SIZE);
+		//dim3 blocks((N + TILE_SIZE - 1) / TILE_SIZE, (M + TILE_SIZE - 1) / TILE_SIZE);
 		for (int g = 0; g < n_groups; g++) {
 			int a_offset = g * M * K;
 			int b_offset = g * N * K;
 			int c_offset = g * M * N;
-			gemm_kernel KARGS(blocks, threads) (A, B, C, M, N, K, a_offset, b_offset, c_offset);
-			CHECK_CUDA(cudaPeekAtLastError());
+			//gemm_kernel KARGS(blocks, threads) (&A[a_offset], &B[b_offset], &C[c_offset], M, N, K);
+			gemm_gpu_cublas(M, N, K, &A[a_offset], &B[b_offset], &C[c_offset]);
 		}
 	}
 	else {
-		dim3 threads(TILE_SIZE, TILE_SIZE);
-		dim3 blocks((N + TILE_SIZE - 1) / TILE_SIZE, (M + TILE_SIZE - 1) / TILE_SIZE);
-		gemm_kernel KARGS(blocks, threads) (A, B, C, M, N, K, 0, 0, 0);
-		CHECK_CUDA(cudaPeekAtLastError());
+		//dim3 threads(TILE_SIZE, TILE_SIZE);
+		//dim3 blocks((N + TILE_SIZE - 1) / TILE_SIZE, (M + TILE_SIZE - 1) / TILE_SIZE);
+		//gemm_kernel KARGS(blocks, threads) (A, B, C, M, N, K);
+		gemm_gpu_cublas(M, N, K, A, B, C);
 	}
+	CHECK_CUDA(cudaPeekAtLastError());
+}
+
+void gemm_gpu_cublas(int M, int N, int K, float* A, float* B, float* C) {
+	// M = # of filters
+	// N = out_width * out_height
+	// K = # of weights per filter
+	// A = weight matrix (M * K)
+	// B = col'd matrix (im2col) (K * N)
+	// C = outputs (M * N)
+	cublasHandle_t* handle = get_cublas_handle();
+	float alpha = 1.0F;
+	float beta = 0.0F;
+	int lda = K;
+	int ldb = N;
+	int ldc = N;
+	CHECK_CUBLAS(cublasSgemm_v2(*handle, CUBLAS_OP_N, CUBLAS_OP_N, N, M, K,
+		&alpha,
+		B, ldb,
+		A, lda,
+		&beta,
+		C, ldc));
 }
 
 void cuda_test_gemm(void) {
@@ -201,8 +224,7 @@ __global__ void gemm_atb_kernel(
 	const float* __restrict__ A,
 	const float* __restrict__ B,
 	float* __restrict__ C,
-	int M, int N, int K,
-	int A_offset, int B_offset, int C_offset)
+	int M, int N, int K)
 {
 	// Shared memory for A and B tiles
 	__shared__ float A_shared[TILE_SIZE][TILE_SIZE];
@@ -219,13 +241,13 @@ __global__ void gemm_atb_kernel(
 		// Load tile of A into shared memory
 		int A_row = row;
 		int A_col = t * TILE_SIZE + threadIdx.x;
-		A_shared[threadIdx.y][threadIdx.x] = (A_row < M && A_col < K) ? A[A_offset + A_row * K + A_col] : 0.0F;
+		A_shared[threadIdx.y][threadIdx.x] = (A_row < M && A_col < K) ? A[A_row * K + A_col] : 0.0F;
 
 		// Load tile of B into shared memory with transposition
 		// For transposition, we swap row and column when accessing global memory
 		int B_col = t * TILE_SIZE + threadIdx.y; // Transposed row becomes column
 		int B_row = col;                         // Transposed column becomes row
-		B_shared[threadIdx.y][threadIdx.x] = (B_row < N && B_col < K) ? B[B_offset + B_row * K + B_col] : 0.0F;
+		B_shared[threadIdx.y][threadIdx.x] = (B_row < N && B_col < K) ? B[B_row * K + B_col] : 0.0F;
 
 		__syncthreads();
 
@@ -239,7 +261,7 @@ __global__ void gemm_atb_kernel(
 
 	// Write the result back to global memory
 	if (row < M && col < N) {
-		C[C_offset + row * N + col] += c_partial;
+		C[row * N + col] += c_partial;
 	}
 }
 
@@ -253,22 +275,39 @@ void gemm_atb_gpu(int M, int N, int K, float* A, float* B, float* C, int n_group
 	if (n_groups > 1) {
 		M = M / n_groups; // # of filters per group
 		N = N / n_groups; // # of weights per filter per group
-		dim3 threads(TILE_SIZE, TILE_SIZE);
-		dim3 blocks((N + TILE_SIZE - 1) / TILE_SIZE, (M + TILE_SIZE - 1) / TILE_SIZE);
+		//dim3 threads(TILE_SIZE, TILE_SIZE);
+		//dim3 blocks((N + TILE_SIZE - 1) / TILE_SIZE, (M + TILE_SIZE - 1) / TILE_SIZE);
 		for (int g = 0; g < n_groups; g++) {
 			int a_offset = g * M * K;
 			int b_offset = g * N * K;
 			int c_offset = g * M * N;
-			gemm_atb_kernel KARGS(blocks, threads) (A, B, C, M, N, K, a_offset, b_offset, c_offset);
+			//gemm_atb_kernel KARGS(blocks, threads) (&A[a_offset], &B[b_offset], &C[c_offset], M, N, K);
+			gemm_atb_gpu_cublas(M, N, K, &A[a_offset], &B[b_offset], &C[c_offset]);
 		}
 	}
 	else {
-		dim3 threads(TILE_SIZE, TILE_SIZE);
-		dim3 blocks((N + TILE_SIZE - 1) / TILE_SIZE, (M + TILE_SIZE - 1) / TILE_SIZE);
-		gemm_atb_kernel KARGS(blocks, threads) (A, B, C, M, N, K, 0, 0, 0);
+		//dim3 threads(TILE_SIZE, TILE_SIZE);
+		//dim3 blocks((N + TILE_SIZE - 1) / TILE_SIZE, (M + TILE_SIZE - 1) / TILE_SIZE);
+		//gemm_atb_kernel KARGS(blocks, threads) (A, B, C, M, N, K);
+		gemm_atb_gpu_cublas(M, N, K, A, B, C);
 	}
-
 	CHECK_CUDA(cudaPeekAtLastError());
+}
+
+void gemm_atb_gpu_cublas(int M, int N, int K, float* A, float* B, float* C) {
+	// M = # of filters
+	// N = # of weights per filter (as if n_groups = 1)
+	// K = # of outputs per filter
+	// A = M * K (dC/dz grads)
+	// B = N * K -> transpose -> K * N
+	// C = M * N
+	cublasHandle_t* handle = get_cublas_handle();
+	float alpha = 1.0F;
+	float beta = 0.0F;
+	int lda = K;
+	int ldb = K;
+	int ldc = N;
+	CHECK_CUBLAS(cublasSgemm_v2(*handle, CUBLAS_OP_N, CUBLAS_OP_T, N, M, K, &alpha, B, ldb, A, lda, &beta, C, ldc));
 }
 
 void cuda_test_gemm_atb(void) {
@@ -372,8 +411,7 @@ __global__ void gemm_tab_kernel(
 	const float* __restrict__ A,
 	const float* __restrict__ B,
 	float* __restrict__ C,
-	int M, int N, int K,
-	int A_offset, int B_offset, int C_offset)
+	int M, int N, int K)
 {
 	__shared__ float A_shared[TILE_SIZE][TILE_SIZE];
 	__shared__ float B_shared[TILE_SIZE][TILE_SIZE];
@@ -388,12 +426,12 @@ __global__ void gemm_tab_kernel(
 		// For A (transposed):
 		int A_col = t * TILE_SIZE + threadIdx.x;  // M columns
 		int A_row = row;                          // N rows
-		A_shared[threadIdx.y][threadIdx.x] = (A_row < N && A_col < M) ? A[A_offset + A_col * N + A_row] : 0.0F;
+		A_shared[threadIdx.y][threadIdx.x] = (A_row < N && A_col < M) ? A[A_col * N + A_row] : 0.0F;
 
 		// For B:
 		int B_row = t * TILE_SIZE + threadIdx.y;  // M rows
 		int B_col = col;                          // K columns
-		B_shared[threadIdx.y][threadIdx.x] = (B_row < M && B_col < K) ? B[B_offset + B_row * K + B_col] : 0.0F;
+		B_shared[threadIdx.y][threadIdx.x] = (B_row < M && B_col < K) ? B[B_row * K + B_col] : 0.0F;
 
 		__syncthreads();
 
@@ -405,7 +443,7 @@ __global__ void gemm_tab_kernel(
 	}
 
 	if (row < N && col < K) {
-		C[C_offset + row * K + col] += c_partial;
+		C[row * K + col] += c_partial;
 	}
 }
 
@@ -419,22 +457,44 @@ void gemm_tab_gpu(int M, int N, int K, float* A, float* B, float* C, int n_group
 	if (n_groups > 1) {
 		M = M / n_groups; // # of filters per group
 		N = N / n_groups; // # of weights per filter per group
-		dim3 threads(TILE_SIZE, TILE_SIZE);
-		dim3 blocks((K + TILE_SIZE - 1) / TILE_SIZE, (N + TILE_SIZE - 1) / TILE_SIZE);
+		//dim3 threads(TILE_SIZE, TILE_SIZE);
+		//dim3 blocks((K + TILE_SIZE - 1) / TILE_SIZE, (N + TILE_SIZE - 1) / TILE_SIZE);
 		for (int g = 0; g < n_groups; g++) {
 			int a_offset = g * M * N;
 			int b_offset = g * M * K;
 			int c_offset = g * N * K;
-			gemm_tab_kernel KARGS(blocks, threads) (A, B, C, M, N, K, a_offset, b_offset, c_offset);
+			//gemm_tab_kernel KARGS(blocks, threads) (&A[a_offset], &B[b_offset], &C[c_offset], M, N, K);
+			gemm_tab_gpu_cublas(M, N, K, &A[a_offset], &B[b_offset], &C[c_offset]);
 		}
 	}
 	else {
-		dim3 threads(TILE_SIZE, TILE_SIZE);
-		dim3 blocks((K + TILE_SIZE - 1) / TILE_SIZE, (N + TILE_SIZE - 1) / TILE_SIZE);
-		gemm_tab_kernel KARGS(blocks, threads) (A, B, C, M, N, K, 0, 0, 0);
+		//dim3 threads(TILE_SIZE, TILE_SIZE);
+		//dim3 blocks((K + TILE_SIZE - 1) / TILE_SIZE, (N + TILE_SIZE - 1) / TILE_SIZE);
+		//gemm_tab_kernel KARGS(blocks, threads) (A, B, C, M, N, K);
+		gemm_tab_gpu_cublas(M, N, K, A, B, C);
 	}
-
 	CHECK_CUDA(cudaPeekAtLastError());
+}
+
+void gemm_tab_gpu_cublas(int M, int N, int K, float* A, float* B, float* C) {
+	// M = # of weights per filter (as if n_groups = 1)
+	// N = # of outputs per filter
+	// K = # of filters
+	// A = K * M -> transpose -> M * K (weights)
+	// B = K * N (dC/dz grads)
+	// C = M * N (col'd array to go through col2im)
+	cublasHandle_t* handle = get_cublas_handle();
+	float alpha = 1.0F;
+	float beta = 0.0F;
+	int lda = M;
+	int ldb = N;
+	int ldc = N;
+	CHECK_CUBLAS(cublasSgemm_v2(*handle, CUBLAS_OP_T, CUBLAS_OP_N, N, M, K,
+		&alpha,
+		B, ldb,
+		A, lda,
+		&beta,
+		C, ldc));
 }
 
 void cuda_test_gemm_tab(void) {
