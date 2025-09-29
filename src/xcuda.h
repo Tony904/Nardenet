@@ -41,7 +41,7 @@ extern "C" {
 #define BLOCKSIZE 512
 #define GET_GRIDSIZE(n, blocksize) (n + blocksize - 1) / blocksize
 
-	cublasHandle_t* get_cublas_handle(void);
+	cublasHandle_t get_cublas_handle(void);
 	void print_gpu_props(void);
 	void print_gpu_float_array(float* gpu_array, size_t size, char* text);
 	void compare_cpu_gpu_arrays(float* cpu_array, float* gpu_array, size_t size, int layer_id, char* text);

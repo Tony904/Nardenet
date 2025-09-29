@@ -14,6 +14,7 @@ int main(void) {
 	cudaSetDeviceFlags(cudaDeviceScheduleBlockingSync);
 #endif
 
+
 	//srand(time(NULL));
 	srand(7777777);
 	activate_xalloc_tracking();

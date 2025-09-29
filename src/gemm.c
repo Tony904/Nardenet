@@ -77,7 +77,7 @@ void gemm_atb(size_t M, size_t N, size_t K, float* A, float* B, float* C, size_t
 	}
 	// M = # of filters
 	// N = # of weights per filter
-	// K = # of patches
+	// K = # of patches (out_w * out_h)
 	// A = M * K
 	// B = N * K -> transpose -> K * N
 	// C = M * N

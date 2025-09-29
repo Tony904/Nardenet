@@ -596,8 +596,10 @@ void build_residual_layer(int i, network* net) {
 
 	for (size_t j = 1; j < l->in_ids.n; j++) {
 		if (!(l->in_layers[j]->out_w == l->w && l->in_layers[j]->out_h == l->h && l->in_layers[j]->out_c == l->c)) {
+			layer* inl = l->in_layers[j];
 			printf("Inputs to residual layers must have matching dimensions.\n"
-				"Residual layer %d, Input layer %d\n", i, l->in_layers[j]->id);
+				"Residual layer %d, Input layer %d\n", i, inl->id);
+			printf("Residual layer %zux%zux%zu | Input layer %zux%zux%zu\n", l->w, l->h, l->c, inl->out_w, inl->out_h, inl->out_c);
 			wait_for_key_then_exit();
 		}
 	}

@@ -392,7 +392,7 @@ void backward_conv_cpu_gpu_compare(layer* l, network* net) {
 		compare_cpu_gpu_arrays(C_cpu, C_gpu, K * N, l->id, buff);
 
 		gemm_tab(M, N, K, A_cpu, B_cpu, C_cpu, n_groups);
-		gemm_tab_gpu((int)N, (int)K, (int)M, A_gpu, B_gpu, C_gpu, n_groups);
+		gemm_tab_gpu((int)N, (int)K, (int)M, A_gpu, B_gpu, C_gpu, (int)n_groups);
 
 		memset(buff, 0, sizeof(buff));
 		snprintf(buff, BUFFSIZE, "%s%zu", "backward conv, C array (workspace), post-gemm tab, b=", b);

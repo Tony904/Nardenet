@@ -40,12 +40,12 @@ void ___cudaMemcpy(void* dst, void* src, size_t size, enum cudaMemcpyKind kind, 
     ___check_cuda(cudaMemcpy(dst, src, size, kind), filename, funcname, line, time);
 }
 
-cublasHandle_t* get_cublas_handle(void) {
+cublasHandle_t get_cublas_handle(void) {
     if (!cublas_handle_init) {
         CHECK_CUBLAS(cublasCreate(&cublas_handle));
         cublas_handle_init = 1;
     }
-    return &cublas_handle;
+    return cublas_handle;
 }
 
 void print_gpu_float_array(float* gpu_array, size_t size, char* text) {
