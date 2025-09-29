@@ -111,6 +111,12 @@
     <ClCompile Include="src\xcuda.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\blas.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\layer_fc.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\activations.h">
@@ -218,6 +224,12 @@
     <ClInclude Include="src\xcuda.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\blas.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\layer_fc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="src\cpp.hint">
@@ -253,6 +265,12 @@
       <Filter>Source Files</Filter>
     </CudaCompile>
     <CudaCompile Include="src\upsample.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="src\image.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="src\update.cu">
       <Filter>Source Files</Filter>
     </CudaCompile>
   </ItemGroup>
