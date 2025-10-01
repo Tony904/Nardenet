@@ -16,7 +16,7 @@ extern "C" {
 	extern inline float tanh_x(float x) { return (2.0F / (1.0F + expf(-2.0F * x)) - 1.0F); }
 	extern inline float relu_x(float x) { return x * (x > 0.0F); }
 	extern inline float leaky_x(float x) { return x > 0.0F ? x : 0.1F * x; }
-	extern inline float softplus_x(float x, float t) { return (x > t) ? x : (x < -t) ? expf(x) : logf(expf(x) + 1.0F); }
+	extern inline float softplus_x(float x, float t) { return (x > t) ? x : (x < -t) ? expf(x) : log1pf(expf(x)); }
 	extern inline float mish_x(float x, float thresh) { return x * tanh_x(softplus_x(x, thresh)); }
 	void activate_none(float* Z, float* output, size_t size, size_t batch_size);
 	void activate_mish(float* Z, float* output, size_t size, size_t batch_size);

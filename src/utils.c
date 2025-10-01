@@ -103,7 +103,7 @@ char* read_line(FILE* file) {
 	int size = 512;
 	char* line = (char*)xcalloc(size, sizeof(char));
 	if (!fgets(line, size, file)) {  // fgets returns null pointer on fail or end-of-file + no chars read
-		xfree(line);
+		xfree(&line);
 		return 0;
 	}
 	return line;

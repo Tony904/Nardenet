@@ -10,10 +10,10 @@
 extern "C" {
 #endif
 
-	void* ___xcalloc(const size_t num_elements, const size_t size_per_element, const char * const filename, const char * const funcname, const int line);
-	void* ___xmalloc(const size_t num_bytes, const char * filename, const char * const funcname, const int line);
-	void* ___xrealloc(void* existing_mem, const size_t new_num_bytes, const char * const filename, const char * const funcname, const int line);
-	void ___xfree(void* ptr, const char* const filename, const char* const funcname, const int line);
+	void* ___xcalloc(size_t num_elements, size_t size_per_element, const char * const filename, const char * const funcname, const int line);
+	void* ___xmalloc(size_t num_bytes, const char* filename, const char * const funcname, const int line);
+	void* ___xrealloc(void* ptr, size_t new_num_bytes, const char * const filename, const char * const funcname, const int line);
+	void ___xfree(void** pPtr, const char* const filename, const char* const funcname, const int line);
 	void activate_xalloc_tracking(void);
 
 	#define xcalloc(n, s) ___xcalloc(n, s, NARDENET_LOCATION)

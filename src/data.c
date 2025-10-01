@@ -152,9 +152,9 @@ void load_classifier_dataset(classifier_dataset* dataset, char* classes_dir, cha
 	get_random_numbers_no_repeats(dataset->rands, n_classes, 0, n_classes - 1);
 }
 
-void free_classifier_dataset_members(classifier_dataset* dataset) {
+void free_classifier_dataset_fields(classifier_dataset* dataset) {
 	free_class_sets(dataset->sets, dataset->n);
-	xfree(dataset->rands);
+	xfree(&dataset->rands);
 	dataset->n = 0;
 	dataset->ri = 0;
 	dataset->rands = 0;

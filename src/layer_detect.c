@@ -401,7 +401,7 @@ void cull_predictions_and_do_nms(layer* l, network* net) {
 	draw_detections(l->sorted, ndets, &img, net->draw_thresh);
 	////write_image(img, "D:\\TonyDev\\Nardenet\\data\\detector\\test.png");
 	show_image(&img);
-	//xfree(img);
+	//xfree(&img);
 }
 
 void draw_detections(bbox** dets, size_t n_dets, image* img, float thresh) {

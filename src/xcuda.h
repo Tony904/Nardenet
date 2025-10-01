@@ -22,20 +22,25 @@ extern "C" {
 #endif
 
 	void gpu_not_defined(void);
+	void activate_cuda_alloc_tracking(void);
+	void print_cuda_alloc_list(void);
 
 #ifndef GPU
 #define CHECK_CUDA(x) gpu_not_defined()
 #define CUDA_MALLOC(pPtr, size) gpu_not_defined()
+#define CUDA_FREE(p) gpu_not_defined()
 #define CUDA_MEMCPY_H2D(dst, src, size) gpu_not_defined()
 #define CUDA_MEMCPY_D2H(dst, src, size) gpu_not_defined()
 #else
 	void ___check_cuda(cudaError_t x, const char* const filename, const char* const funcname, const int line, const char* time);
 	void ___check_cublas(cublasStatus_t x, const char* const filename, const char* const funcname, const int line, const char* time);
-	void ___cudaMalloc(void** devPtr, size_t size, const char* const filename, const char* const funcname, const int line, const char* time);
+	void ___cudaMalloc(void** devPtr, size_t num_elements, size_t size_per_element, const char* const filename, const char* const funcname, const int line, const char* time);
+	void ___cudaFree(void** devPtr, const char* const filename, const char* const funcname, const int line, const char* time);
 	void ___cudaMemcpy(void* dst, void* src, size_t size, enum cudaMemcpyKind kind, const char* const filename, const char* const funcname, const int line, const char* time);
 #define CHECK_CUDA(x) ___check_cuda(x, NARDENET_LOCATION, " - " __TIME__)
 #define CHECK_CUBLAS(x) ___check_cublas(x, NARDENET_LOCATION, " - " __TIME__)
-#define CUDA_MALLOC(pPtr, size) ___cudaMalloc(pPtr, size, NARDENET_LOCATION, " - " __TIME__)
+#define CUDA_MALLOC(pPtr, n, s) ___cudaMalloc(pPtr, n, s, NARDENET_LOCATION, " - " __TIME__)
+#define CUDA_FREE(p) ___cudaFree(p, NARDENET_LOCATION, " - " __TIME__)
 #define CUDA_MEMCPY_H2D(dst, src, size) ___cudaMemcpy(dst, src, size, cudaMemcpyHostToDevice, NARDENET_LOCATION, " - " __TIME__)
 #define CUDA_MEMCPY_D2H(dst, src, size) ___cudaMemcpy(dst, src, size, cudaMemcpyDeviceToHost, NARDENET_LOCATION, " - " __TIME__)
 #define BLOCKSIZE 512

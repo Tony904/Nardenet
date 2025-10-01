@@ -101,7 +101,7 @@ void train_classifer(network* net) {
 			}
 		}
 	}
-	free_classifier_dataset_members(&net->data.clsr);
+	free_classifier_dataset_fields(&net->data.clsr);
 }
 
 void train_detector(network* net) {

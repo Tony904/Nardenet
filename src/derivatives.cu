@@ -15,7 +15,7 @@
 #endif
 
 
-__device__ __forceinline__ float softplus_x_kernel(float x, float t) { return (x > t) ? x : (x < -t) ? expf(x) : logf(expf(x) + 1.0F); }
+__device__ __forceinline__ float softplus_x_kernel(float x, float t) { return (x > t) ? x : (x < -t) ? expf(x) : log1pf(expf(x)); }
 __device__ __forceinline__ float tanh_x_kernel(float x) { return (2.0F / (1.0F + expf(-2.0F * x)) - 1.0F); }
 
 
@@ -41,7 +41,7 @@ __global__ void grads_mish_kernel(float* grads, float* act_inputs, int n) {
 	float tsp = tanh_x_kernel(sp);
 	float grad_tsp = (1.0F - tsp * tsp) * grad_sp;
 	float grad = inp * grad_tsp + tsp;
-	grads[i] += grad;
+	grads[i] *= grad;
 }
 void get_grads_mish_gpu(float* grads, float* act_inputs, int out_n, int batch_size) {
 	int n = out_n * batch_size;

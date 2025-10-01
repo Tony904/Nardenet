@@ -83,15 +83,15 @@ void load_det_sample(char* antfile, char* imgfile, det_sample* samp) {
 		box->top = box->cy - (box->h * 0.5F);
 		box->right = box->cx + (box->w * 0.5F);
 		box->bottom = box->cy + (box->w * 0.5F);
-		xfree(tokens);
+		xfree(&tokens);
 		n++;
 	}
 	close_filestream(file);
 }
 
 void free_det_sample(det_sample* samp) {
-	xfree(samp->bboxes);
-	xfree(samp);
+	xfree(&samp->bboxes);
+	xfree(&samp);
 }
 
 void print_det_samples(det_sample* samples, size_t count, int print_annotations) {

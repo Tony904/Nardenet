@@ -123,5 +123,5 @@ void write_image_stbi(char* filename, float* data, int w, int h, int c) {
 		printf("Unsupported image format: %s\nPress enter to continue.", ext);
 		(void)getchar();
 	}
-	xfree(ucdata);
+	xfree(&ucdata);
 }

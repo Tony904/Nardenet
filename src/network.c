@@ -46,7 +46,7 @@ size_t get_layer_param_count(layer* l);
 
 void free_network(network* net);
 void free_network_layers(network* net);
-void free_layer_members(layer* l);
+void free_layer_fields(layer* l, network* net);
 
 void print_layer_conv(layer* l);
 void print_layer_classify(layer* l);
@@ -81,7 +81,7 @@ void build_network(network* net) {
 	}
 	net->workspace = (float*)xcalloc(largest_workspace, sizeof(float));
 	if (net->use_gpu) {
-		CUDA_MALLOC(&net->gpu.workspace, largest_workspace * sizeof(float));
+		CUDA_MALLOC(&net->gpu.workspace, largest_workspace, sizeof(float));
 	}
 	net->workspace_size = largest_workspace;
 	net->current_learning_rate = net->learning_rate;
@@ -120,7 +120,7 @@ void build_input_layer(network* net) {
 	l->out_n = l->n;
 	l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 	if (net->use_gpu) {
-		CUDA_MALLOC(&l->gpu.output, l->out_n * net->batch_size * sizeof(float));
+		CUDA_MALLOC(&l->gpu.output, l->out_n * net->batch_size, sizeof(float));
 	}
 }
 
@@ -210,14 +210,14 @@ void build_conv_layer(int i, network* net) {
 	l->weight_velocities = (float*)xcalloc(l->n_weights, sizeof(float));
 	l->bias_velocities = (float*)xcalloc(l->n_filters, sizeof(float));
 	if (net->use_gpu) {
-		CUDA_MALLOC(&l->gpu.Z, l->out_n * net->batch_size * sizeof(float));
-		CUDA_MALLOC(&l->gpu.weights, l->n_weights * sizeof(float));
-		CUDA_MALLOC(&l->gpu.biases, l->n_filters * sizeof(float));
-		CUDA_MALLOC(&l->gpu.grads, l->out_n * net->batch_size * sizeof(float));
-		CUDA_MALLOC(&l->gpu.weight_grads, l->n_weights * sizeof(float));
-		CUDA_MALLOC(&l->gpu.bias_grads, l->n_filters * sizeof(float));
-		CUDA_MALLOC(&l->gpu.weight_velocities, l->n_weights * sizeof(float));
-		CUDA_MALLOC(&l->gpu.bias_velocities, l->n_filters * sizeof(float));
+		CUDA_MALLOC(&l->gpu.Z, l->out_n * net->batch_size, sizeof(float));
+		CUDA_MALLOC(&l->gpu.weights, l->n_weights, sizeof(float));
+		CUDA_MALLOC(&l->gpu.biases, l->n_filters, sizeof(float));
+		CUDA_MALLOC(&l->gpu.grads, l->out_n * net->batch_size, sizeof(float));
+		CUDA_MALLOC(&l->gpu.weight_grads, l->n_weights, sizeof(float));
+		CUDA_MALLOC(&l->gpu.bias_grads, l->n_filters, sizeof(float));
+		CUDA_MALLOC(&l->gpu.weight_velocities, l->n_weights, sizeof(float));
+		CUDA_MALLOC(&l->gpu.bias_velocities, l->n_filters, sizeof(float));
 	}
 	if (l->batchnorm) {
 		l->Z_norm = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
@@ -231,16 +231,16 @@ void build_conv_layer(int i, network* net) {
 		l->rolling_means = (float*)xcalloc(l->n_filters, sizeof(float));
 		l->rolling_variances = (float*)xcalloc(l->n_filters, sizeof(float));
 		if (net->use_gpu) {
-			CUDA_MALLOC(&l->gpu.Z_norm, l->out_n * net->batch_size * sizeof(float));
-			CUDA_MALLOC(&l->gpu.act_inputs, l->out_n * net->batch_size * sizeof(float));
-			CUDA_MALLOC(&l->gpu.means, l->n_filters * sizeof(float));
-			CUDA_MALLOC(&l->gpu.variances, l->n_filters * sizeof(float));
-			CUDA_MALLOC(&l->gpu.gammas, l->n_filters * sizeof(float));
+			CUDA_MALLOC(&l->gpu.Z_norm, l->out_n * net->batch_size, sizeof(float));
+			CUDA_MALLOC(&l->gpu.act_inputs, l->out_n * net->batch_size, sizeof(float));
+			CUDA_MALLOC(&l->gpu.means, l->n_filters, sizeof(float));
+			CUDA_MALLOC(&l->gpu.variances, l->n_filters, sizeof(float));
+			CUDA_MALLOC(&l->gpu.gammas, l->n_filters, sizeof(float));
 			CUDA_MEMCPY_H2D(l->gpu.gammas, l->gammas, l->n_filters * sizeof(float));
-			CUDA_MALLOC(&l->gpu.gamma_grads, l->n_filters * sizeof(float));
-			CUDA_MALLOC(&l->gpu.gamma_velocities, l->n_filters * sizeof(float));
-			CUDA_MALLOC(&l->gpu.rolling_means, l->n_filters * sizeof(float));
-			CUDA_MALLOC(&l->gpu.rolling_variances, l->n_filters * sizeof(float));
+			CUDA_MALLOC(&l->gpu.gamma_grads, l->n_filters, sizeof(float));
+			CUDA_MALLOC(&l->gpu.gamma_velocities, l->n_filters, sizeof(float));
+			CUDA_MALLOC(&l->gpu.rolling_means, l->n_filters, sizeof(float));
+			CUDA_MALLOC(&l->gpu.rolling_variances, l->n_filters, sizeof(float));
 		}
 	}
 	else {
@@ -250,7 +250,7 @@ void build_conv_layer(int i, network* net) {
 	if (l->activation) {
 		l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 		if (net->use_gpu) {
-			CUDA_MALLOC(&l->gpu.output, l->out_n * net->batch_size * sizeof(float));
+			CUDA_MALLOC(&l->gpu.output, l->out_n * net->batch_size, sizeof(float));
 		}
 	}
 	else {
@@ -337,14 +337,14 @@ void build_fc_layer(int i, network* net) {
 	l->weight_velocities = (float*)xcalloc(l->n_weights, sizeof(float));
 	l->bias_velocities = (float*)xcalloc(l->n_filters, sizeof(float));
 	if (net->use_gpu) {
-		CUDA_MALLOC(&l->gpu.Z, l->out_n * net->batch_size * sizeof(float));
-		CUDA_MALLOC(&l->gpu.weights, l->n_weights * sizeof(float));
-		CUDA_MALLOC(&l->gpu.biases, l->n_filters * sizeof(float));
-		CUDA_MALLOC(&l->gpu.grads, l->out_n * net->batch_size * sizeof(float));
-		CUDA_MALLOC(&l->gpu.weight_grads, l->n_weights * sizeof(float));
-		CUDA_MALLOC(&l->gpu.bias_grads, l->n_filters * sizeof(float));
-		CUDA_MALLOC(&l->gpu.weight_velocities, l->n_weights * sizeof(float));
-		CUDA_MALLOC(&l->gpu.bias_velocities, l->n_filters * sizeof(float));
+		CUDA_MALLOC(&l->gpu.Z, l->out_n * net->batch_size, sizeof(float));
+		CUDA_MALLOC(&l->gpu.weights, l->n_weights, sizeof(float));
+		CUDA_MALLOC(&l->gpu.biases, l->n_filters, sizeof(float));
+		CUDA_MALLOC(&l->gpu.grads, l->out_n * net->batch_size, sizeof(float));
+		CUDA_MALLOC(&l->gpu.weight_grads, l->n_weights, sizeof(float));
+		CUDA_MALLOC(&l->gpu.bias_grads, l->n_filters, sizeof(float));
+		CUDA_MALLOC(&l->gpu.weight_velocities, l->n_weights, sizeof(float));
+		CUDA_MALLOC(&l->gpu.bias_velocities, l->n_filters, sizeof(float));
 	}
 	if (l->batchnorm) {
 		l->Z_norm = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
@@ -358,16 +358,16 @@ void build_fc_layer(int i, network* net) {
 		l->rolling_means = (float*)xcalloc(l->n_filters, sizeof(float));
 		l->rolling_variances = (float*)xcalloc(l->n_filters, sizeof(float));
 		if (net->use_gpu) {
-			CUDA_MALLOC(&l->gpu.Z_norm, l->out_n * net->batch_size * sizeof(float));
-			CUDA_MALLOC(&l->gpu.act_inputs, l->out_n * net->batch_size * sizeof(float));
-			CUDA_MALLOC(&l->gpu.means, l->n_filters * sizeof(float));
-			CUDA_MALLOC(&l->gpu.variances, l->n_filters * sizeof(float));
-			CUDA_MALLOC(&l->gpu.gammas, l->n_filters * sizeof(float));
+			CUDA_MALLOC(&l->gpu.Z_norm, l->out_n * net->batch_size, sizeof(float));
+			CUDA_MALLOC(&l->gpu.act_inputs, l->out_n * net->batch_size, sizeof(float));
+			CUDA_MALLOC(&l->gpu.means, l->n_filters, sizeof(float));
+			CUDA_MALLOC(&l->gpu.variances, l->n_filters, sizeof(float));
+			CUDA_MALLOC(&l->gpu.gammas, l->n_filters, sizeof(float));
 			CUDA_MEMCPY_H2D(l->gpu.gammas, l->gammas, l->n_filters * sizeof(float));
-			CUDA_MALLOC(&l->gpu.gamma_grads, l->n_filters * sizeof(float));
-			CUDA_MALLOC(&l->gpu.gamma_velocities, l->n_filters * sizeof(float));
-			CUDA_MALLOC(&l->gpu.rolling_means, l->n_filters * sizeof(float));
-			CUDA_MALLOC(&l->gpu.rolling_variances, l->n_filters * sizeof(float));
+			CUDA_MALLOC(&l->gpu.gamma_grads, l->n_filters, sizeof(float));
+			CUDA_MALLOC(&l->gpu.gamma_velocities, l->n_filters, sizeof(float));
+			CUDA_MALLOC(&l->gpu.rolling_means, l->n_filters, sizeof(float));
+			CUDA_MALLOC(&l->gpu.rolling_variances, l->n_filters, sizeof(float));
 		}
 	}
 	else {
@@ -378,7 +378,7 @@ void build_fc_layer(int i, network* net) {
 	if (l->activation) {
 		l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 		if (net->use_gpu) {
-			CUDA_MALLOC(&l->gpu.output, l->out_n * net->batch_size * sizeof(float));
+			CUDA_MALLOC(&l->gpu.output, l->out_n * net->batch_size, sizeof(float));
 		}
 	}
 	else {
@@ -467,9 +467,9 @@ void build_classify_layer(int i, network* net) {
 	l->truth = (float*)xcalloc(l->n_classes * net->batch_size, sizeof(float));
 	l->errors = (float*)xcalloc(l->n_classes * net->batch_size, sizeof(float));
 	if (net->use_gpu) {
-		CUDA_MALLOC(&l->gpu.truth, l->n_classes * net->batch_size * sizeof(float));
-		CUDA_MALLOC(&l->gpu.errors, l->n_classes * net->batch_size * sizeof(float));
-		CUDA_MALLOC(&l->gpu.loss, sizeof(float));
+		CUDA_MALLOC(&l->gpu.truth, l->n_classes * net->batch_size, sizeof(float));
+		CUDA_MALLOC(&l->gpu.errors, l->n_classes * net->batch_size, sizeof(float));
+		CUDA_MALLOC(&l->gpu.loss, 1, sizeof(float));
 	}
 
 	if (net->use_gpu == 2) l->forward = forward_classify_cpu_gpu_compare;
@@ -539,9 +539,9 @@ void build_maxpool_layer(int i, network* net) {
 	l->grads = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 	l->maxpool_addresses = (float**)xcalloc(l->out_n * net->batch_size, sizeof(float*));
 	if (net->use_gpu) {
-		CUDA_MALLOC(&l->gpu.output, l->out_n * net->batch_size * sizeof(float));
-		CUDA_MALLOC(&l->gpu.grads, l->out_n * net->batch_size * sizeof(float));
-		CUDA_MALLOC((void**)(&l->gpu.maxpool_addresses), l->out_n * net->batch_size * sizeof(float*));
+		CUDA_MALLOC(&l->gpu.output, l->out_n * net->batch_size, sizeof(float));
+		CUDA_MALLOC(&l->gpu.grads, l->out_n * net->batch_size, sizeof(float));
+		CUDA_MALLOC((void**)(&l->gpu.maxpool_addresses), l->out_n * net->batch_size, sizeof(float*));
 	}
 
 	if (net->use_gpu) {
@@ -614,14 +614,14 @@ void build_residual_layer(int i, network* net) {
 	l->act_inputs = l->Z;
 	l->grads = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 	if (net->use_gpu) {
-		CUDA_MALLOC(&l->gpu.Z, l->out_n * net->batch_size * sizeof(float));
+		CUDA_MALLOC(&l->gpu.Z, l->out_n * net->batch_size, sizeof(float));
 		l->gpu.act_inputs = l->gpu.Z;
-		CUDA_MALLOC(&l->gpu.grads, l->out_n * net->batch_size * sizeof(float));
+		CUDA_MALLOC(&l->gpu.grads, l->out_n * net->batch_size, sizeof(float));
 	}
 
 	if (l->activation) {
 		l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-		if (net->use_gpu) CUDA_MALLOC(&l->gpu.output, l->out_n * net->batch_size * sizeof(float));
+		if (net->use_gpu) CUDA_MALLOC(&l->gpu.output, l->out_n * net->batch_size, sizeof(float));
 	}
 	else {
 		l->output = l->Z;
@@ -697,14 +697,14 @@ void build_route_layer(int i, network* net) {
 	l->act_inputs = l->Z;
 	l->grads = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 	if (net->use_gpu) {
-		CUDA_MALLOC(&l->gpu.Z, l->out_n * net->batch_size * sizeof(float));
+		CUDA_MALLOC(&l->gpu.Z, l->out_n * net->batch_size, sizeof(float));
 		l->gpu.act_inputs = l->gpu.Z;
-		CUDA_MALLOC(&l->gpu.grads, l->out_n * net->batch_size * sizeof(float));
+		CUDA_MALLOC(&l->gpu.grads, l->out_n * net->batch_size, sizeof(float));
 	}
 
 	if (l->activation) {
 		l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-		if (net->use_gpu) CUDA_MALLOC(&l->gpu.output, l->out_n * net->batch_size * sizeof(float));
+		if (net->use_gpu) CUDA_MALLOC(&l->gpu.output, l->out_n * net->batch_size, sizeof(float));
 	}
 	else {
 		l->output = l->Z;
@@ -781,15 +781,15 @@ void build_avgpool_layer(int i, network* net) {
 	l->act_inputs = l->Z;
 	l->grads = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 	if (net->use_gpu) {
-		CUDA_MALLOC(&l->gpu.Z, l->out_n * net->batch_size * sizeof(float));
+		CUDA_MALLOC(&l->gpu.Z, l->out_n * net->batch_size, sizeof(float));
 		l->gpu.act_inputs = l->gpu.Z;
-		CUDA_MALLOC(&l->gpu.grads, l->out_n * net->batch_size * sizeof(float));
+		CUDA_MALLOC(&l->gpu.grads, l->out_n * net->batch_size, sizeof(float));
 	}
 
 	if (l->activation) {
 		l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 		if (net->use_gpu) {
-			CUDA_MALLOC(&l->gpu.output, l->out_n * net->batch_size * sizeof(float));
+			CUDA_MALLOC(&l->gpu.output, l->out_n * net->batch_size, sizeof(float));
 		}
 	}
 	else {
@@ -861,7 +861,7 @@ void build_upsample_layer(int i, network* net) {
 	l->out_n = l->out_w * l->out_h * l->out_c;
 	l->Z = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
 	if (net->use_gpu) {
-		CUDA_MALLOC(&l->gpu.Z, l->out_n * net->batch_size * sizeof(float));
+		CUDA_MALLOC(&l->gpu.Z, l->out_n * net->batch_size, sizeof(float));
 	}
 
 	l->act_inputs = l->Z;
@@ -869,7 +869,7 @@ void build_upsample_layer(int i, network* net) {
 
 	if (l->activation) {
 		l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-		if (net->use_gpu) CUDA_MALLOC(&l->gpu.output, l->out_n * net->batch_size * sizeof(float));
+		if (net->use_gpu) CUDA_MALLOC(&l->gpu.output, l->out_n * net->batch_size, sizeof(float));
 	}
 	else {
 		l->output = l->act_inputs;
@@ -1198,7 +1198,7 @@ void set_loss(layer* l, int use_gpu) {
 
 void set_regularization(network* net) {
 	if (net->use_gpu) {
-		CUDA_MALLOC(&net->gpu.reg_loss, sizeof(float));
+		CUDA_MALLOC(&net->gpu.reg_loss, 1, sizeof(float));
 	}
 	if (net->regularization == REG_L1) {
 		if (net->use_gpu) {
@@ -1235,45 +1235,72 @@ void update_none(layer* l, network* net) {
 
 void free_network(network* n) {
 	for (size_t i = 0; i < n->n_classes; i++) {
-		xfree(n->class_names[i]);
+		xfree(&n->class_names[i]);
 	}
-	xfree(n->class_names);
-	xfree(n->step_percents.a);
-	xfree(n->step_scaling.a);
-	free_layer_members(n->input);
-	xfree(n->input);
+	xfree(&n->class_names);
+	xfree(&n->step_percents.a);
+	xfree(&n->step_scaling.a);
+	free_layer_fields(n->input, n);
+	xfree(&n->input);
 	free_network_layers(n);
-	xfree(n->workspace);
-	xfree(n->dataset_dir);
-	xfree(n->weights_file);
-	xfree(n->save_dir);
-	free_classifier_dataset_members(&n->data.clsr);
-	xfree(n);
+	xfree(&n->workspace);
+	xfree(&n->dataset_dir);
+	xfree(&n->weights_file);
+	xfree(&n->save_dir);
+	free_classifier_dataset_fields(&n->data.clsr);
+	xfree(&n);
 }
 
 void free_network_layers(network* net) {
 	for (size_t i = 0; i < net->n_layers; i++) {
-		free_layer_members(&net->layers[i]);
+		free_layer_fields(&net->layers[i], net);
 	}
-	xfree(net->layers);
+	xfree(&net->layers);
 }
 
-void free_layer_members(layer* l) {
-	xfree(l->output);
-	xfree(l->weights);
-	xfree(l->biases);
-	xfree(l->weight_grads);
-	xfree(l->bias_grads);
-	xfree(l->Z);
-	xfree(l->truth);
-	xfree(l->means);
-	xfree(l->variances);
-	xfree(l->errors);
-	xfree(l->in_ids.a);
-	xfree(l->in_layers);
-	if (l->type == LAYER_DETECT) {
-		xfree(l->anchors);
+void free_layer_fields(layer* l, network* net) {
+	if (net->use_gpu) {
+		CUDA_FREE(&l->gpu.act_inputs);
+		CUDA_FREE(&l->gpu.anchors);
+		CUDA_FREE(&l->gpu.biases);
+		CUDA_FREE(&l->gpu.bias_grads);
+		CUDA_FREE(&l->gpu.bias_velocities);
+		CUDA_FREE(&l->gpu.detections);
+		CUDA_FREE(&l->gpu.errors);
+		CUDA_FREE(&l->gpu.gammas);
+		CUDA_FREE(&l->gpu.gamma_grads);
+		CUDA_FREE(&l->gpu.gamma_velocities);
+		CUDA_FREE(&l->gpu.grads);
+		CUDA_FREE(&l->gpu.loss);
+		CUDA_FREE(&l->gpu.maxpool_addresses);
+		CUDA_FREE(&l->gpu.means);
+		CUDA_FREE(&l->gpu.mean_grads);
+		CUDA_FREE(&l->gpu.output);
+		CUDA_FREE(&l->gpu.rolling_means);
+		CUDA_FREE(&l->gpu.rolling_variances);
+		CUDA_FREE(&l->gpu.sorted);
+		CUDA_FREE(&l->gpu.truth);
+		CUDA_FREE(&l->gpu.variances);
+		CUDA_FREE(&l->gpu.variance_grads);
+		CUDA_FREE(&l->gpu.weights);
+		CUDA_FREE(&l->gpu.weight_grads);
+		CUDA_FREE(&l->gpu.weight_velocities);
+		CUDA_FREE(&l->gpu.Z);
+		CUDA_FREE(&l->gpu.Z_norm);
 	}
+	xfree(&l->output);
+	xfree(&l->weights);
+	xfree(&l->biases);
+	xfree(&l->weight_grads);
+	xfree(&l->bias_grads);
+	xfree(&l->Z);
+	xfree(&l->truth);
+	xfree(&l->means);
+	xfree(&l->variances);
+	xfree(&l->errors);
+	xfree(&l->in_ids.a);
+	xfree(&l->in_layers);
+	xfree(&l->anchors);
 }
 
 size_t get_train_params_count(network* net) {

@@ -18,10 +18,11 @@ int main(void) {
 	//srand(time(NULL));
 	srand(7777777);
 	activate_xalloc_tracking();
+	activate_cuda_alloc_tracking();
 	char* cfgfile = "C:\\Users\\TNard\\OneDrive\\Desktop\\dev\\Nardenet\\cfg\\testing2.cfg";
 	network* net = create_network_from_cfg(cfgfile);
 	train(net);
-	//free_network(net);
+	free_network(net);
 
 	
 	//print_alloc_list();
@@ -38,8 +39,7 @@ BUGS:
 CHANGES:
 
 IN PROGRESS:
-	- Overhaul implementation of fully connected layer. Make it separate from conv layers.
-	- Fix im2col kernel. It currently doesn't handle pad = 0 and probably other unconventional configurations.
+	
 
  GPU support:
 	- im2col (done)
@@ -50,10 +50,10 @@ IN PROGRESS:
 		- forward (done*)
 		- backward (done*)
 	- batchnorm (need to add the rolling mean stuff so that it "works" with batch sizes of 1)
-	- loss (done* except l1 and l2 loss cus i'm guna decide how to deal with them later)
-	- l1/l2 normalizations (done*)
-	- residual layer adds (done*, blas)
-	- route layer copies? (done*, blas)
+	- loss
+	- l1/l2 normalizations (done)
+	- residual layer adds (done, blas)
+	- route layer copies (done*, blas)
 	- avgpool (done*)
 	- maxpool (done*)
 	- upsample (done*)
@@ -63,7 +63,7 @@ IN PROGRESS:
 		- backward - done: conv, avgpool, maxpool, residual, route, upsample
 		- update - done
 	- classification - done
-	- object detection prediction stuff
+	- object detection stuff
 
  learning rate policies
  setting up yolov4 tiny classifier backbone to train on imagenet and then

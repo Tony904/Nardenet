@@ -41,7 +41,7 @@ void load_image_to_buffer(char* filename, image* dst, int resize) {
     image img = { 0 };
     img.data = load_image_stbi(filename, &img.w, &img.h, &img.c);
     resize_image_bilinear(dst, &img);
-    xfree(img.data);
+    xfree(&img.data);
 }
 
 image* load_image(char* filename) {
@@ -328,8 +328,8 @@ void hsv2rgb(image* img) {
 }
 
 void free_image(image* img) {
-    xfree(img->data);
-    xfree(img);
+    xfree(&img->data);
+    xfree(&img);
 }
 
 void print_image_matrix(image* im) {

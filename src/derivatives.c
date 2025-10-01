@@ -19,7 +19,7 @@ void get_grads_mish(float* grads, float* act_inputs, size_t out_n, size_t batch_
 	for (i = 0; i < n; i++) {
 		float inp = act_inputs[i];
 		const float sp = softplus_x(inp, MISH_THRESH);
-		const float grad_sp = 1.0F - exp(-sp);
+		const float grad_sp = 1.0F - expf(-sp);
 		const float tsp = tanh_x(sp);
 		const float grad_tsp = (1.0F - tsp * tsp) * grad_sp;
 		const float grad = inp * grad_tsp + tsp;

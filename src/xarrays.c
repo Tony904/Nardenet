@@ -4,13 +4,13 @@
 
 
 void free_floatarr(floatarr* p) {
-	xfree(p->a);
-	xfree(p);
+	xfree(&p->a);
+	xfree(&p);
 }
 
 void free_intarr(intarr* p) {
-	xfree(p->a);
-	xfree(p);
+	xfree(&p->a);
+	xfree(&p);
 }
 
 void print_floatarr(floatarr* p) {

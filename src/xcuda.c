@@ -1,9 +1,48 @@
 #include "xcuda.h"
 #include <stdio.h>
 #include <math.h>
+#include <omp.h>
+#include <string.h>
+#include <assert.h>
 #include "utils.h"
 
 
+#pragma warning(disable : 4996)
+
+#define ARRSIZE 64  // size of char[] attributes in alloc_node struct
+
+typedef struct alloc_node alloc_node;
+typedef struct alloc_list alloc_list;
+
+typedef struct alloc_node {
+    void* p;
+    size_t n_elements;
+    size_t element_size;
+    char filename[ARRSIZE];
+    char funcname[ARRSIZE];
+    int line;
+    alloc_node* next;
+    alloc_node* prev;
+} alloc_node;
+
+typedef struct alloc_list {
+    int length;
+    alloc_node* first;
+    alloc_node* last;
+} alloc_list;
+
+static int track_allocs = 0;
+static alloc_list allocs = { 0 };
+static omp_lock_t allocs_lock;
+static void print_location_and_exit(const char* const filename, const char* const funcname, const int line);
+
+void initialize_allocs_lock(void);
+int alloc_list_free_node(void* const p);
+alloc_node* alloc_list_get_node(void* const p);
+alloc_node* alloc_list_pop(void* const p);
+void alloc_list_append(alloc_node* node);
+alloc_node* new_alloc_node(void* const p, size_t n, size_t s, const char* const filename, const char* const funcname, const int line);
+void alloc_node_set_location_fields(alloc_node* node, const char* const filename, const char* const funcname, const int line);
 
 static cublasHandle_t cublas_handle;
 static int cublas_handle_init = 0;
@@ -30,10 +69,6 @@ void ___check_cublas(cublasStatus_t x, const char* const filename, const char* c
         print_location(filename, funcname, line);
         wait_for_key_then_exit();
     }
-}
-
-void ___cudaMalloc(void** devPtr, size_t size, const char* const filename, const char* const funcname, const int line, const char* time) {
-    ___check_cuda(cudaMalloc(devPtr, size), filename, funcname, line, time);
 }
 
 void ___cudaMemcpy(void* dst, void* src, size_t size, enum cudaMemcpyKind kind, const char* const filename, const char* const funcname, const int line, const char* time) {
@@ -83,8 +118,8 @@ void compare_cpu_gpu_arrays(float* cpu_array, float* gpu_array, size_t size, int
             printf("Large delta found: i = %zu, (cpu)%f | %f(gpu)\n", i, cpu_array[i], buff[i]);
             printf("zero count: %zu\r", zero_count);
 
-            size_t j = max(0, i - span);
-            printf("[+-%zu elements around large delta]\n", span);
+            size_t j = max(0, (int)i - (int)span);
+            printf("[+-%zu elements around large delta] array size=%zu\n", span, size);
             for (; j <= i + span; j++) {
                 if (j >= size) break;
                 if (j == i) printf("\n[%zu] (cpu)%f | %f(gpu)\n\n", j, cpu_array[j], buff[j]);
@@ -149,4 +184,156 @@ void print_gpu_props(void) {
     }
 }
 
+
+
+void ___cudaMalloc(void** devPtr, const size_t num_elements, size_t size_per_element, const char* const filename, const char* const funcname, const int line, const char* time) {
+    if (track_allocs) omp_set_lock(&allocs_lock);
+    ___check_cuda(cudaMalloc(devPtr, num_elements * size_per_element), filename, funcname, line, time);
+    if (!(*devPtr)) {
+        fprintf(stderr, "Failed to cudaMalloc %zu * %zu bytes.\n", num_elements, size_per_element);
+        print_location_and_exit(filename, funcname, line);
+    }
+    if (track_allocs) {
+        alloc_node* node = new_alloc_node(*devPtr, num_elements, size_per_element, filename, funcname, line);
+        alloc_list_append(node);
+        omp_unset_lock(&allocs_lock);
+    }
+}
+
+void ___cudaFree(void** devPtr, const char* const filename, const char* const funcname, const int line, const char* time) {
+    if (!*devPtr) return;
+    int do_free = 1;
+    if (track_allocs) {
+        omp_set_lock(&allocs_lock);
+        do_free = alloc_list_free_node((void* const)*devPtr);
+    }
+    if (do_free) {
+        ___check_cuda(cudaFree(*devPtr), filename, funcname, line, time);
+        *devPtr = NULL;
+    }
+    if (track_allocs) omp_unset_lock(&allocs_lock);
+}
+
 #endif // GPU
+
+void activate_cuda_alloc_tracking() {
+    if (allocs.length != 0) {
+        printf("Cannot enable cuda alloc tracking unless allocs.length is 0. (length = %d)\n", allocs.length);
+        wait_for_key_then_exit();
+    }
+    initialize_allocs_lock();
+}
+
+void initialize_allocs_lock(void) {
+    omp_init_lock(&allocs_lock);
+}
+
+#pragma warning(suppress: 4715)  // Not all control paths return a value. (because one exits the program)
+alloc_node* new_alloc_node(void* const p, size_t n, size_t s, const char* const filename, const char* const funcname, const int line) {
+    alloc_node* node = (alloc_node*)calloc(1, sizeof(alloc_node));
+    if (!node) {
+        fprintf(stderr, "(new_alloc_node, cuda) Failed to calloc %zu * %zu bytes.\n", n, s);
+        print_location_and_exit(filename, funcname, line);
+    }
+    else {
+        node->p = p;
+        node->n_elements = n;
+        node->element_size = s;
+        alloc_node_set_location_fields(node, filename, funcname, line);
+        return node;
+    }
+}
+
+void alloc_node_set_location_fields(alloc_node* node, const char* const filename, const char* const funcname, const int line) {
+    size_t start = max(0, strlen(filename) - ARRSIZE - 1);
+    strcpy(node->filename, &filename[start]);
+    start = max(0, strlen(funcname) - ARRSIZE - 1);
+    strcpy(node->funcname, &funcname[start]);
+    node->line = line;
+}
+
+void alloc_list_append(alloc_node* node) {
+    if (allocs.length == 0) {
+        allocs.first = node;
+        allocs.last = node;
+        allocs.length = 1;
+        return;
+    }
+    node->prev = allocs.last;
+    allocs.last->next = node;
+    allocs.last = node;
+    allocs.length++;
+}
+
+int alloc_list_free_node(void* const p) {
+    alloc_node* node = alloc_list_pop(p);
+    if (node) {
+        free(node);
+        return 1;
+    }
+    return 0;
+}
+
+alloc_node* alloc_list_pop(void* const p) {
+    alloc_node* node = alloc_list_get_node(p);
+    alloc_node* a = node->prev;
+    alloc_node* b = node->next;
+    if (!a) {  // popped node is first in list
+        if (b) {
+            allocs.first = b;
+            b->prev = NULL;
+        }
+        else {  // popped node is only node in list
+            allocs.first = NULL;
+            allocs.last = NULL;
+        }
+    }
+    else {
+        if (b) {
+            a->next = b;
+            b->prev = a;
+        }
+        else {  // popped node is last in list
+            allocs.last = a;
+            a->next = NULL;
+        }
+    }
+    allocs.length--;
+    return node;
+}
+
+alloc_node* alloc_list_get_node(void* const p) {
+    alloc_node* node = allocs.first;
+    for (size_t i = 0; i < allocs.length; i++) {
+        if (node->p == p) return node;
+        node = node->next;
+    }
+    printf("\nError: allocs list node does not exist.\n");
+    (void)getchar();
+    exit(EXIT_FAILURE);
+}
+
+void print_cuda_alloc_list(void) {
+    alloc_node* node = allocs.first;
+    alloc_node n = { 0 };
+    int i = 0;
+    printf("\n\n[ALLOC LIST]\n");
+    printf("alloc list length: %d\n\n", allocs.length);
+    while (node) {
+        n = *node;
+        printf("[NODE %d]\n", i);
+        printf("node address: %p\n", node);
+        printf("p = %p\n", n.p);
+        printf("bytes = %zu * %zu\n", n.n_elements, n.element_size);
+        printf("filename = %s\n", n.filename);
+        printf("funcname = %s\n", n.funcname);
+        printf("line = %d\n", n.line);
+        printf("prev node = %p\n", n.prev);
+        printf("next node = %p\n\n", n.next);
+        node = n.next;
+        i++;
+    }
+    assert(i == allocs.length);
+    printf("[END ALLOC LIST]\n");
+}
+

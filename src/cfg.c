@@ -52,10 +52,10 @@ network* create_network_from_cfg(char* cfgfile) {
 	network* net = new_network(c.layers->length);
 	copy_cfg_to_network(&c, net);
 	net->cfg_file = cfgfile;
-	xfree(c.classes_file);
-	xfree(c.saturation.a);
-	xfree(c.exposure.a);
-	xfree(c.hue.a);
+	xfree(&c.classes_file);
+	xfree(&c.saturation.a);
+	xfree(&c.exposure.a);
+	xfree(&c.hue.a);
 	free_list(c.layers, 1);
 	build_network(net);
 	return net;
@@ -324,7 +324,7 @@ void copy_cfg_to_network(cfg* cfig, network* net) {
 				l->anchors[j].h = cl->anchors.a[j * 2 + 1];
 			}
 			net->n_anchors += l->n_anchors;
-			xfree(cl->anchors.a);
+			xfree(&cl->anchors.a);
 		}
 		else if (l->type == LAYER_CLASSIFY) net->type = NET_CLASSIFY;
 		noed = noed->next;

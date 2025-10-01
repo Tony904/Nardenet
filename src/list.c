@@ -54,9 +54,9 @@ void free_list(list* lst, int free_vals) {
 	node* n = lst->first;
 	while (n) {
 		node* next = n->next;
-		if (free_vals) xfree(n->val);
-		xfree(n);
+		if (free_vals) xfree(&n->val);
+		xfree(&n);
 		n = next;
 	}
-	xfree(lst);
+	xfree(&lst);
 }
