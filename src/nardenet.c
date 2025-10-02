@@ -19,13 +19,13 @@ int main(void) {
 	srand(7777777);
 	activate_xalloc_tracking();
 	activate_cuda_alloc_tracking();
-	char* cfgfile = "C:\\Users\\TNard\\OneDrive\\Desktop\\dev\\Nardenet\\cfg\\testing2.cfg";
+	char* cfgfile = "C:\\Users\\TNard\\OneDrive\\Desktop\\dev\\Nardenet\\cfg\\testing1.cfg";
 	network* net = create_network_from_cfg(cfgfile);
 	train(net);
 	free_network(net);
 
-	
-	//print_alloc_list();
+	print_alloc_list();
+	print_cuda_alloc_list();
 
 #ifndef _DEBUG
 	printf("\n\nPress ENTER to exit the program.");
@@ -50,7 +50,7 @@ IN PROGRESS:
 		- forward (done*)
 		- backward (done*)
 	- batchnorm (need to add the rolling mean stuff so that it "works" with batch sizes of 1)
-	- loss
+	- loss (done)
 	- l1/l2 normalizations (done)
 	- residual layer adds (done, blas)
 	- route layer copies (done*, blas)

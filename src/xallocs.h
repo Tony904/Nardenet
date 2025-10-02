@@ -19,7 +19,7 @@ extern "C" {
 	#define xcalloc(n, s) ___xcalloc(n, s, NARDENET_LOCATION)
 	#define xmalloc(ns) ___xmalloc(ns, NARDENET_LOCATION)
 	#define xrealloc(p, ns) ___xrealloc(p, ns, NARDENET_LOCATION)
-	#define xfree(p) ___xfree(p, NARDENET_LOCATION)
+	#define xfree(p) ___xfree((void**)p, NARDENET_LOCATION)
 
 	void print_alloc_list(void);
 

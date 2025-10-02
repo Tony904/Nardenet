@@ -40,7 +40,7 @@ extern "C" {
 #define CHECK_CUDA(x) ___check_cuda(x, NARDENET_LOCATION, " - " __TIME__)
 #define CHECK_CUBLAS(x) ___check_cublas(x, NARDENET_LOCATION, " - " __TIME__)
 #define CUDA_MALLOC(pPtr, n, s) ___cudaMalloc(pPtr, n, s, NARDENET_LOCATION, " - " __TIME__)
-#define CUDA_FREE(p) ___cudaFree(p, NARDENET_LOCATION, " - " __TIME__)
+#define CUDA_FREE(pPtr) ___cudaFree((void**)p, NARDENET_LOCATION, " - " __TIME__)
 #define CUDA_MEMCPY_H2D(dst, src, size) ___cudaMemcpy(dst, src, size, cudaMemcpyHostToDevice, NARDENET_LOCATION, " - " __TIME__)
 #define CUDA_MEMCPY_D2H(dst, src, size) ___cudaMemcpy(dst, src, size, cudaMemcpyDeviceToHost, NARDENET_LOCATION, " - " __TIME__)
 #define BLOCKSIZE 512

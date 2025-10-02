@@ -66,10 +66,10 @@ void forward_detect(layer* l, network* net) {
 				size_t obj_index = p_index + l_wh * 4;  // index of objectness score
 				float p_obj = p[obj_index];
 				
-				float w = p[p_index] * p[p_index] * 4.0F * anchor->w;  // idk why w & h get multiplied by 4, havent read anything that says to do this but it's what darknet does
-				float h = p[p_index + l_wh] * p[p_index + l_wh] * 4.0F * anchor->h;
-				float cx = p[p_index + l_wh * 2] + cell_left;  // predicted value for cx, cy is % of cell size
-				float cy = p[p_index + l_wh * 3] + cell_top;
+				float w = p[p_index] * p[p_index] * anchor->w;
+				float h = p[p_index + l_wh] * p[p_index + l_wh] * anchor->h;
+				float cx = (p[p_index + l_wh * 2] + col) / l_w;  // predicted value for cx, cy is % of cell size
+				float cy = (p[p_index + l_wh * 3] + row) / l_h;
 				//printf("w: %f, h: %f, cx: %f, cy: %f\n", p[p_index], p[p_index + l_wh], p[p_index + l_wh * 2], p[p_index + l_wh * 3]);
 				bbox pbox = { 0 };  // prediction box
 				pbox.cx = cx;
@@ -464,20 +464,20 @@ void apply_grid_scaling(layer* l, network* net) {
 	size_t n_anchors = l->n_anchors;
 	size_t A = (NUM_ANCHOR_PARAMS + n_classes) * l_wh;
 	float alpha = l->scale_grid;
-	float beta = (alpha - 1.0F) / 2.0F;
+	float beta = (alpha - 1.0F) * 0.5F;
 	size_t b;
 #pragma omp parallel for firstprivate(l_wh, n_anchors, l_n, A, alpha, beta)
 	for (b = 0; b < batch_size; b++) {
 		for (size_t s = 0; s < l_wh; s++) {
 			for (size_t a = 0; a < n_anchors; a++) {
 				size_t p_index = b * l_n + s + a * A;
-				q[p_index] = p[p_index] * alpha;
-				q[p_index + l_wh] = p[p_index + l_wh] * alpha;
-				q[p_index + 2 * l_wh] = p[p_index + 2 * l_wh] * alpha - beta;
-				q[p_index + 3 * l_wh] = p[p_index + 3 * l_wh] * alpha - beta;
-				q[p_index + 4 * l_wh] = p[p_index + 4 * l_wh];
+				q[p_index] = p[p_index];  // w
+				q[p_index + l_wh] = p[p_index + l_wh];  // h
+				q[p_index + 2 * l_wh] = p[p_index + 2 * l_wh] * alpha - beta;  // cx
+				q[p_index + 3 * l_wh] = p[p_index + 3 * l_wh] * alpha - beta;  // cy
+				q[p_index + 4 * l_wh] = p[p_index + 4 * l_wh];  // objectness
 				for (size_t k = 0; k < n_classes; k++) {
-					q[p_index + 5 * l_wh + k * l_wh] = p[p_index + 5 * l_wh + k * l_wh];
+					q[p_index + NUM_ANCHOR_PARAMS * l_wh + k * l_wh] = p[p_index + NUM_ANCHOR_PARAMS * l_wh + k * l_wh];
 				}
 			}
 		}

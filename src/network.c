@@ -1248,6 +1248,10 @@ void free_network(network* n) {
 	xfree(&n->weights_file);
 	xfree(&n->save_dir);
 	free_classifier_dataset_fields(&n->data.clsr);
+	if (n->use_gpu) {
+		CUDA_FREE(&n->gpu.workspace);
+		CUDA_FREE(&n->gpu.reg_loss);
+	}
 	xfree(&n);
 }
 
@@ -1259,48 +1263,63 @@ void free_network_layers(network* net) {
 }
 
 void free_layer_fields(layer* l, network* net) {
+	xfree(&l->in_ids.a);
+	xfree(&l->in_layers);
+	xfree(&l->anchors);
+	xfree(&l->biases);
+	xfree(&l->bias_grads);
+	xfree(&l->bias_velocities);
+	xfree(&l->detections);
+	xfree(&l->errors);
+	xfree(&l->grads);
+	xfree(&l->maxpool_addresses);
+	xfree(&l->output);
+	xfree(&l->sorted);
+	xfree(&l->truth);
+	xfree(&l->weights);
+	xfree(&l->weight_grads);
+	xfree(&l->weight_velocities);
+	xfree(&l->Z);
+	if (l->batchnorm) {
+		xfree(&l->act_inputs);
+		xfree(&l->gammas);
+		xfree(&l->gamma_grads);
+		xfree(&l->gamma_velocities);
+		xfree(&l->means);
+		xfree(&l->rolling_means);
+		xfree(&l->rolling_variances);
+		xfree(&l->variances);
+		xfree(&l->Z_norm);
+	}
 	if (net->use_gpu) {
-		CUDA_FREE(&l->gpu.act_inputs);
 		CUDA_FREE(&l->gpu.anchors);
 		CUDA_FREE(&l->gpu.biases);
 		CUDA_FREE(&l->gpu.bias_grads);
 		CUDA_FREE(&l->gpu.bias_velocities);
 		CUDA_FREE(&l->gpu.detections);
 		CUDA_FREE(&l->gpu.errors);
-		CUDA_FREE(&l->gpu.gammas);
-		CUDA_FREE(&l->gpu.gamma_grads);
-		CUDA_FREE(&l->gpu.gamma_velocities);
 		CUDA_FREE(&l->gpu.grads);
 		CUDA_FREE(&l->gpu.loss);
 		CUDA_FREE(&l->gpu.maxpool_addresses);
-		CUDA_FREE(&l->gpu.means);
-		CUDA_FREE(&l->gpu.mean_grads);
 		CUDA_FREE(&l->gpu.output);
-		CUDA_FREE(&l->gpu.rolling_means);
-		CUDA_FREE(&l->gpu.rolling_variances);
 		CUDA_FREE(&l->gpu.sorted);
 		CUDA_FREE(&l->gpu.truth);
-		CUDA_FREE(&l->gpu.variances);
-		CUDA_FREE(&l->gpu.variance_grads);
 		CUDA_FREE(&l->gpu.weights);
 		CUDA_FREE(&l->gpu.weight_grads);
 		CUDA_FREE(&l->gpu.weight_velocities);
 		CUDA_FREE(&l->gpu.Z);
-		CUDA_FREE(&l->gpu.Z_norm);
+		if (l->batchnorm) {
+			CUDA_FREE(&l->gpu.act_inputs);
+			CUDA_FREE(&l->gpu.gammas);
+			CUDA_FREE(&l->gpu.gamma_grads);
+			CUDA_FREE(&l->gpu.gamma_velocities);
+			CUDA_FREE(&l->gpu.means);
+			CUDA_FREE(&l->gpu.rolling_means);
+			CUDA_FREE(&l->gpu.rolling_variances);
+			CUDA_FREE(&l->gpu.variances);
+			CUDA_FREE(&l->gpu.Z_norm);
+		}
 	}
-	xfree(&l->output);
-	xfree(&l->weights);
-	xfree(&l->biases);
-	xfree(&l->weight_grads);
-	xfree(&l->bias_grads);
-	xfree(&l->Z);
-	xfree(&l->truth);
-	xfree(&l->means);
-	xfree(&l->variances);
-	xfree(&l->errors);
-	xfree(&l->in_ids.a);
-	xfree(&l->in_layers);
-	xfree(&l->anchors);
 }
 
 size_t get_train_params_count(network* net) {

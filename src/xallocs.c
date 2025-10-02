@@ -52,6 +52,7 @@ void activate_xalloc_tracking() {
         (void)getchar();
         exit(EXIT_FAILURE);
     }
+    track_allocs = 1;
     initialize_allocs_lock();
 }
 
@@ -106,16 +107,16 @@ void* ___xrealloc(void* ptr, const size_t new_num_bytes, const char * const file
 }
 
 #pragma warning(suppress: 4100)  // C4100: Unused parameter(s).
-void ___xfree(void** ptr, const char* const filename, const char* const funcname, const int line) {
-    if (!*ptr) return;
+void ___xfree(void** pPtr, const char* const filename, const char* const funcname, const int line) {
+    if (!*pPtr) return;
     int do_free = 1;
     if (track_allocs) {
         omp_set_lock(&allocs_lock);
-        do_free = alloc_list_free_node((void* const)*ptr);
+        do_free = alloc_list_free_node((void* const)*pPtr);
     }
     if (do_free) {
-        free(*ptr);
-        *ptr = NULL;
+        free(*pPtr);
+        *pPtr = NULL;
     }
     if (track_allocs) omp_unset_lock(&allocs_lock);
 }
@@ -132,7 +133,7 @@ int alloc_list_free_node(void* const p) {
     alloc_node* node = alloc_list_pop(p);
     if (node) {
         free(node);
-        return 1;
+        return 2;
     }
     return 0;
 }
@@ -173,7 +174,7 @@ alloc_node* alloc_list_get_node(void* const p) {
         node = node->next;
     }
     return (alloc_node*)0;
-    /*printf("\nError: allocs list node does not exist.\n");
+    /*printf("\nError: xallocs list node does not exist.\n");
     (void)getchar();
     exit(EXIT_FAILURE);*/
 }
@@ -208,11 +209,9 @@ alloc_node* new_alloc_node(void* const p, size_t n, size_t s, const char* const 
 }
 
 void alloc_node_set_location_fields(alloc_node* node, const char* const filename, const char* const funcname, const int line) {
-    size_t length = strlen(filename);
-    size_t start = max(0, length - ARRSIZE - 1);
+    int start = max(0, (int)strlen(filename) - ARRSIZE - 1);
     strcpy(node->filename, &filename[start]);
-    length = strlen(funcname);
-    start = max(0, length - ARRSIZE - 1);
+    start = max(0, (int)strlen(funcname) - ARRSIZE - 1);
     strcpy(node->funcname, &funcname[start]);
     node->line = line;
 }

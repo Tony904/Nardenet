@@ -133,6 +133,7 @@ extern "C" {
         size_t n_anchors;
 
         float draw_thresh;  // threshold for drawing detections (if p >= draw_thresh then draw)
+        int abort;
         gpu_network_vars gpu;
     } network;
 
@@ -150,8 +151,6 @@ extern "C" {
         float* gammas;  // normalized values scales
         float* rolling_means;
         float* rolling_variances;
-        float* mean_grads;
-        float* variance_grads;
         float* gamma_grads;
         float* gamma_velocities;
 

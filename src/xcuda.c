@@ -4,6 +4,7 @@
 #include <omp.h>
 #include <string.h>
 #include <assert.h>
+#include "xallocs.h"
 #include "utils.h"
 
 
@@ -11,38 +12,38 @@
 
 #define ARRSIZE 64  // size of char[] attributes in alloc_node struct
 
-typedef struct alloc_node alloc_node;
-typedef struct alloc_list alloc_list;
+typedef struct xcuda_alloc_node xcuda_alloc_node;
+typedef struct xcuda_alloc_list xcuda_alloc_list;
 
-typedef struct alloc_node {
+typedef struct xcuda_alloc_node {
     void* p;
     size_t n_elements;
     size_t element_size;
     char filename[ARRSIZE];
     char funcname[ARRSIZE];
     int line;
-    alloc_node* next;
-    alloc_node* prev;
-} alloc_node;
+    xcuda_alloc_node* next;
+    xcuda_alloc_node* prev;
+} xcuda_alloc_node;
 
-typedef struct alloc_list {
+typedef struct xcuda_alloc_list {
     int length;
-    alloc_node* first;
-    alloc_node* last;
-} alloc_list;
+    xcuda_alloc_node* first;
+    xcuda_alloc_node* last;
+} xcuda_alloc_list;
 
-static int track_allocs = 0;
-static alloc_list allocs = { 0 };
-static omp_lock_t allocs_lock;
-static void print_location_and_exit(const char* const filename, const char* const funcname, const int line);
+static int xcuda_track_allocs = 0;
+static xcuda_alloc_list xcuda_allocs = { 0 };
+static omp_lock_t xcuda_allocs_lock;
 
-void initialize_allocs_lock(void);
-int alloc_list_free_node(void* const p);
-alloc_node* alloc_list_get_node(void* const p);
-alloc_node* alloc_list_pop(void* const p);
-void alloc_list_append(alloc_node* node);
-alloc_node* new_alloc_node(void* const p, size_t n, size_t s, const char* const filename, const char* const funcname, const int line);
-void alloc_node_set_location_fields(alloc_node* node, const char* const filename, const char* const funcname, const int line);
+void xcuda_initialize_allocs_lock(void);
+int xcuda_alloc_list_free_node(void* const p);
+xcuda_alloc_node* xcuda_alloc_list_get_node(void* const p);
+xcuda_alloc_node* xcuda_alloc_list_pop(void* const p);
+void xcuda_alloc_list_append(xcuda_alloc_node* node);
+xcuda_alloc_node* xcuda_new_alloc_node(void* const p, size_t n, size_t s, const char* const filename, const char* const funcname, const int line);
+void xcuda_alloc_node_set_location_fields(xcuda_alloc_node* node, const char* const filename, const char* const funcname, const int line);
+static void xcuda_print_location_and_exit(const char* const filename, const char* const funcname, const int line);
 
 static cublasHandle_t cublas_handle;
 static int cublas_handle_init = 0;
@@ -187,105 +188,107 @@ void print_gpu_props(void) {
 
 
 void ___cudaMalloc(void** devPtr, const size_t num_elements, size_t size_per_element, const char* const filename, const char* const funcname, const int line, const char* time) {
-    if (track_allocs) omp_set_lock(&allocs_lock);
+    if (xcuda_track_allocs) omp_set_lock(&xcuda_allocs_lock);
     ___check_cuda(cudaMalloc(devPtr, num_elements * size_per_element), filename, funcname, line, time);
     if (!(*devPtr)) {
         fprintf(stderr, "Failed to cudaMalloc %zu * %zu bytes.\n", num_elements, size_per_element);
-        print_location_and_exit(filename, funcname, line);
+        xcuda_print_location_and_exit(filename, funcname, line);
     }
-    if (track_allocs) {
-        alloc_node* node = new_alloc_node(*devPtr, num_elements, size_per_element, filename, funcname, line);
-        alloc_list_append(node);
-        omp_unset_lock(&allocs_lock);
+    if (xcuda_track_allocs) {
+        xcuda_alloc_node* node = xcuda_new_alloc_node(*devPtr, num_elements, size_per_element, filename, funcname, line);
+        xcuda_alloc_list_append(node);
+        omp_unset_lock(&xcuda_allocs_lock);
     }
 }
 
 void ___cudaFree(void** devPtr, const char* const filename, const char* const funcname, const int line, const char* time) {
     if (!*devPtr) return;
     int do_free = 1;
-    if (track_allocs) {
-        omp_set_lock(&allocs_lock);
-        do_free = alloc_list_free_node((void* const)*devPtr);
+    if (xcuda_track_allocs) {
+        omp_set_lock(&xcuda_allocs_lock);
+        do_free = xcuda_alloc_list_free_node((void* const)*devPtr);
     }
     if (do_free) {
         ___check_cuda(cudaFree(*devPtr), filename, funcname, line, time);
         *devPtr = NULL;
     }
-    if (track_allocs) omp_unset_lock(&allocs_lock);
+    if (xcuda_track_allocs) omp_unset_lock(&xcuda_allocs_lock);
 }
 
 #endif // GPU
 
 void activate_cuda_alloc_tracking() {
-    if (allocs.length != 0) {
-        printf("Cannot enable cuda alloc tracking unless allocs.length is 0. (length = %d)\n", allocs.length);
+    if (xcuda_allocs.length != 0) {
+        printf("Cannot enable cuda alloc tracking unless allocs.length is 0. (length = %d)\n", xcuda_allocs.length);
         wait_for_key_then_exit();
     }
-    initialize_allocs_lock();
+    xcuda_track_allocs = 1;
+    xcuda_initialize_allocs_lock();
 }
 
-void initialize_allocs_lock(void) {
-    omp_init_lock(&allocs_lock);
+void xcuda_initialize_allocs_lock(void) {
+    omp_init_lock(&xcuda_allocs_lock);
 }
 
 #pragma warning(suppress: 4715)  // Not all control paths return a value. (because one exits the program)
-alloc_node* new_alloc_node(void* const p, size_t n, size_t s, const char* const filename, const char* const funcname, const int line) {
-    alloc_node* node = (alloc_node*)calloc(1, sizeof(alloc_node));
+xcuda_alloc_node* xcuda_new_alloc_node(void* const p, size_t n, size_t s, const char* const filename, const char* const funcname, const int line) {
+    xcuda_alloc_node* node = (xcuda_alloc_node*)calloc(1, sizeof(xcuda_alloc_node));
     if (!node) {
         fprintf(stderr, "(new_alloc_node, cuda) Failed to calloc %zu * %zu bytes.\n", n, s);
-        print_location_and_exit(filename, funcname, line);
+        xcuda_print_location_and_exit(filename, funcname, line);
     }
     else {
         node->p = p;
         node->n_elements = n;
         node->element_size = s;
-        alloc_node_set_location_fields(node, filename, funcname, line);
+        xcuda_alloc_node_set_location_fields(node, filename, funcname, line);
         return node;
     }
 }
 
-void alloc_node_set_location_fields(alloc_node* node, const char* const filename, const char* const funcname, const int line) {
-    size_t start = max(0, strlen(filename) - ARRSIZE - 1);
+void xcuda_alloc_node_set_location_fields(xcuda_alloc_node* node, const char* const filename, const char* const funcname, const int line) {
+    int start = max(0, (int)strlen(filename) - ARRSIZE - 1);
     strcpy(node->filename, &filename[start]);
-    start = max(0, strlen(funcname) - ARRSIZE - 1);
+    start = max(0, (int)strlen(funcname) - ARRSIZE - 1);
     strcpy(node->funcname, &funcname[start]);
     node->line = line;
 }
 
-void alloc_list_append(alloc_node* node) {
-    if (allocs.length == 0) {
-        allocs.first = node;
-        allocs.last = node;
-        allocs.length = 1;
+void xcuda_alloc_list_append(xcuda_alloc_node* node) {
+    if (xcuda_allocs.length == 0) {
+        xcuda_allocs.first = node;
+        xcuda_allocs.last = node;
+        xcuda_allocs.length = 1;
         return;
     }
-    node->prev = allocs.last;
-    allocs.last->next = node;
-    allocs.last = node;
-    allocs.length++;
+    node->prev = xcuda_allocs.last;
+    xcuda_allocs.last->next = node;
+    xcuda_allocs.last = node;
+    xcuda_allocs.length++;
 }
 
-int alloc_list_free_node(void* const p) {
-    alloc_node* node = alloc_list_pop(p);
+int xcuda_alloc_list_free_node(void* const p) {
+    xcuda_alloc_node* node = xcuda_alloc_list_pop(p);
     if (node) {
         free(node);
-        return 1;
+        return 2;
     }
     return 0;
 }
 
-alloc_node* alloc_list_pop(void* const p) {
-    alloc_node* node = alloc_list_get_node(p);
-    alloc_node* a = node->prev;
-    alloc_node* b = node->next;
+xcuda_alloc_node* xcuda_alloc_list_pop(void* const p) {
+    xcuda_alloc_node* node = xcuda_alloc_list_get_node(p);
+    if (!node) return (xcuda_alloc_node*)0;  // does not exist in allocs_list
+    xcuda_alloc_node* a = node->prev;
+    xcuda_alloc_node* b = node->next;
     if (!a) {  // popped node is first in list
         if (b) {
-            allocs.first = b;
+            xcuda_allocs.first = b;
             b->prev = NULL;
         }
         else {  // popped node is only node in list
-            allocs.first = NULL;
-            allocs.last = NULL;
+            xcuda_allocs.first = NULL;
+            xcuda_allocs.last = NULL;
         }
     }
     else {
@@ -294,31 +297,32 @@ alloc_node* alloc_list_pop(void* const p) {
             b->prev = a;
         }
         else {  // popped node is last in list
-            allocs.last = a;
+            xcuda_allocs.last = a;
             a->next = NULL;
         }
     }
-    allocs.length--;
+    xcuda_allocs.length--;
     return node;
 }
 
-alloc_node* alloc_list_get_node(void* const p) {
-    alloc_node* node = allocs.first;
-    for (size_t i = 0; i < allocs.length; i++) {
+xcuda_alloc_node* xcuda_alloc_list_get_node(void* const p) {
+    xcuda_alloc_node* node = xcuda_allocs.first;
+    for (size_t i = 0; i < xcuda_allocs.length; i++) {
         if (node->p == p) return node;
         node = node->next;
     }
-    printf("\nError: allocs list node does not exist.\n");
+    return (xcuda_alloc_node*)0;
+    /*printf("\nError: cuda allocs list node does not exist.\n");
     (void)getchar();
-    exit(EXIT_FAILURE);
+    exit(EXIT_FAILURE);*/
 }
 
 void print_cuda_alloc_list(void) {
-    alloc_node* node = allocs.first;
-    alloc_node n = { 0 };
+    xcuda_alloc_node* node = xcuda_allocs.first;
+    xcuda_alloc_node n = { 0 };
     int i = 0;
-    printf("\n\n[ALLOC LIST]\n");
-    printf("alloc list length: %d\n\n", allocs.length);
+    printf("\n\n[CUDA ALLOC LIST]\n");
+    printf("alloc list length: %d\n\n", xcuda_allocs.length);
     while (node) {
         n = *node;
         printf("[NODE %d]\n", i);
@@ -333,7 +337,14 @@ void print_cuda_alloc_list(void) {
         node = n.next;
         i++;
     }
-    assert(i == allocs.length);
-    printf("[END ALLOC LIST]\n");
+    assert(i == xcuda_allocs.length);
+    printf("[END CUDA ALLOC LIST]\n");
 }
 
+static void xcuda_print_location_and_exit(const char* const filename, const char* const funcname, const int line) {
+#pragma warning(suppress:4996)  // C4996: Use of deprecated function, variable, or typedef. (strerror)
+    fprintf(stderr, "Nardenet error location: %s, %s, line %d\nError Code %d: %s", filename, funcname, line, errno, strerror(errno));
+    printf("\n\nPress ENTER to exit the program.");
+    (void)getchar();
+    exit(EXIT_FAILURE);
+}

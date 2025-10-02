@@ -20,7 +20,7 @@ void forward_classify(layer* l, network* net) {
 		}
 		if (l->loss < 0.1F || isnan(l->loss)) {
 			printf("\n[DONE]\n");
-			wait_for_key_then_exit();
+			net->abort = 1;
 		}
 	}
 	else {
@@ -89,7 +89,7 @@ void forward_classify_gpu(layer* l, network* net) {
 		}
 		if (avg_loss < 0.1F || isnan(avg_loss)) {
 			printf("\n[DONE]\n");
-			wait_for_key_then_exit();
+			net->abort = 1;
 		}
 	}
 	else {

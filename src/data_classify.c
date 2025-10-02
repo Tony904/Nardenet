@@ -67,7 +67,7 @@ void free_class_sets(class_set* sets, size_t n) {
 		for (size_t j = 0; j < sets[i].n; j++) {
 			free(sets[i].files[j]);  // were allocated using calloc, not xcalloc
 		}
-		xfree(&sets[i].files);
+		xfree( & sets[i].files);
 		xfree(&sets[i].rands);
 		sets[i].class_id = 0;
 		sets[i].files = 0;

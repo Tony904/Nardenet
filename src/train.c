@@ -100,6 +100,7 @@ void train_classifer(network* net) {
 				save_state(net);
 			}
 		}
+		if (net->abort) break;
 	}
 	free_classifier_dataset_fields(&net->data.clsr);
 }
