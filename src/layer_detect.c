@@ -22,6 +22,7 @@ void pprint_detect_array(float* data, size_t rows, size_t cols, size_t n_classes
 
 void forward_detect(layer* l, network* net) {
 	apply_grid_scaling(l, net);
+	float scale_wh = l->scale_grid * 2;
 	size_t batch_size = net->batch_size;
 	float* p = l->output;  // predictions
 	det_sample** samples = net->data.detr.current_batch;
@@ -66,8 +67,8 @@ void forward_detect(layer* l, network* net) {
 				size_t obj_index = p_index + l_wh * 4;  // index of objectness score
 				float p_obj = p[obj_index];
 				
-				float w = p[p_index] * p[p_index] * anchor->w;
-				float h = p[p_index + l_wh] * p[p_index + l_wh] * anchor->h;
+				float w = p[p_index] * p[p_index] * scale_wh * anchor->w;
+				float h = p[p_index + l_wh] * p[p_index + l_wh] * scale_wh * anchor->h;
 				float cx = (p[p_index + l_wh * 2] + col) / l_w;  // predicted value for cx, cy is % of cell size
 				float cy = (p[p_index + l_wh * 3] + row) / l_h;
 				//printf("w: %f, h: %f, cx: %f, cy: %f\n", p[p_index], p[p_index + l_wh], p[p_index + l_wh * 2], p[p_index + l_wh * 3]);
@@ -130,7 +131,7 @@ void forward_detect(layer* l, network* net) {
 				l_a--;
 				bbox* anchor = &anchors[l_a];
 				size_t p_index = b * l_n + s + l_a * A;  // index of prediction "entry"
-				float w = p[p_index] * p[p_index] * 4.0F * anchor->w;  // idk why w & h get multiplied by 4, havent read anything that says to do this but it's what darknet does
+				float w = p[p_index] * p[p_index] * 4.0F * anchor->w;
 				float h = p[p_index + l_wh] * p[p_index + l_wh] * 4.0F * anchor->h;
 				float cx = p[p_index + l_wh * 2] + cell_left;  // predicted value for cx, cy is % of cell size
 				float cy = p[p_index + l_wh * 3] + cell_top;
