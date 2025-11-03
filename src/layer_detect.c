@@ -12,6 +12,7 @@
 #define NO_OBJ_MULTI 0.1F
 
 
+void get_class_grads(size_t cls_index, size_t n_classes, float* grads, float* output, bbox truth_box, size_t spatial);
 void cull_predictions_and_do_nms(layer* l, network* net);
 void draw_detections(bbox** dets, size_t n_dets, image* img, float thresh);
 void apply_grid_scaling(layer* l, network* net);
@@ -157,10 +158,7 @@ void forward_detect(layer* l, network* net) {
 				else grads[obj_index] = 1.0F - p_obj;
 
 				size_t cls_index = p_index + l_wh * NUM_ANCHOR_PARAMS;
-				for (size_t k = 0; k < n_classes; k++) {
-					float t_cls = (tbox.lbl == k) ? 1.0F : 0.0F;
-					grads[cls_index + k * l_wh] = t_cls - p[cls_index + k * l_wh];
-				}
+				get_class_grads(cls_index, n_classes, grads, p, tbox, l_wh);
 				l_a++;
 			}
 			for (size_t a = 0; a < n_anchors; a++) {
@@ -169,8 +167,8 @@ void forward_detect(layer* l, network* net) {
 				float iou = get_iou(*anchor, tbox_shifted);
 				if (iou > iou_thresh) {
 					size_t p_index = b * l_n + s + a * A;  // index of prediction "entry"
-					float w = p[p_index] * p[p_index] * scale_wh * anchor->w;
-					float h = p[p_index + l_wh] * p[p_index + l_wh] * scale_wh * anchor->h;
+					float w = powf(p[p_index], 2.0F) * scale_wh * anchor->w;
+					float h = powf(p[p_index + l_wh], 2.0F) * scale_wh * anchor->h;
 					float cx = p[p_index + l_wh * 2] + cell_left;  // predicted value for cx, cy is % of cell size
 					float cy = p[p_index + l_wh * 3] + cell_top;
 					bbox pbox = { 0 };  // prediction box
@@ -202,10 +200,7 @@ void forward_detect(layer* l, network* net) {
 					else grads[obj_index] = 1.0F - p_obj;
 
 					size_t cls_index = p_index + l_wh * NUM_ANCHOR_PARAMS;
-					for (size_t k = 0; k < n_classes; k++) {
-						float t_cls = (tbox.lbl == k) ? 1.0F : 0.0F;
-						grads[cls_index + k * l_wh] = t_cls - p[cls_index + k * l_wh];
-					}
+					get_class_grads(cls_index, n_classes, grads, p, tbox, l_wh);
 				}
 			}
 		}
@@ -264,6 +259,18 @@ void forward_detect(layer* l, network* net) {
 	printf("total detect loss: %f\navg obj loss: %f\navg class loss: %f\navg iou loss: %f\n", l->loss, l->obj_loss, l->cls_loss, l->iou_loss);
 	//pprint_detect_array(l->grads, l->h, l->w, n_classes, n_anchors);
 	cull_predictions_and_do_nms(l, net);  // for debugging
+}
+
+void get_class_grads(size_t cls_index, size_t n_classes, float* grads, float* output, bbox truth_box, size_t spatial) {
+	if (grads[cls_index + spatial * truth_box.lbl]) {
+		float grad = 1.0F - output[cls_index + spatial * truth_box.lbl];
+		if (!isnan(grad) && !isinf(grad)) grads[cls_index + spatial * truth_box.lbl] = grad;
+		return;
+	}
+	for (size_t k = 0; k < n_classes; k++) {
+		float t_cls = (truth_box.lbl == k) ? 1.0F : 0.0F;
+		grads[cls_index + spatial * k] = t_cls - output[cls_index + spatial * k];
+	}
 }
 
 void backward_detect(layer* l, network* net) {
