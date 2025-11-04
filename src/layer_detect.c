@@ -10,6 +10,8 @@
 
 #define COORD_MULTI 5.0F
 #define NO_OBJ_MULTI 0.1F
+#define GET_PREDICTION_BOX(p, i, anchor, spatial, scale, left, top) { .w=powf(p[i],2.0F)*scale*anchor->w,.h=powf(p[i+spatial],2.0F)*scale*anchor->h,.cx=p[i+spatial*2]+left,.cy=p[i+spatial*3]+top }
+#define SETUP_BBOX(b) b.area=b.w*b.h;b.left=b.cx-b.w/2.0F;b.right=b.cx-b.w/2.0F+b.w;b.top=b.cy-b.h/2.0F;b.bottom=b.cy-b.h/2.0F+b.h
 
 
 void get_class_grads(size_t cls_index, size_t n_classes, float* grads, float* output, bbox truth_box, size_t spatial);
@@ -58,29 +60,17 @@ void forward_detect(layer* l, network* net) {
 		for (size_t s = 0; s < l_wh; s++) {
 			float row = s / l_w;
 			float col = s % l_w;
+			float cell_left = row * cell_size;
+			float cell_top = col * cell_size;
 			for (size_t a = 0; a < n_anchors; a++) {
 				bbox* anchor = &anchors[a];
 
 				size_t p_index = b * l_n + s + a * A;  // index of prediction "entry"
-				size_t obj_index = p_index + l_wh * 4;  // index of objectness score
-				float p_obj = p[obj_index];
-				
-				float w = powf(p[p_index], 2.0F) * scale_wh * anchor->w;
-				float h = powf(p[p_index + l_wh], 2.0F) * scale_wh * anchor->h;
-				float cx = (p[p_index + l_wh * 2] + col) / l_w;  // predicted value for cx, cy is % of cell size
-				float cy = (p[p_index + l_wh * 3] + row) / l_h;
+				bbox pbox = GET_PREDICTION_BOX(p, p_index, anchor, l_wh, scale_wh, cell_left, cell_top);
+				SETUP_BBOX(pbox);
 				//printf("w: %f, h: %f, cx: %f, cy: %f\n", p[p_index], p[p_index + l_wh], p[p_index + l_wh * 2], p[p_index + l_wh * 3]);
-				bbox pbox = { 0 };  // prediction box
-				pbox.cx = cx;
-				pbox.cy = cy;
-				pbox.w = w;
-				pbox.h = h;
-				pbox.area = w * h;
-				pbox.left = cx - (w / 2.0F);
-				pbox.right = pbox.left + w;
-				pbox.top = cy - (h / 2.0F);
-				pbox.bottom = pbox.top + h;
 
+				size_t obj_index = p_index + l_wh * 4;  // index of objectness score
 				size_t cls_index = p[obj_index + l_wh];
 				float best_iou = 0.0F;
 				// I think this check, when used with obj_smooth=1, is to provide a positive training signal to predictions that appear to be based on learned class features and not just "luck"
@@ -94,6 +84,7 @@ void forward_detect(layer* l, network* net) {
 						break;
 					}
 				}
+				float p_obj = p[obj_index];
 				grads[obj_index] = obj_normalizer * (0.0F - p_obj);  // default objectness gradient
 				if (best_iou > ignore_thresh) {
 					if (obj_smooth) grads[obj_index] = obj_normalizer * (best_iou - p_obj);
@@ -127,20 +118,8 @@ void forward_detect(layer* l, network* net) {
 				l_a--;
 				bbox* anchor = &anchors[l_a];
 				size_t p_index = b * l_n + s + l_a * A;  // index of prediction "entry"
-				float w = powf(p[p_index], 2.0F) * scale_wh * anchor->w;
-				float h = powf(p[p_index + l_wh], 2.0F) * scale_wh * anchor->h;
-				float cx = p[p_index + l_wh * 2] + cell_left;  // predicted value for cx, cy is % of cell size
-				float cy = p[p_index + l_wh * 3] + cell_top;
-				bbox pbox = { 0 };  // prediction box
-				pbox.cx = cx;
-				pbox.cy = cy;
-				pbox.w = w;
-				pbox.h = h;
-				pbox.area = w * h;
-				pbox.left = cx - (w / 2.0F);
-				pbox.right = pbox.left + w;
-				pbox.top = cy - (h / 2.0F);
-				pbox.bottom = pbox.top + h;
+				bbox pbox = GET_PREDICTION_BOX(p, p_index, anchor, l_wh, scale_wh, cell_left, cell_top);
+				SETUP_BBOX(pbox);
 				float* dL_dw = &grads[p_index];
 				float* dL_dh = &grads[p_index + l_wh];
 				float* dL_dx = &grads[p_index + l_wh * 2];
@@ -167,20 +146,8 @@ void forward_detect(layer* l, network* net) {
 				float iou = get_iou(*anchor, tbox_shifted);
 				if (iou > iou_thresh) {
 					size_t p_index = b * l_n + s + a * A;  // index of prediction "entry"
-					float w = powf(p[p_index], 2.0F) * scale_wh * anchor->w;
-					float h = powf(p[p_index + l_wh], 2.0F) * scale_wh * anchor->h;
-					float cx = p[p_index + l_wh * 2] + cell_left;  // predicted value for cx, cy is % of cell size
-					float cy = p[p_index + l_wh * 3] + cell_top;
-					bbox pbox = { 0 };  // prediction box
-					pbox.cx = cx;
-					pbox.cy = cy;
-					pbox.w = w;
-					pbox.h = h;
-					pbox.area = w * h;
-					pbox.left = cx - (w / 2.0F);
-					pbox.right = pbox.left + w;
-					pbox.top = cy - (h / 2.0F);
-					pbox.bottom = pbox.top + h;
+					bbox pbox = GET_PREDICTION_BOX(p, p_index, anchor, l_wh, scale_wh, cell_left, cell_top);
+					SETUP_BBOX(pbox);
 					float* dL_dw = &grads[p_index];
 					float* dL_dh = &grads[p_index + l_wh];
 					float* dL_dx = &grads[p_index + l_wh * 2];
@@ -216,7 +183,7 @@ void forward_detect(layer* l, network* net) {
 					int box_index = entry_index(l, b, n * l.w * l.h + j * l.w + i, 0);
 					int class_index = entry_index(l, b, n * l.w * l.h + j * l.w + i, 4 + 1);
 					const int stride = l.w * l.h;
-
+	
 					if (l.delta[obj_index] != 0)
 						averages_yolo_deltas(class_index, box_index, stride, l.classes, l.delta);
 				}
