@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include "xarrays.h"
 
-#define NUM_ANCHOR_PARAMS 5  // probability contains any object, center_x, center_y, width, height
+#define NUM_ANCHOR_PARAMS 5  // width, height, center_x, center_y, objectness
 
 #ifdef __cplusplus
 extern "C" {
@@ -245,6 +245,7 @@ extern "C" {
         float obj_normalizer;
         float max_box_grad;
         float scale_grid;
+        int objectness_smooth;
 
         float** maxpool_addresses;  // addresses of input layer outputs that were max values (for backprop)
         gpu_layer_vars gpu;

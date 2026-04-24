@@ -3,177 +3,228 @@
 #include <stdio.h>
 
 
-#define V_CONST 4.0F / powf(acosf(-1.0F), 2.0F)  // used for calculating aspect ratio consistency for ciou
-#define V2_CONST 8.0F / powf(acosf(-1.0F), 2.0F)
+#define EPS 0.000001F
+#define square(x) x*x
+#define cube(x) x*x*x
 
+static const float PI = 3.14159265358979323846F;
 
-static inline float clamp_x(float x, float thresh);
-
-
-static inline float distance_between_points(float cx1, float cy1, float cx2, float cy2) {
-	float dx = cx1 - cx2;
-	float dy = cy1 - cy2;
-	return sqrtf(dx * dx + dy * dy);
-}
-
-
-float get_iou(bbox box1, bbox box2) {
-	// calculate intersection box
-	float left = fmaxf(box1.left, box2.left);
-	float top = fmaxf(box1.top, box2.top);
-	float right = fminf(box1.right, box2.right);
-	float bottom = fminf(box1.bottom, box2.bottom);
-	float width = fabsf(right - left);
-	float height = fabsf(bottom - top);
-	float area = width * height;  // intersection area
-	return area / (box1.area + box2.area - area);  // intersection area / union area
-}
-
-float get_diou(bbox box1, bbox box2) {
-	float iou = get_iou(box1, box2);
-	float delta = distance_between_points(box1.cx, box1.cy, box2.cx, box2.cy);
-	// calculate diagonal of smallest enclosing box
-	float left = fminf(box1.left, box2.left);
-	float top = fminf(box1.top, box2.top);
-	float right = fmaxf(box1.right, box2.right);
-	float bottom = fmaxf(box1.bottom, box2.bottom);
-	float diag = distance_between_points(left, top, right, bottom);
-	return iou - (delta * delta) / (diag * diag);
-}
-
-float get_ciou(bbox box1, bbox box2) {
-	float iou = get_iou(box1, box2);
-	float delta = distance_between_points(box1.cx, box1.cy, box2.cx, box2.cy);
-	// calculate diagonal of smallest enclosing box
-	float left = fminf(box1.left, box2.left);
-	float top = fminf(box1.top, box2.top);
-	float right = fmaxf(box1.right, box2.right);
-	float bottom = fmaxf(box1.bottom, box2.bottom);
-	float diag = distance_between_points(left, top, right, bottom);
-	// calculate aspect ratio consistency (v)
-	float t = atanf(box2.w / box2.h) - atanf(box1.w / box1.h);
-	float v = V_CONST * t * t;
-	// calculate trade-off parameter for balancing the aspect ratio term
-	float alpha = (iou < 0.5F) ? 0.0F : v / (1.0F - iou + v);
-	if (isnan(alpha) || isinf(alpha)) alpha = 0.0F;
-	return iou - (delta * delta) / (diag * diag) - alpha * v;
-}
-
-// Returns ciou loss as well as calculate gradients
-float get_grads_ciou(bbox box1, bbox box2, float* dL_dx, float* dL_dy, float* dL_dw, float* dL_dh, float max_box_grad) {
-	float ep = 0.000001F;
-	// intersection
-	float I_left = fmaxf(box1.left, box2.left);
-	float I_top = fmaxf(box1.top, box2.top);
-	float I_right = fminf(box1.right, box2.right);
-	float I_bottom = fminf(box1.bottom, box2.bottom);
-	float I_w = fabsf(I_right - I_left);
-	float I_h = fabsf(I_bottom - I_top);
-	float I_area = I_w * I_h;
-	// union
-	float U_area = box1.area + box2.area - I_area;
-	// iou
-	float iou = I_area / (U_area + ep);
-
-	// derivatives
-	
-	// dCIoU/dp = dIoU/dp - d(s^2/c^2)/dp - d(alpha * v)/dp
-	// p = any given param (i.e. w, h, x, y)
-	
-	// intersection derivative
-	// assume iou > 0 since the box should be filtered out before this point
-
-	float dI_dL = box1.left < box2.left ? 0.0F : 1.0F;
-	float dI_dR = box1.right < box2.right ? 1.0F : 0.0F;
-	float dI_dT = box1.top < box2.top ? 0.0F : 1.0F;
-	float dI_dB = box1.bottom < box2.bottom ? 1.0F : 0.0F;
-
-	float dU_dL = box1.top - box1.bottom - dI_dL;
-	float dU_dR = box1.bottom - box1.top - dI_dR;
-	float dU_dT = box1.left - box1.right - dI_dT;
-	float dU_dB = box1.right - box1.left - dI_dB;
-
-	float dIoU_dL = (dI_dL * U_area - I_area * dU_dL) / (U_area * U_area + ep);
-	float dIoU_dR = (dI_dR * U_area - I_area * dU_dR) / (U_area * U_area + ep);
-	float dIoU_dT = (dI_dT * U_area - I_area * dU_dT) / (U_area * U_area + ep);
-	float dIoU_dB = (dI_dB * U_area - I_area * dU_dB) / (U_area * U_area + ep);
-
-	float dIoU_dw = dIoU_dR - dIoU_dL;
-	float dIoU_dh = dIoU_dB - dIoU_dT;
-	float dIoU_dx = dIoU_dL + dIoU_dR;
-	float dIoU_dy = dIoU_dL + dIoU_dR;
-
-	// smallest enclosing box that covers box1 and box2
-	float C_left = fminf(box1.left, box2.left);
-	float C_top = fminf(box1.top, box2.top);
-	float C_right = fmaxf(box1.right, box2.right);
-	float C_bottom = fmaxf(box1.bottom, box2.bottom);
-	float C = distance_between_points(C_left, C_top, C_right, C_bottom);
-
-	float dCL_dL = box1.left < box2.left ? 1.0F : 0.0F;
-	float dC_dL = ((C_right - C_left) / (C + ep)) * (-dCL_dL);
-	float dCR_dR = box1.right > box2.right ? 1.0F : 0.0F;
-	float dC_dR = ((C_right - C_left) / (C + ep)) * dCR_dR;
-	float dCT_dT = box1.top < box2.top ? 1.0F : 0.0F;
-	float dC_dT = ((C_bottom - C_top) / (C + ep)) * (-dCT_dT);
-	float dCB_dB = box1.bottom > box2.bottom ? 1.0F : 0.0F;
-	float dC_dB = ((C_bottom - C_top) / (C + ep)) * dCB_dB;
-
-	float dC_dw = dC_dR - dC_dL;
-	float dC_dh = dC_dB - dC_dT;
-	float dC_dx = dC_dL + dC_dR;
-	float dC_dy = dC_dT + dC_dB;
-
-	// distance between box1 and box2 centers
-	float S = distance_between_points(box1.cx, box1.cy, box2.cx, box2.cy);
-	float dS_dx = (box1.cx - box2.cx) / (S + ep);
-	float dS_dy = (box1.cy - box2.cy) / (S + ep);
-	float dS_dw = 0;
-	float dS_dh = 0;
-
-	float diou_term = (2.0F * S) / (C * C * C + ep);
-	float dDIoU_dx = diou_term * (C * dS_dx - S * dC_dx);
-	float dDIoU_dy = diou_term * (C * dS_dy - S * dC_dy);
-	float dDIoU_dw = diou_term * (C * dS_dw - S * dC_dw);
-	float dDIoU_dh = diou_term * (C * dS_dh - S * dC_dh);
-
-	// aspect ratio term
-	float theta = atanf(box2.w / box2.h) - atanf(box1.w / box1.h);
-	float V = V_CONST * theta * theta;
-	float alpha = (iou < 0.5F) ? 0.0F : V / (1.0F - iou + V);
-	if (isnan(alpha) || isinf(alpha)) alpha = 0.0F;
-
-	float dV_dw = V2_CONST * theta * box1.h;
-	float dV_dh = V2_CONST * theta * (-box2.w);
-	// Note:
-	// float dV_dx = 0;
-	// float dV_dy = 0;
-
-	*dL_dw = clamp_x(*dL_dw, max_box_grad);
-	*dL_dh = clamp_x(*dL_dh, max_box_grad);
-	*dL_dx = clamp_x(*dL_dx, max_box_grad);
-	*dL_dy = clamp_x(*dL_dy, max_box_grad);
-
-	int accumulate = 1;  // will make cfg parameter later. probably...
-	if (!accumulate) {
-		*dL_dx = 0.0F;
-		*dL_dy = 0.0F;
-		*dL_dw = 0.0F;
-		*dL_dh = 0.0F;
-	}
-
-	*dL_dx += clamp_x(-dIoU_dx + dDIoU_dx, max_box_grad);
-	*dL_dy += clamp_x(-dIoU_dy + dDIoU_dy, max_box_grad);
-	*dL_dw += clamp_x(-dIoU_dw + dDIoU_dw + dV_dw * alpha, max_box_grad);
-	*dL_dh += clamp_x(-dIoU_dh + dDIoU_dh + dV_dh * alpha, max_box_grad);
-	//printf("diou_dw: %f dDiou_dw: %f dv_dw: %f alpha: %f\n", dIoU_dw, dDIoU_dw, dV_dw, alpha);
-	//printf("diou_dh: %f dDiou_dh: %f dv_dh: %f alpha: %f\n", dIoU_dh, dDIoU_dh, dV_dh, alpha);
-
-	return 1.0F - iou + S + V * alpha;
-}
-
-inline static float clamp_x(float x, float thresh) {
+static inline float clamp_x(float x, float thresh) {
 	if (x > thresh) return thresh;
 	if (x < -thresh) return -thresh;
 	return x;
+}
+
+
+float get_iou(bbox pbox, bbox tbox) {
+	// calculate intersection box
+	float top = fmaxf(pbox.top, tbox.top);
+	float bottom = fminf(pbox.bottom, tbox.bottom);
+	if (bottom < top) return 0.0F;
+	float left = fmaxf(pbox.left, tbox.left);
+	float right = fminf(pbox.right, tbox.right);
+	if (right < left) return 0.0F;
+	float width = right - left;
+	float height = bottom - top;
+	float area = width * height;  // intersection area
+	return area / (pbox.area + tbox.area - area);  // intersection area / union area
+}
+
+// Returns IOU, not 1 - IOU.
+float get_grads_iou(bbox pbox, bbox tbox, float* dx, float* dy, float* dw, float* dh) {
+	// note: derivatives are taken with respect to pbox
+	// let pbox = box1, tbox = box2
+	// dIOU/dx = dI/dx * (area1 + area2)/U^2
+	// U_area = w1 * h1 + w2 * h2 - I_area
+	// I_area = I_w * I_h
+	// I_w = max(0, R_min - L_max)
+	// I_h = max(0, B_min - T_max)
+	// dI/dx = I_h * (dR_min/dx - dL_max/dx)
+	float R = fminf(pbox.right, tbox.right);
+	float L = fmaxf(pbox.left, tbox.left);
+	float dR_dx = pbox.right < tbox.right ? 1.0F : 0.0F;
+	float dL_dx = pbox.left > tbox.left ? 1.0F : 0.0F;
+	float B = fminf(pbox.bottom, tbox.bottom);
+	float T = fmaxf(pbox.top, tbox.top);
+	float I_h = fmaxf(0.0F, B - T);
+	float dI_dx = I_h * (dR_dx - dL_dx);
+	float I_w = fmaxf(0.0F, R - L);
+	float I = I_w * I_h;
+	float U = pbox.area + tbox.area - I;
+	float dIOU_dx = dI_dx * (pbox.area + tbox.area) / (U * U + EPS);
+
+	// dIOU/dy = dI/dy * (area1 + area2)/U^2
+	// dI/dy = I_w * (dB_min/dy - dT_max/dy)
+	float dB_dy = pbox.bottom < tbox.bottom ? 1.0F : 0.0F;
+	float dT_dy = pbox.top > tbox.top ? 1.0F : 0.0F;
+	float dI_dy = I_w * (dB_dy - dT_dy);
+	float dIOU_dy = dI_dy * (pbox.area + tbox.area) / (U * U + EPS);
+
+	// dIOU/dw = (dI/dw * (area1 + area2) - I * h1) / U^2
+	// dI/dw = I_h * (dR_min/dw - dL_max/dw)
+	float dR_dw = pbox.right < tbox.right ? 0.5F : 0.0F;
+	float dL_dw = pbox.left > tbox.left ? -0.5F : 0.0F;
+	float dI_dw = I_h * (dR_dw - dR_dw);
+	float dIOU_dw = (dI_dw * (pbox.area + tbox.area) - I * pbox.h) / (U * U + EPS);
+
+	// dIOU/dh = (dI/dh * (area1 + area2) - I * w1) / U^2
+	// dI/dh = I_w * (dB_min/dh - dT_max/dh)
+	float dB_dh = pbox.bottom < tbox.bottom ? 0.5F : 0.0F;
+	float dT_dh = pbox.top > tbox.top ? -0.5F : 0.0F;
+	float dI_dh = I_w * (dB_dh - dT_dh);
+	float dIOU_dh = (dI_dh * (pbox.area + tbox.area) - I * pbox.w) / (U * U + EPS);
+
+	*dx = dIOU_dx;
+	*dy = dIOU_dy;
+	*dw = dIOU_dw;
+	*dh = dIOU_dh;
+
+	return I / (U + EPS);
+}
+
+float get_diou(bbox pbox, bbox tbox, float* iou) {
+	// DIOU = IOU - C^2/E^2
+	// C = distance between centers
+	// E = diagonal of smallest enclosing box
+	float C_sq = square(pbox.cx - tbox.cx) + square(pbox.cy - tbox.cy);
+	float top = fminf(pbox.top, tbox.top);
+	float bottom = fmaxf(pbox.bottom, tbox.bottom);
+	float left = fminf(pbox.left, tbox.left);
+	float right = fmaxf(pbox.right, tbox.right);
+	float E_sq = square(right - left) + square(bottom - top);
+	float _iou = get_iou(pbox, tbox);
+	if (iou) *iou = _iou;
+	return _iou - C_sq / (E_sq + EPS);
+}
+
+// Return DIOU, not 1 - DIOU.
+float get_grads_diou(bbox pbox, bbox tbox, float* dx, float* dy, float* dw, float* dh, float* iou) {
+	// dDIOU/d? = dIOU/d? - d(C^2/E^2)/d?
+	// C = distance between centers
+	// E = diagonal of smallest enclosing box
+	float C2 = square(pbox.cx - tbox.cx) + square(pbox.cy - tbox.cy);
+	float T = fmaxf(pbox.top, tbox.top);
+	float B = fmaxf(pbox.bottom, tbox.bottom);
+	float R = fmaxf(pbox.right, tbox.right);
+	float L = fmaxf(pbox.left, tbox.left);
+	float E2 = square(R - L) + square(B - T);
+	float E4 = square(E2) + EPS;
+
+	// Quotient Rule applied to DIOU exclusive term:
+	// d(C^2/E^2)/d? = [d(C^2)/d? * E^2 - d(E^2)/d? * C^2] / E^4
+	
+	// d(C^2)/dx:
+	float dC2_dx = 2 * (pbox.cx - tbox.cx);
+	// d(E^2)/dx:
+	float dR_dx = pbox.right > tbox.right ? 1.0F : 0.0F;
+	float dL_dx = pbox.left < tbox.left ? 1.0F : 0.0F;
+	float dE2_dx = 2 * (R - L) * (dR_dx - dL_dx);
+	// d(C^2/E^2)/dx:
+	float dC2E2_dx = (dC2_dx * E2 - dE2_dx * C2) / E4;
+
+	// d(C^2)/dy:
+	float dC2_dy = 2 * (pbox.cy - tbox.cy);
+	// d(E^2)/dx:
+	float dB_dy = pbox.bottom > tbox.bottom ? 1.0F : 0.0F;
+	float dT_dy = pbox.top < tbox.top ? 1.0F : 0.0F;
+	float dE2_dy = 2 * (B - T) * (dB_dy - dT_dy);
+	// d(C^2/E^2)/dy:
+	float dC2E2_dy = (dC2_dy * E2 - dE2_dy * C2) / E4;
+
+	// d(C^2)/dw:
+	// float dC2_dw = 0.0F;
+	// d(E^2)/dw:
+	float dR_dw = pbox.right > tbox.right ? 0.5F : 0.0F;
+	float dL_dw = pbox.left < tbox.left ? -0.5F : 0.0F;
+	float dE2_dw = 2 * (R - L) * (dR_dw - dL_dw);
+	// d(C^2/E^2)/dw:
+	float dC2E2_dw = -dE2_dw * C2 / E4;
+
+	// d(C^2)/dh:
+	// float dC2_dh = 0.0F;
+	// d(E^2)/dh:
+	float dB_dh = pbox.bottom > tbox.bottom ? 0.5F : 0.0F;
+	float dT_dh = pbox.top < tbox.top ? -0.5F : 0.0F;
+	float dE2_dh = 2 * (B - T) * (dB_dh - dT_dh);
+	// d(C^2/E^2)/dh:
+	float dC2E2_dh = -dE2_dh * C2 / E4;
+
+	float dIOU_dx;
+	float dIOU_dy;
+	float dIOU_dw;
+	float dIOU_dh;
+	float _iou = get_grads_iou(pbox, tbox, &dIOU_dx, &dIOU_dy, &dIOU_dw, &dIOU_dh);
+
+	*dx = dIOU_dx - dC2E2_dx;
+	*dy = dIOU_dy - dC2E2_dy;
+	*dw = dIOU_dw - dC2E2_dw;
+	*dh = dIOU_dh - dC2E2_dh;
+
+	if (iou) *iou = _iou;
+
+	return _iou - (C2 / (E2 + EPS));
+}
+
+// Returns CIOU, not 1 - CIOU.
+float get_ciou(bbox pbox, bbox tbox, float* diou, float* iou) {
+	// CIOU = IOU - E^2/C^2 - alpha * v
+	// aka CIOU = DIOU - alpha * v
+	// let pbox = box1, tbox = box2
+	// v = (4 / pi^2) * t
+	// t = arctan(w2/h2) - arctan(w1/h1)
+	// v = (4 / pi^2) * t^2
+	float t = atanf(tbox.w / tbox.h) - atanf(pbox.w / pbox.h);
+	float v = (4.0F / square(PI)) * square(t);
+	// alpha = v / (1 - IOU + v) when IOU >= 0.5 else 0
+	float _iou;
+	float _diou = get_diou(pbox, tbox, &_iou);
+	float alpha = (_iou < 0.5F) ? 0.0F : v / (1.0F - _iou + v + EPS);
+	if (isnan(alpha) || isinf(alpha)) alpha = 0.0F;  // darknet does this so i'm assuming it's a good idea to include
+	if (diou) *diou = _diou;
+	if (iou) *iou = _iou;
+	return _diou - alpha * v;
+}
+
+// Returns ciou loss as well as calculate gradients
+float get_grads_ciou(bbox pbox, bbox tbox, float* dx, float* dy, float* dw, float* dh) {
+	// dCIOU/d? = dIOU/d? - d(C^2/E^2)/d? - d(alpha * v)/d?
+	// d(alpha * v)/d? = d(v^2 / (1 - IOU + v)/d?
+	// let K = 1 - IOU
+	// d(alpha * v)/d? = v * (dv/d?) * (2 * K + v) / (K + v)^2
+	// v = (4 / pi^2) * t^2
+	// t = atan(w2/h2) - atan(w1/h2)
+	// dv/dw = (8 / pi^2) * (h1 / (h1^2 + w1^2)) * t
+	// dv/dh = (8 / pi^2) * (-w1 / (h1^2 + w2^2)) * t
+	// d(alpha * v)/dw = (v * dv/dw) * (2 * K + v) / (K + v)^2
+	// d(alpha * v)/dh = (v * dv/dh) * (2 * K + v) / (K + v)^2
+	float iou;
+	float dDIOU_dx;
+	float dDIOU_dy;
+	float dDIOU_dw;
+	float dDIOU_dh;
+	float diou = get_grads_diou(pbox, tbox, &dDIOU_dx, &dDIOU_dy, &dDIOU_dw, &dDIOU_dh, &iou);
+
+	float dav_dw = 0.0F;
+	float dav_dh = 0.0F;
+	float av = 0.0F;
+	if (iou >= 0.5F) {
+		float k = 1.0F - iou;
+		float t = atanf(tbox.w / tbox.h) - atanf(pbox.w / pbox.h);
+		float v = (4.0F / square(PI)) * square(t);
+
+		float dv_dw = (8.0F / square(PI)) * (pbox.h / (square(pbox.h) + square(pbox.w))) * t;
+		dav_dw = v * dv_dw * (2.0F * k + v) / square(k + v);
+
+		float dv_dh = (8.0F / square(PI)) * (-pbox.w / (square(pbox.h) + square(pbox.w))) * t;
+		dav_dh = v * dv_dh * (2.0F * k + v) / square(k + v);
+
+		av = v * (k + v);
+	}
+
+	*dx = dDIOU_dx;
+	*dy = dDIOU_dy;
+	*dw = dDIOU_dw - dav_dw;
+	*dh = dDIOU_dh - dav_dh;
+
+	return iou - diou - av;
 }

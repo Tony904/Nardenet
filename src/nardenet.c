@@ -19,7 +19,7 @@ int main(void) {
 	activate_xalloc_tracking();
 	activate_cuda_alloc_tracking();
 
-	char* cfgfile = "C:\\Users\\TNard\\OneDrive\\Desktop\\dev\\Nardenet\\cfg\\testing1.cfg";
+	char* cfgfile = "C:\\Users\\TNard\\OneDrive\\Desktop\\dev\\Nardenet\\cfg\\nardenet-detect.cfg";
 	network* net = create_network_from_cfg(cfgfile);
 	train(net);
 	free_network(net);

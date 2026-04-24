@@ -73,7 +73,7 @@ void forward_detect(layer* l, network* net) {
 				size_t obj_index = p_index + l_wh * 4;  // index of objectness score
 				size_t cls_index = p[obj_index + l_wh];
 				float best_iou = 0.0F;
-				// I think this check, when used with obj_smooth=1, is to provide a positive training signal to predictions that appear to be based on learned class features and not just "luck"
+				// I think this check, when used with obj_smooth=1, is to provide a positive training signal to predictions that appear to be based on learned class features and not just coincidence.
 				// Also even if objectness gets penalized here, the iou will get improved if the associated anchor is the best, meaning it will eventually have an iou > ignore_thresh
 				for (size_t k = 0; k < n_classes; k++) {
 					if (p[cls_index + k * l_wh] > 0.25F) {  // darknet uses 0.25
@@ -161,8 +161,7 @@ void forward_detect(layer* l, network* net) {
 					size_t obj_index = p_index + l_wh * 4;  // index of objectness score
 					float p_obj = p[obj_index];
 					if (obj_smooth) {
-						float obj_grad = obj_normalizer * (1.0F - p_obj);
-						if (grads[obj_index] == 0.0F) grads[obj_index] = obj_grad;
+						if (grads[obj_index] == 0.0F) grads[obj_index] = obj_normalizer * (1.0F - p_obj);
 					}
 					else grads[obj_index] = 1.0F - p_obj;
 
@@ -173,19 +172,26 @@ void forward_detect(layer* l, network* net) {
 		}
 	}
 
-	// Just copied from darknet to remind myself to add this functionality
-	if (l.iou_thresh < 1.0f) {
-		// averages the deltas obtained by the function: delta_yolo_box()_accumulate
-		for (j = 0; j < l.h; ++j) {
-			for (i = 0; i < l.w; ++i) {
-				for (n = 0; n < l.n; ++n) {
-					int obj_index = entry_index(l, b, n * l.w * l.h + j * l.w + i, 4);
-					int box_index = entry_index(l, b, n * l.w * l.h + j * l.w + i, 0);
-					int class_index = entry_index(l, b, n * l.w * l.h + j * l.w + i, 4 + 1);
-					const int stride = l.w * l.h;
-	
-					if (l.delta[obj_index] != 0)
-						averages_yolo_deltas(class_index, box_index, stride, l.classes, l.delta);
+	if (iou_thresh < 1.0F) {  // iou_thresh being less than 1 is the only scenario where multiple positive training signals for class can occur
+		// averages the bbox gradients across classes with positive training signals
+		for (size_t b = 0; b < batch_size; b++) {
+			for (size_t s = 0; s < l_wh; s++) {
+				for (size_t a = 0; a < n_anchors; a++) {
+					size_t p_index = b * l_n + s + a * A;
+					size_t obj_index = p_index + l_wh * 4;
+					size_t cls_index = p[obj_index + l_wh];
+					if (grads[obj_index]) {
+						int count = 0;
+						for (int k = 0; k < n_classes; k++) {
+							if (grads[cls_index + k * l_wh] > 0.0F) count++;
+						}
+						if (count) {
+							grads[p_index] /= count;
+							grads[p_index + l_wh] /= count;
+							grads[p_index + l_wh * 2] /= count;
+							grads[p_index + l_wh * 3] /= count;
+						}
+					}
 				}
 			}
 		}

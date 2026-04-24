@@ -23,7 +23,7 @@ void hsv2rgb(image* img);
 /* REQUIRES COMPILATION WITH OPENCV */
 void show_image(image* img) {
 #ifdef OPENCV
-    show_image_opencv(img->data, (int)img->w, (int)img->h, (int)img->c, 0);
+    show_image_opencv(img->data, (int)img->w, (int)img->h, (int)img->c, 1);
 #else
     printf("Cannot display image. Nardenet must be compiled with OpenCV installed "
            "and the preprocessor symbol OPENCV defined.\nPress any key to continue.\n");
