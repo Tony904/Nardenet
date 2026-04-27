@@ -1006,7 +1006,7 @@ void build_detect_layer(int i, network* net) {
 	l->ignore_thresh = 0.7F;
 	l->iou_thresh = 0.2F;
 	l->obj_normalizer = 0.4F;
-	l->max_box_grad = 2.0F;
+	l->max_box_grad = 1.0F;
 	l->scale_grid = 2.0F;
 }
 

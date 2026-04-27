@@ -4,8 +4,8 @@
 
 
 #define EPS 0.000001F
-#define square(x) x*x
-#define cube(x) x*x*x
+#define square(x) ((x)*(x))
+#define cube(x) ((x)*(x)*(x))
 
 static const float PI = 3.14159265358979323846F;
 
@@ -64,7 +64,7 @@ float get_grads_iou(bbox pbox, bbox tbox, float* dx, float* dy, float* dw, float
 	// dI/dw = I_h * (dR_min/dw - dL_max/dw)
 	float dR_dw = pbox.right < tbox.right ? 0.5F : 0.0F;
 	float dL_dw = pbox.left > tbox.left ? -0.5F : 0.0F;
-	float dI_dw = I_h * (dR_dw - dR_dw);
+	float dI_dw = I_h * (dR_dw - dL_dw);
 	float dIOU_dw = (dI_dw * (pbox.area + tbox.area) - I * pbox.h) / (U * U + EPS);
 
 	// dIOU/dh = (dI/dh * (area1 + area2) - I * w1) / U^2
@@ -114,20 +114,20 @@ float get_grads_diou(bbox pbox, bbox tbox, float* dx, float* dy, float* dw, floa
 	// d(C^2/E^2)/d? = [d(C^2)/d? * E^2 - d(E^2)/d? * C^2] / E^4
 	
 	// d(C^2)/dx:
-	float dC2_dx = 2 * (pbox.cx - tbox.cx);
+	float dC2_dx = 2.0F * (pbox.cx - tbox.cx);
 	// d(E^2)/dx:
 	float dR_dx = pbox.right > tbox.right ? 1.0F : 0.0F;
 	float dL_dx = pbox.left < tbox.left ? 1.0F : 0.0F;
-	float dE2_dx = 2 * (R - L) * (dR_dx - dL_dx);
+	float dE2_dx = 2.0F * (R - L) * (dR_dx - dL_dx);
 	// d(C^2/E^2)/dx:
 	float dC2E2_dx = (dC2_dx * E2 - dE2_dx * C2) / E4;
 
 	// d(C^2)/dy:
-	float dC2_dy = 2 * (pbox.cy - tbox.cy);
+	float dC2_dy = 2.0F * (pbox.cy - tbox.cy);
 	// d(E^2)/dx:
 	float dB_dy = pbox.bottom > tbox.bottom ? 1.0F : 0.0F;
 	float dT_dy = pbox.top < tbox.top ? 1.0F : 0.0F;
-	float dE2_dy = 2 * (B - T) * (dB_dy - dT_dy);
+	float dE2_dy = 2.0F * (B - T) * (dB_dy - dT_dy);
 	// d(C^2/E^2)/dy:
 	float dC2E2_dy = (dC2_dy * E2 - dE2_dy * C2) / E4;
 
@@ -136,7 +136,7 @@ float get_grads_diou(bbox pbox, bbox tbox, float* dx, float* dy, float* dw, floa
 	// d(E^2)/dw:
 	float dR_dw = pbox.right > tbox.right ? 0.5F : 0.0F;
 	float dL_dw = pbox.left < tbox.left ? -0.5F : 0.0F;
-	float dE2_dw = 2 * (R - L) * (dR_dw - dL_dw);
+	float dE2_dw = 2.0F * (R - L) * (dR_dw - dL_dw);
 	// d(C^2/E^2)/dw:
 	float dC2E2_dw = -dE2_dw * C2 / E4;
 
