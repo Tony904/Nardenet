@@ -226,5 +226,5 @@ float get_grads_ciou(bbox pbox, bbox tbox, float* dx, float* dy, float* dw, floa
 	*dw = dDIOU_dw - dav_dw;
 	*dh = dDIOU_dh - dav_dh;
 
-	return iou - diou - av;
+	return diou - av;
 }

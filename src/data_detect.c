@@ -27,10 +27,10 @@ det_sample* load_det_samples(char* directory, size_t* count_dst) {
 		dirlen++;
 	}
 	list* imgpaths = get_files_list(dir, IMG_EXTS);
-	size_t n_samps = imgpaths->length;
-	det_sample* samples = (det_sample*)xcalloc(n_samps, sizeof(det_sample));
+	size_t n_samples = imgpaths->length;
+	det_sample* samples = (det_sample*)xcalloc(n_samples, sizeof(det_sample));
 	node* noed = { 0 };
-	for (size_t i = 0; i < n_samps; i++) {
+	for (size_t i = 0; i < n_samples; i++) {
 		if (i == 0) noed = imgpaths->first;
 		else noed = noed->next;
 		char* imgfile = (char*)noed->val;
@@ -39,10 +39,10 @@ det_sample* load_det_samples(char* directory, size_t* count_dst) {
 		memcpy(antfile, imgfile, strlen(imgfile) - strlen(dot));
 		memcpy(&antfile[strlen(antfile)], ".txt", 4);
 		load_det_sample(antfile, imgfile, &samples[i]);
-		bbox asdf = samples[i].bboxes[0];
-		print_bbox(asdf);
+		/*bbox test = samples[i].bboxes[0];
+		print_bbox(test);*/
 	}
-	*count_dst = n_samps;
+	*count_dst = n_samples;
 	free_list(imgpaths, 0);
 	return samples;
 }

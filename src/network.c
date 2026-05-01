@@ -20,6 +20,7 @@
 #include "data.h"
 #include "blas.h"
 #include "xcuda.h"
+#include "xopencv.h"
 
 #pragma warning (disable:4702)
 
@@ -953,7 +954,7 @@ void build_detect_layer(int i, network* net) {
 	l->n = l->w * l->h * l->c;
 
 	l->grads = (float*)xcalloc(l->n * net->batch_size, sizeof(float));
-	l->errors = (float*)xcalloc(l->n * net->batch_size, sizeof(float));
+	l->errors = (float*)xcalloc(net->batch_size, sizeof(float));  // only used for storing iou losses
 
 	l->out_w = l->w;
 	l->out_h = l->h;

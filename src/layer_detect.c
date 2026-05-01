@@ -11,7 +11,7 @@
 #define COORD_MULTI 5.0F
 #define NO_OBJ_MULTI 0.1F
 #define GET_PREDICTION_BOX(p, i, anchor, spatial, scale, left, top) { .w=p[i]*p[i]*scale*anchor->w,.h=p[i+spatial]*p[i+spatial]*scale*anchor->h,.cx=p[i+spatial*2]+left,.cy=p[i+spatial*3]+top }
-#define SETUP_BBOX(b) b.area=b.w*b.h;b.left=b.cx-b.w/2.0F;b.right=b.cx-b.w/2.0F+b.w;b.top=b.cy-b.h/2.0F;b.bottom=b.cy-b.h/2.0F+b.h
+#define SETUP_BBOX(b) (b).area=(b).w*(b).h;(b).left=(b).cx-(b).w/2.0F;(b).right=(b).cx-(b).w/2.0F+(b).w;(b).top=(b).cy-(b).h/2.0F;(b).bottom=(b).cy-(b).h/2.0F+(b).h
 
 static inline float clamp_x(float x, float thresh) {
 	if (x > thresh) return thresh;
@@ -19,16 +19,16 @@ static inline float clamp_x(float x, float thresh) {
 	return x;
 }
 
-void get_class_grads(size_t cls_index, size_t n_classes, float* grads, float* output, bbox truth_box, size_t spatial);
-void cull_predictions_and_do_nms(layer* l, network* net);
+void get_class_grads(size_t cls_index, size_t n_classes, float* const grads, const float* const output, bbox truth_box, size_t spatial);
+void cull_predictions_and_do_nms(layer* l, network* net, size_t b);
 void draw_detections(bbox** dets, size_t n_dets, image* img, float thresh);
 void apply_grid_scaling(layer* l, network* net);
 void pprint_detect_array(float* data, size_t rows, size_t cols, size_t n_classes, size_t n_anchors);
 
 
-void forward_detect(layer* l, network* net) {
+void forward_detect_combo(layer* l, network* net) {
 	apply_grid_scaling(l, net);
-	float scale_wh = l->scale_grid * 2;
+	float scale_wh = l->scale_grid * 2.0F;
 	size_t batch_size = net->batch_size;
 	float* p = l->output;  // predictions
 	det_sample** samples = net->data.detr.current_batch;
@@ -58,6 +58,9 @@ void forward_detect(layer* l, network* net) {
 	int obj_smooth = l->objectness_smooth;
 	iou_loss = 0.0F;
 	size_t n_iou_loss = 0;
+	// *****************************************************
+	// **** ADD OPENMP PARALLELIZATION TO THIS BY BATCH ****
+	// *****************************************************
 	for (size_t b = 0; b < batch_size; b++) {
 		det_sample* sample = samples[b];
 		bbox* tboxes = sample->bboxes;  // truth boxes
@@ -78,7 +81,8 @@ void forward_detect(layer* l, network* net) {
 				size_t obj_index = p_index + l_wh * 4;  // index of objectness score
 				size_t cls_index = p[obj_index + l_wh];
 				float best_iou = 0.0F;
-				// I think this check, when used with obj_smooth=1, is to provide a positive training signal to predictions that appear to be based on learned class features and not just coincidence.
+				// I think this check, when used with obj_smooth=1, is to provide a positive training signal to predictions that appear to be based on learned class features.
+				// I think it's also to prevent processing the iou for all truths for anchors that predict no object/class, as that would be expensive.
 				// Also even if objectness gets penalized here, the iou will get improved if the associated anchor is the best, meaning it will eventually have an iou > ignore_thresh
 				for (size_t k = 0; k < n_classes; k++) {
 					if (p[cls_index + k * l_wh] > 0.25F) {  // darknet uses 0.25
@@ -107,7 +111,7 @@ void forward_detect(layer* l, network* net) {
 			// check which anchor has best "possible" overlap with truthbox (the overlap if anchor and tbox centers were equal)
 			for (size_t a = 0; a < n_all_anchors; a++) {
 				bbox anchor = all_anchors[a];
-				float ciou = get_ciou(anchor, tbox_shifted, 0, 0);
+				float ciou = get_iou(anchor, tbox_shifted);
 				if (anchor.lbl == l_id) l_a++;
 				if (ciou > best_iou) {
 					best_iou = ciou;
@@ -125,22 +129,22 @@ void forward_detect(layer* l, network* net) {
 				size_t p_index = b * l_n + s + l_a * A;  // index of prediction "entry"
 				bbox pbox = GET_PREDICTION_BOX(p, p_index, anchor, l_wh, scale_wh, cell_left, cell_top);
 				SETUP_BBOX(pbox);
-				float dL_dw = 0.0F;
-				float dL_dh = 0.0F;
-				float dL_dx = 0.0F;
-				float dL_dy = 0.0F;
-				float ciou_loss = 1.0F - get_grads_ciou(pbox, tbox, &dL_dx, &dL_dy, &dL_dw, &dL_dh);
-				grads[p_index] += clamp_x(-dL_dw, max_box_grad);
-				grads[p_index + l_wh] += clamp_x(-dL_dh, max_box_grad);
-				grads[p_index + l_wh * 2] += clamp_x(-dL_dx, max_box_grad);
-				grads[p_index + l_wh * 3] += clamp_x(-dL_dy, max_box_grad);
-				printf("dL_dw: %f dL_dh: %f dL_dx: %f dL_dy: %f\n", grads[p_index], grads[p_index + l_wh], grads[p_index + l_wh * 2], grads[p_index + l_wh * 3]);
+				float dw = 0.0F;
+				float dh = 0.0F;
+				float dx = 0.0F;
+				float dy = 0.0F;
+				float ciou_loss = 1.0F - get_grads_ciou(pbox, tbox, &dx, &dy, &dw, &dh);
+				grads[p_index] += clamp_x(-dw, max_box_grad);
+				grads[p_index + l_wh] += clamp_x(-dh, max_box_grad);
+				grads[p_index + l_wh * 2] += clamp_x(-dx, max_box_grad);
+				grads[p_index + l_wh * 3] += clamp_x(-dy, max_box_grad);
+				//printf("dL_dw: %f dL_dh: %f dL_dx: %f dL_dy: %f\n", grads[p_index], grads[p_index + l_wh], grads[p_index + l_wh * 2], grads[p_index + l_wh * 3]);
 				iou_loss += ciou_loss;
 				n_iou_loss++;
 
 				size_t obj_index = p_index + l_wh * 4;  // index of objectness score
  				float p_obj = p[obj_index];
-				printf("p_obj = %f\n", p_obj);
+				//printf("p_obj = %f\n", p_obj);
 				if (obj_smooth) {
 					if (grads[obj_index] == 0.0F) grads[obj_index] = obj_normalizer * (p_obj - 1.0F);
 				}
@@ -158,17 +162,16 @@ void forward_detect(layer* l, network* net) {
 					size_t p_index = b * l_n + s + a * A;  // index of prediction "entry"
 					bbox pbox = GET_PREDICTION_BOX(p, p_index, anchor, l_wh, scale_wh, cell_left, cell_top);
 					SETUP_BBOX(pbox);
-					float dL_dw = 0.0F;
-					float dL_dh = 0.0F;
-					float dL_dx = 0.0F;
-					float dL_dy = 0.0F;
-					float ciou_loss = 1.0F - get_grads_ciou(pbox, tbox, &dL_dx, &dL_dy, &dL_dw, &dL_dh);
-					grads[p_index] += clamp_x(-dL_dw, max_box_grad);
-					grads[p_index + l_wh] += clamp_x(-dL_dh, max_box_grad);
-					grads[p_index + l_wh * 2] += clamp_x(-dL_dx, max_box_grad);
-					grads[p_index + l_wh * 3] += clamp_x(-dL_dy, max_box_grad);
-					printf("dL_dw: %f dL_dh: %f dL_dx: %f dL_dy: %f\n", grads[p_index], grads[p_index + l_wh], grads[p_index + l_wh * 2], grads[p_index + l_wh * 3]);
-					
+					float dw = 0.0F;
+					float dh = 0.0F;
+					float dx = 0.0F;
+					float dy = 0.0F;
+					float ciou_loss = 1.0F - get_grads_ciou(pbox, tbox, &dx, &dy, &dw, &dh);
+					grads[p_index] += clamp_x(-dw, max_box_grad);
+					grads[p_index + l_wh] += clamp_x(-dh, max_box_grad);
+					grads[p_index + l_wh * 2] += clamp_x(-dx, max_box_grad);
+					grads[p_index + l_wh * 3] += clamp_x(-dy, max_box_grad);
+					//printf("dL_dw: %f dL_dh: %f dL_dx: %f dL_dy: %f\n", grads[p_index], grads[p_index + l_wh], grads[p_index + l_wh * 2], grads[p_index + l_wh * 3]);
 					iou_loss += ciou_loss;
 					n_iou_loss++;
 
@@ -210,8 +213,8 @@ void forward_detect(layer* l, network* net) {
 			}
 		}
 	}
-
-	size_t obj_offset = 4 * l_wh;
+	// sum objectness loss
+	size_t obj_offset = l_wh * 4;
 	size_t b;
 #pragma omp parallel for reduction(+:obj_loss) firstprivate(obj_offset, l_n, l_wh, n_anchors)
 	for (b = 0; b < batch_size; b++) {
@@ -224,6 +227,7 @@ void forward_detect(layer* l, network* net) {
 			}
 		}
 	}
+	// sum class loss
 	size_t cls_offset = obj_offset + l_wh;
 #pragma omp parallel for reduction(+:cls_loss) firstprivate(cls_offset, l_n, l_wh, n_anchors, n_classes)
 	for (b = 0; b < batch_size; b++) {
@@ -238,6 +242,7 @@ void forward_detect(layer* l, network* net) {
 			}
 		}
 	}
+
 	l->obj_loss = obj_loss / (float)(batch_size * l_wh * n_anchors);
 	l->cls_loss = cls_loss / (float)(batch_size * l_wh * n_anchors * n_classes);
 	if (n_iou_loss) l->iou_loss = iou_loss / (float)n_iou_loss;
@@ -245,10 +250,271 @@ void forward_detect(layer* l, network* net) {
 	l->loss = l->obj_loss + l->cls_loss + l->iou_loss;
 	printf("total detect loss: %f\navg obj loss: %f\navg class loss: %f\navg iou loss: %f\n", l->loss, l->obj_loss, l->cls_loss, l->iou_loss);
 	//pprint_detect_array(l->grads, l->h, l->w, n_classes, n_anchors);
-	cull_predictions_and_do_nms(l, net);  // for debugging
+	cull_predictions_and_do_nms(l, net, 0);  // for debugging
 }
 
-void get_class_grads(size_t cls_index, size_t n_classes, float* grads, float* output, bbox truth_box, size_t spatial) {
+// p = output
+void forward_detect_batch(const float* const p, float* const grads,
+							const bbox* const anchors, const bbox* const all_anchors,
+							const det_sample** const samples,
+							float* const iou_losses,
+							size_t b, int l_id,
+							size_t l_w, size_t l_h, size_t l_n, float scale_wh,
+							size_t n_anchors, size_t n_all_anchors, size_t n_classes,
+							int obj_smooth, float obj_normalizer, float max_box_grad,
+							float ignore_thresh, float iou_thresh) {
+
+	float iou_loss = 0.0F;
+	size_t n_iou_losses = 0;
+	size_t l_wh = l_w * l_h;
+	size_t A = (NUM_ANCHOR_PARAMS + n_classes) * l_wh;
+	float cell_size = 1.0F / (float)l_wh;
+	det_sample sample = *samples[b];
+	bbox* tboxes = sample.bboxes;  // truth boxes
+	size_t n_tboxes = sample.n;
+	for (size_t s = 0; s < l_wh; s++) {
+		float row = s / l_w;
+		float col = s % l_w;
+		float cell_left = row * cell_size;
+		float cell_top = col * cell_size;
+		for (size_t a = 0; a < n_anchors; a++) {
+			const bbox* const anchor = &anchors[a];
+
+			size_t p_index = b * l_n + s + a * A;  // index of prediction "entry"
+			bbox pbox = GET_PREDICTION_BOX(p, p_index, anchor, l_wh, scale_wh, cell_left, cell_top);
+			SETUP_BBOX(pbox);
+			//printf("w: %f, h: %f, cx: %f, cy: %f\n", p[p_index], p[p_index + l_wh], p[p_index + l_wh * 2], p[p_index + l_wh * 3]);
+
+			size_t obj_index = p_index + l_wh * 4;  // index of objectness score
+			size_t cls_index = p[obj_index + l_wh];
+			float best_iou = 0.0F;
+			// I think this check, when used with obj_smooth=1, is to provide a positive training signal to predictions that appear to be based on learned class features.
+			// I think it's also to prevent processing the iou for all truths for anchors that predict no object/class, as that would be expensive.
+			// Also even if objectness gets penalized here, the iou will get improved if the associated anchor is the best, meaning it will eventually have an iou > ignore_thresh
+			for (size_t k = 0; k < n_classes; k++) {
+				if (p[cls_index + k * l_wh] > 0.25F) {  // darknet uses 0.25
+					for (size_t t = 0; t < n_tboxes; t++) {
+						float iou = get_iou(pbox, tboxes[t]);
+						if (iou > best_iou) best_iou = iou;
+					}
+					break;
+				}
+			}
+			float p_obj = p[obj_index];
+			grads[obj_index] = obj_normalizer * (p_obj);  // default objectness gradient
+			if (best_iou > ignore_thresh) {
+				if (obj_smooth) grads[obj_index] = obj_normalizer * (p_obj - best_iou);
+				else grads[obj_index] = 0.0F;
+			}
+		}
+	}
+	for (size_t t = 0; t < n_tboxes; t++) {
+		bbox tbox = tboxes[t];
+		bbox tbox_shifted = tbox;
+		tbox_shifted.cx = 0.0F;
+		tbox_shifted.cy = 0.0F;
+		float best_iou = 0.0F;
+		size_t l_a = 0;
+		// check which anchor has best "possible" overlap with truthbox (the overlap if anchor and tbox centers were equal)
+		for (size_t a = 0; a < n_all_anchors; a++) {
+			bbox anchor = all_anchors[a];
+			float ciou = get_iou(anchor, tbox_shifted);
+			if (anchor.lbl == l_id) l_a++;
+			if (ciou > best_iou) {
+				best_iou = ciou;
+				if (anchor.lbl != l_id) l_a = 0;
+			}
+		}
+		size_t col = tbox.cx * l_w;
+		size_t row = tbox.cy * l_h;
+		size_t s = row * l_w + col;
+		float cell_left = ((float)col) * cell_size;
+		float cell_top = ((float)row) * cell_size;
+		if (l_a) {  // if best tbox_shifted iou is with an anchor from this layer
+			l_a--;
+			const bbox* const anchor = &anchors[l_a];
+			size_t p_index = b * l_n + s + l_a * A;  // index of prediction "entry"
+			bbox pbox = GET_PREDICTION_BOX(p, p_index, anchor, l_wh, scale_wh, cell_left, cell_top);
+			SETUP_BBOX(pbox);
+			float dw = 0.0F;
+			float dh = 0.0F;
+			float dx = 0.0F;
+			float dy = 0.0F;
+			float ciou_loss = 1.0F - get_grads_ciou(pbox, tbox, &dx, &dy, &dw, &dh);
+			grads[p_index] += clamp_x(-dw, max_box_grad);
+			grads[p_index + l_wh] += clamp_x(-dh, max_box_grad);
+			grads[p_index + l_wh * 2] += clamp_x(-dx, max_box_grad);
+			grads[p_index + l_wh * 3] += clamp_x(-dy, max_box_grad);
+			//printf("dL_dw: %f dL_dh: %f dL_dx: %f dL_dy: %f\n", grads[p_index], grads[p_index + l_wh], grads[p_index + l_wh * 2], grads[p_index + l_wh * 3]);
+			iou_loss += ciou_loss;
+			n_iou_losses++;
+
+			size_t obj_index = p_index + l_wh * 4;  // index of objectness score
+			float p_obj = p[obj_index];
+			//printf("p_obj = %f\n", p_obj);
+			if (obj_smooth) {
+				if (grads[obj_index] == 0.0F) grads[obj_index] = obj_normalizer * (p_obj - 1.0F);
+			}
+			else grads[obj_index] = p_obj - 1.0F;
+
+			size_t cls_index = p_index + l_wh * NUM_ANCHOR_PARAMS;
+			get_class_grads(cls_index, n_classes, grads, p, tbox, l_wh);
+			l_a++;
+		}
+		for (size_t a = 0; a < n_anchors; a++) {
+			if (a + 1 == l_a) continue;  // skip if anchor index 'a' was already calculated above
+			const bbox* const anchor = &anchors[a];
+			float iou = get_iou(*anchor, tbox_shifted);
+			if (iou > iou_thresh) {
+				size_t p_index = b * l_n + s + a * A;  // index of prediction "entry"
+				bbox pbox = GET_PREDICTION_BOX(p, p_index, anchor, l_wh, scale_wh, cell_left, cell_top);
+				SETUP_BBOX(pbox);
+				float dw = 0.0F;
+				float dh = 0.0F;
+				float dx = 0.0F;
+				float dy = 0.0F;
+				float ciou_loss = 1.0F - get_grads_ciou(pbox, tbox, &dx, &dy, &dw, &dh);
+				grads[p_index] += clamp_x(-dw, max_box_grad);
+				grads[p_index + l_wh] += clamp_x(-dh, max_box_grad);
+				grads[p_index + l_wh * 2] += clamp_x(-dx, max_box_grad);
+				grads[p_index + l_wh * 3] += clamp_x(-dy, max_box_grad);
+				//printf("dL_dw: %f dL_dh: %f dL_dx: %f dL_dy: %f\n", grads[p_index], grads[p_index + l_wh], grads[p_index + l_wh * 2], grads[p_index + l_wh * 3]);
+				iou_loss += ciou_loss;
+				n_iou_losses++;
+
+				size_t obj_index = p_index + l_wh * 4;  // index of objectness score
+				float p_obj = p[obj_index];
+				if (obj_smooth) {
+					if (grads[obj_index] == 0.0F) grads[obj_index] = obj_normalizer * (p_obj - 1.0F);
+				}
+				else grads[obj_index] = p_obj - 1.0F;
+
+				size_t cls_index = p_index + l_wh * NUM_ANCHOR_PARAMS;
+				get_class_grads(cls_index, n_classes, grads, p, tbox, l_wh);
+			}
+		}
+	}
+
+	if (iou_thresh < 1.0F) {  // iou_thresh being less than 1 is the only scenario where multiple positive training signals for class can occur
+		// averages the bbox gradients across classes with positive training signals
+		for (size_t s = 0; s < l_wh; s++) {
+			for (size_t a = 0; a < n_anchors; a++) {
+				size_t p_index = b * l_n + s + a * A;
+				size_t obj_index = p_index + l_wh * 4;
+				size_t cls_index = p[obj_index + l_wh];
+				if (grads[obj_index]) {
+					float count = 0.0F;
+					for (int k = 0; k < n_classes; k++) {
+						if (grads[cls_index + k * l_wh] > 0.0F) count += 1.0F;
+					}
+					if (count > 0.0F) {
+						grads[p_index] /= count;
+						grads[p_index + l_wh] /= count;
+						grads[p_index + l_wh * 2] /= count;
+						grads[p_index + l_wh * 3] /= count;
+					}
+				}
+			}
+		}
+	}
+	if (n_iou_losses == 0) {
+		iou_losses[b] = -1.0F;
+	}
+	else {
+		iou_losses[b] = iou_loss / (float)n_iou_losses;
+	}
+}
+
+void forward_detect(layer* l, network* net) {
+	apply_grid_scaling(l, net);
+	float scale_wh = l->scale_grid * 2.0F;
+	size_t batch_size = net->batch_size;
+	const float* const output = l->output;  // predictions
+	const det_sample** const samples = net->data.detr.current_batch;
+	const bbox* const anchors = l->anchors;
+	const bbox* const all_anchors = net->anchors;
+	int l_id = l->id;
+	size_t n_all_anchors = net->n_anchors;
+	size_t l_w = l->w;
+	size_t l_h = l->h;
+	size_t l_n = l->n;
+	size_t n_classes = l->n_classes;
+	size_t n_anchors = l->n_anchors;
+	float* const errors = l->errors;
+	zero_array(errors, l_n * batch_size);
+	float* const grads = l->grads;
+	zero_array(grads, l_n * batch_size);
+	float ignore_thresh = l->ignore_thresh;
+	float iou_thresh = l->iou_thresh;
+	float obj_normalizer = l->obj_normalizer;
+	float max_box_grad = l->max_box_grad;
+	int obj_smooth = l->objectness_smooth;
+	size_t b;
+#pragma omp parallel for firstprivate(output, grads, anchors, all_anchors, samples, errors, b, l_id, l_w, l_h, l_n, scale_wh, n_anchors, n_all_anchors, n_classes, obj_smooth, obj_normalizer, max_box_grad, ignore_thresh, iou_thresh)
+	for (b = 0; b < batch_size; b++) {
+		forward_detect_batch(output, grads,
+			anchors, all_anchors,
+			samples,
+			errors,
+			b, l_id,
+			l_w, l_h, l_n, scale_wh,
+			n_anchors, n_all_anchors, n_classes,
+			obj_smooth, obj_normalizer, max_box_grad,
+			ignore_thresh, iou_thresh);
+	}
+
+	size_t l_wh = l_w * l_h;
+	size_t A = (NUM_ANCHOR_PARAMS + n_classes) * l_wh;
+	// sum objectness loss
+	float obj_loss = 0.0F;
+	size_t obj_offset = l_wh * 4;
+#pragma omp parallel for reduction(+:obj_loss) firstprivate(obj_offset, l_n, l_wh, n_anchors)
+	for (b = 0; b < batch_size; b++) {
+		size_t bn = b * l_n;
+		for (size_t s = 0; s < l_wh; s++) {
+			size_t bns = bn + s;
+			for (size_t a = 0; a < n_anchors; a++) {
+				size_t obj_index = bns + a * A + obj_offset;
+				obj_loss += (grads[obj_index] * grads[obj_index]);
+			}
+		}
+	}
+	// sum class loss
+	float cls_loss = 0.0F;
+	size_t cls_offset = obj_offset + l_wh;
+#pragma omp parallel for reduction(+:cls_loss) firstprivate(cls_offset, l_n, l_wh, n_anchors, n_classes)
+	for (b = 0; b < batch_size; b++) {
+		size_t bn = b * l_n;
+		float n_tboxes = (float)samples[b]->n;
+		for (size_t s = 0; s < l_wh; s++) {
+			size_t bns = bn + s;
+			for (size_t a = 0; a < n_anchors; a++) {
+				size_t cls_index = bns + a * A + cls_offset;
+				for (size_t k = 0; k < n_classes; k++) {
+					cls_loss += (grads[cls_index + k * l_wh] * grads[cls_index + k * l_wh]) / n_tboxes;
+				}
+			}
+		}
+	}
+
+	l->obj_loss = obj_loss / (float)(batch_size * l_wh * n_anchors);
+	l->cls_loss = cls_loss / (float)(batch_size * l_wh * n_anchors * n_classes);
+
+	float iou_loss = 0.0F;
+	int n_iou_loss = 0;
+	for (b = 0; b < batch_size; b++) {
+		if (errors[b] < 0.0F) continue;
+		iou_loss += errors[b];
+		n_iou_loss++;
+	}
+	l->iou_loss = iou_loss / (float)n_iou_loss;	
+	l->loss = l->obj_loss + l->cls_loss + l->iou_loss;
+	printf("total detect loss: %f\navg obj loss: %f\navg class loss: %f\navg iou loss: %f\n", l->loss, l->obj_loss, l->cls_loss, l->iou_loss);
+	//pprint_detect_array(l->grads, l->h, l->w, n_classes, n_anchors);
+	cull_predictions_and_do_nms(l, net, 0);  // for debugging
+}
+
+void get_class_grads(size_t cls_index, size_t n_classes, float* const grads, const float* const output, bbox truth_box, size_t spatial) {
 	if (grads[cls_index + spatial * truth_box.lbl]) {
 		float grad = output[cls_index + spatial * truth_box.lbl] - 1.0F;
 		if (!isnan(grad) && !isinf(grad)) grads[cls_index + spatial * truth_box.lbl] = grad;
@@ -260,28 +526,8 @@ void get_class_grads(size_t cls_index, size_t n_classes, float* grads, float* ou
 	}
 }
 
-void backward_detect(layer* l, network* net) {
-	size_t batch_size = net->batch_size;
-	float* l_grads = l->grads;
-	size_t l_out_n = l->out_n;
-	layer** inls = l->in_layers;
-	size_t b;
-#pragma omp parallel for firstprivate(l_grads, l_out_n, inls)
-	for (b = 0; b < batch_size; b++) {
-		float* b_grads = &l_grads[b * l_out_n];
-		for (size_t i = 0; i < l->in_ids.n; i++) {
-			layer* inl = inls[i];
-			size_t inl_out_n = inl->out_n;
-			float* inl_grads = &inl->grads[b * inl_out_n];
-			for (size_t g = 0; g < inl_out_n; g++) {
-				inl_grads[g] = b_grads[g];
-			}
-			b_grads += inl_out_n;
-		}
-	}
-}
-
-void cull_predictions_and_do_nms(layer* l, network* net) {
+// b = batch index
+void cull_predictions_and_do_nms(layer* l, network* net, size_t b) {
 	size_t net_w = net->w;
 	float obj_thresh = l->nms_obj_thresh;
 	float cls_thresh = l->nms_cls_thresh;
@@ -298,99 +544,85 @@ void cull_predictions_and_do_nms(layer* l, network* net) {
 	float cell_size = (float)l_w / (float)net_w;
 	size_t A = (NUM_ANCHOR_PARAMS + n_classes) * l_wh;
 	float* p = l->output;
-	size_t ndets = 0;  // debugging
-	for (size_t b = 0; b < batch_size; b++) {
-		bbox* dets = l->detections;
-		bbox** sorted = l->sorted;
-		size_t n_dets = 0;
-		// cull predictions below thresholds
-		for (size_t s = 0; s < l_wh; s++) {
-			float row = s / l_w;
-			float col = s % l_w;
-			float cell_left = col * cell_size;
-			float cell_top = row * cell_size;
-			for (size_t a = 0; a < n_anchors; a++) {
-				size_t p_index = b * l_n + s + a * A;
-				size_t obj_index = p_index + l_wh * 4;
-				if (p[obj_index] < obj_thresh) {  // objectness thresh
-					continue;
-				}
-				int best_cls = -1;
-				float best_cls_score = 0.0F;
-				size_t cls_index = obj_index + l_wh;
-				for (size_t k = 0; k < n_classes; k++) {
-					float cls_score = p[cls_index + k * l_wh];
-					if (cls_score > cls_thresh) {  // class confidence thresh
-						if (cls_score > best_cls_score) {
-							best_cls_score = cls_score;
-							best_cls = (int)k;
-						}
+	bbox* dets = l->detections;  // note: l->detections size = l->w * l->h * l->n_anchors * sizeof(bbox)
+	bbox** sorted = l->sorted;
+	size_t n_dets = 0;
+	// cull predictions below thresholds
+	for (size_t s = 0; s < l_wh; s++) {
+		float row = s / l_w;
+		float col = s % l_w;
+		float cell_left = col * cell_size;
+		float cell_top = row * cell_size;
+		for (size_t a = 0; a < n_anchors; a++) {
+			size_t p_index = b * l_n + s + a * A;
+			size_t obj_index = p_index + l_wh * 4;
+			if (p[obj_index] < obj_thresh) continue;
+			int best_cls = -1;
+			float best_cls_score = 0.0F;
+			size_t cls_index = obj_index + l_wh;
+			for (size_t k = 0; k < n_classes; k++) {
+				float cls_score = p[cls_index + k * l_wh];
+				if (cls_score > cls_thresh) {  // class confidence thresh
+					if (cls_score > best_cls_score) {
+						best_cls_score = cls_score;
+						best_cls = (int)k;
 					}
 				}
-				if (best_cls < 0) continue;
-				bbox* anchor = &anchors[a];
-				bbox pbox = GET_PREDICTION_BOX(p, p_index, anchor, l_wh, scale, cell_left, cell_top);
-				SETUP_BBOX(pbox);
-				if (pbox.left >= 1.0F) continue;
-				if (pbox.right <= 0.0F) continue;
-				if (pbox.top >= 1.0F) continue;
-				if (pbox.bottom <= 0.0F) continue;
-				dets->prob = best_cls_score;
-				dets->lbl = best_cls;
-				float left = pbox.left;
-				float right = pbox.right;
-				float top = pbox.top;
-				float bottom = pbox.bottom;
-				if (left < 0.0F) left = 0.0F;
-				if (right > 1.0F) right = 1.0F;
-				if (top < 0.0F) top = 0.0F;
-				if (bottom > 1.0F) bottom = 1.0F;
-				dets->cx = (left + right) / 2.0F;
-				dets->cy = (top + bottom) / 2.0F;
-				float w = right - left;
-				float h = bottom - top;
-				dets->w = w;
-				dets->h = h;
-				dets->area = w * h;
-				dets->left = left;
-				dets->right = right;
-				dets->top = top;
-				dets->bottom = bottom;
-				*sorted = dets;
-				sorted++;
-				dets++;
-				n_dets++;
 			}
+			if (best_cls < 0) continue;
+			bbox* anchor = &anchors[a];
+			bbox pbox = GET_PREDICTION_BOX(p, p_index, anchor, l_wh, scale, cell_left, cell_top);
+			SETUP_BBOX(pbox);
+			if (pbox.left >= 1.0F || pbox.right <= 0.0F || pbox.top >= 1.0F || pbox.bottom <= 0.0F) continue;
+			dets->prob = best_cls_score;
+			dets->lbl = best_cls;
+			float left = fmaxf(0.0F, pbox.left);
+			float right = fminf(1.0F, pbox.right);
+			float top = fmaxf(0.0F, pbox.top);
+			float bottom = fminf(1.0F, pbox.bottom);
+			dets->cx = (left + right) / 2.0F;
+			dets->cy = (top + bottom) / 2.0F;
+			dets->w = right - left;
+			dets->h = bottom - top;
+			SETUP_BBOX(*dets);
+			*sorted = dets;
+			sorted++;
+			dets++;
+			n_dets++;
 		}
-		if (n_dets == 0) continue;
-		// sort remaining detections
-		dets = l->detections;
-		sorted = l->sorted;
-		/*size_t i = 0;
-		while (i < n_dets - 1) {
-			if (sorted[i]->prob < sorted[i + 1]->prob) {
-				bbox* tmp = sorted[i];
-				sorted[i] = sorted[i + 1];
-				sorted[i + 1] = tmp;
-				i = i ? i - 1 : i + 1;
-			}
-			else i++;
-		}*/
-		// nms
-		/*for (i = 0; i < n_dets; i++) {
-			bbox* test = sorted[i];
+	}
+	printf("# of Detections (pre NMS): %zu\n", n_dets);
+	// sort remaining detections
+	dets = l->detections;
+	sorted = l->sorted;
+	size_t i = 0;
+	while (i + 1 < n_dets) {
+		if (sorted[i]->prob < sorted[i + 1]->prob) {
+			bbox* tmp = sorted[i];
+			sorted[i] = sorted[i + 1];
+			sorted[i + 1] = tmp;
+			i = i ? i - 1 : i + 1;
+		}
+		else i++;
+	}
+	// nms
+	size_t dupes = 0;
+	for (i = 0; i < n_dets; i++) {
+		bbox* test = sorted[i];
+		if (test->prob) {
 			for (size_t j = i + 1; j < n_dets; j++) {
 				if (test->lbl == sorted[j]->lbl) {
 					float diou = get_diou(*test, *sorted[j], 0);
 					if (diou > iou_thresh) {
 						sorted[j]->prob = 0.0F;
 						sorted[j]->lbl = -1;
+						dupes++;
 					}
 				}
 			}
-		}*/
-		if (b == 0) ndets = n_dets;
+		}
 	}
+	printf("Duplicate detections culled: %zu\n", dupes);
 	// draw boxes on input image
 	det_sample** samples = net->data.detr.current_batch;
 	image img = { 0 };
@@ -399,10 +631,10 @@ void cull_predictions_and_do_nms(layer* l, network* net) {
 	img.h = 32;
 	img.c = 3;
 	img.data = buffer;
-	load_image_to_buffer(samples[0]->imgpath, &img, 1);
+	load_image_to_buffer(samples[0]->imgpath, &img, 0);
 	net->draw_thresh = 0.5F;  // TODO: Make a cfg parameter
-	draw_detections(l->sorted, ndets, &img, net->draw_thresh);
-	////write_image(img, "D:\\TonyDev\\Nardenet\\data\\detector\\test.png");
+	draw_detections(l->sorted, n_dets, &img, net->draw_thresh);
+	//write_image(&img, "C:\\Users\\TNard\\OneDrive\\Desktop\\dev\\Nardenet\\data\\detector\\test.png");
 	show_image(&img);
 	//xfree(&img);
 }
@@ -418,7 +650,7 @@ void draw_detections(bbox** dets, size_t n_dets, image* img, float thresh) {
 	size_t green_offset = 1 * img_w * img_h;
 	size_t blue_offset = 2 * img_w * img_h;
 	for (size_t i = 0; i < n_dets; i++) {
-		//if (dets[i]->prob < thresh) continue;
+		if (dets[i]->prob < thresh || dets[i]->lbl < 0) continue;
 		bbox* det = dets[i];
 		size_t box_left = det->left * img_w;
 		size_t box_top = det->top * img_h;
@@ -483,6 +715,27 @@ void apply_grid_scaling(layer* l, network* net) {
 					q[p_index + NUM_ANCHOR_PARAMS * l_wh + k * l_wh] = p[p_index + NUM_ANCHOR_PARAMS * l_wh + k * l_wh];
 				}
 			}
+		}
+	}
+}
+
+void backward_detect(layer* l, network* net) {
+	size_t batch_size = net->batch_size;
+	float* l_grads = l->grads;
+	size_t l_out_n = l->out_n;
+	layer** inls = l->in_layers;
+	size_t b;
+#pragma omp parallel for firstprivate(l_grads, l_out_n, inls)
+	for (b = 0; b < batch_size; b++) {
+		float* b_grads = &l_grads[b * l_out_n];
+		for (size_t i = 0; i < l->in_ids.n; i++) {
+			layer* inl = inls[i];
+			size_t inl_out_n = inl->out_n;
+			float* inl_grads = &inl->grads[b * inl_out_n];
+			for (size_t g = 0; g < inl_out_n; g++) {
+				inl_grads[g] = b_grads[g];
+			}
+			b_grads += inl_out_n;
 		}
 	}
 }

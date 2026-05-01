@@ -11,7 +11,12 @@
 #include <fstream>
 
 
+
 extern "C" {
+
+    void cv_set_num_threads(int n) {
+        cv::setNumThreads(n);
+    }
 
 #pragma warning (suppress:4100)
     void show_image_opencv(float* data, int w, int h, int c, int waitkey) {
@@ -25,7 +30,6 @@ extern "C" {
                 }
             }
         }
-        
         cv::resize(mat, mat, cv::Size2d(), 10.0, 10.0, 1);
         //cv::destroyAllWindows();
         cv::cvtColor(mat, mat, cv::COLOR_BGR2RGB);

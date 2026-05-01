@@ -1,5 +1,6 @@
 #include "image.h"
 #include <math.h>
+#include <string.h>
 #include "xallocs.h"
 #include "stdio.h"
 #include "stbimage.h"
@@ -19,7 +20,7 @@ void rgb2hsv(image* img);
 void hsv2rgb(image* img);
 
 
-#pragma warning(disable:4100)  // 'img' unreferenced formal parameter (when OPENCV is not defined)
+//#pragma warning(disable:4100)  // 'img' unreferenced formal parameter (when OPENCV is not defined)
 /* REQUIRES COMPILATION WITH OPENCV */
 void show_image(image* img) {
 #ifdef OPENCV
