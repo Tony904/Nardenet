@@ -68,7 +68,7 @@ network* new_network(size_t num_of_layers) {
 
 void build_network(network* net) {
 	if (net->type == NET_DETECT) {
-		net->data.detr.current_batch = (det_sample**)xcalloc(net->batch_size, sizeof(det_sample*));
+		net->data.detector.current_batch = (det_sample**)xcalloc(net->batch_size, sizeof(det_sample*));
 		net->anchors = (bbox*)xcalloc(net->n_anchors, sizeof(bbox));
 	}
 	build_input_layer(net);
@@ -1248,7 +1248,7 @@ void free_network(network* n) {
 	xfree(&n->dataset_dir);
 	xfree(&n->weights_file);
 	xfree(&n->save_dir);
-	free_classifier_dataset_fields(&n->data.clsr);
+	free_classifier_dataset_fields(&n->data.classifier);
 	if (n->use_gpu) {
 		CUDA_FREE(&n->gpu.workspace);
 		CUDA_FREE(&n->gpu.reg_loss);

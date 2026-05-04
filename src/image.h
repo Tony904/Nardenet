@@ -13,7 +13,7 @@ extern "C" {
     
     image* load_image(char* filename);
     void load_image_to_buffer(char* filename, image* dst, int resize);
-    void show_image(image* img);
+    void show_image(const char* window_title, image* img, int waitkey);
     void write_image(image* img, char* filename);
     void write_image_test(void);
     void load_image_test(void);

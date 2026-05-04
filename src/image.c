@@ -5,6 +5,7 @@
 #include "stdio.h"
 #include "stbimage.h"
 #include "utils.h"
+#include "imshow.h"
 
 #ifdef OPENCV
 #include "xopencv.h"
@@ -20,15 +21,22 @@ void rgb2hsv(image* img);
 void hsv2rgb(image* img);
 
 
-//#pragma warning(disable:4100)  // 'img' unreferenced formal parameter (when OPENCV is not defined)
-/* REQUIRES COMPILATION WITH OPENCV */
-void show_image(image* img) {
+
+void show_image(const char* window_title, image* img, int waitkey) {
 #ifdef OPENCV
-    show_image_opencv(img->data, (int)img->w, (int)img->h, (int)img->c, 1);
+    show_image_opencv(img->data, (int)img->w, (int)img->h, (int)img->c, waitkey);
 #else
-    printf("Cannot display image. Nardenet must be compiled with OpenCV installed "
-           "and the preprocessor symbol OPENCV defined.\nPress any key to continue.\n");
-    (void)getchar();
+    size_t n = img->h * img->w * img->c;
+    float* data_float = img->data;
+    int* data_int = (int*)xcalloc(n, sizeof(int));
+    size_t i;
+#pragma omp parallel for
+    for (i = 0; i < n; i++) {
+        data_int[i] = (int)data_float[i];
+    }
+    imshow(window_title, data_int, (int)img->w, (int)img->h, (int)img->c);
+    if (waitkey) imshow_wait();
+    xfree(&data_int);
 #endif
 }
 

@@ -17,12 +17,12 @@ void classifier_dataset_get_next_image(classifier_dataset* dataset, image* dst, 
 
 void detector_get_next_batch(network* net) {
 	size_t batch_size = net->batch_size;
-	detector_dataset* dataset = &net->data.detr;
+	detector_dataset* dataset = &net->data.detector;
 	size_t w = net->w;
 	size_t h = net->h;
 	size_t c = net->c;
 	size_t n = w * h * c;
-	det_sample** batch_samples = net->data.detr.current_batch;
+	det_sample** batch_samples = net->data.detector.current_batch;
 	float brightness_lower = net->exposure[0];
 	float brightness_upper = net->exposure[1];
 	float contrast_lower = 1.0F;
@@ -75,7 +75,7 @@ void load_detector_dataset(detector_dataset* dataset, char* dir) {
 
 
 void classifier_get_next_batch(network* net) {
-	classifier_dataset* dataset = &net->data.clsr;
+	classifier_dataset* dataset = &net->data.classifier;
 	layer* cls_layer = &net->layers[net->n_layers - 1];
 	float* truth = cls_layer->truth;
 	size_t batch_size = net->batch_size;

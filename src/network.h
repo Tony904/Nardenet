@@ -125,8 +125,8 @@ extern "C" {
         char* save_dir;
         NET_TYPE type;
         union data {
-            classifier_dataset clsr;
-            detector_dataset detr;
+            classifier_dataset classifier;
+            detector_dataset detector;
         } data;
 
         bbox* anchors;  // anchors across all detection layers

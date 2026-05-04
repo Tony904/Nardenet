@@ -67,7 +67,7 @@ void train_classifer(network* net) {
 		free(lst);
 		printf("# of class directories found: %zu\n", net->n_classes);
 	}
-	load_classifier_dataset(&net->data.clsr, train_dir, net->class_names, net->n_classes, "images\\");
+	load_classifier_dataset(&net->data.classifier, train_dir, net->class_names, net->n_classes, "images\\");
 	size_t batch_size = net->batch_size;
 	size_t max_iterations = net->max_iterations;
 	size_t save_frequency = net->save_frequency;
@@ -102,14 +102,14 @@ void train_classifer(network* net) {
 		}
 		if (net->abort) break;
 	}
-	free_classifier_dataset_fields(&net->data.clsr);
+	free_classifier_dataset_fields(&net->data.classifier);
 }
 
 void train_detector(network* net) {
 	char train_dir[MAX_DIR_PATH] = { 0 };
 	memcpy(train_dir, net->dataset_dir, strlen(net->dataset_dir));
 	memcpy(&train_dir[strlen(train_dir)], "\\train\\", 7);
-	load_detector_dataset(&net->data.detr, train_dir);
+	load_detector_dataset(&net->data.detector, train_dir);
 	size_t batch_size = net->batch_size;
 	layer* layers = net->layers;
 	size_t n_layers = net->n_layers;

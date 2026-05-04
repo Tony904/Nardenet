@@ -31,7 +31,7 @@ void forward_detect_combo(layer* l, network* net) {
 	float scale_wh = l->scale_grid * 2.0F;
 	size_t batch_size = net->batch_size;
 	float* p = l->output;  // predictions
-	det_sample** samples = net->data.detr.current_batch;
+	det_sample** samples = net->data.detector.current_batch;
 	bbox* anchors = l->anchors;
 	bbox* all_anchors = net->anchors;
 	int l_id = l->id;
@@ -430,7 +430,7 @@ void forward_detect(layer* l, network* net) {
 	float scale_wh = l->scale_grid * 2.0F;
 	size_t batch_size = net->batch_size;
 	const float* const output = l->output;  // predictions
-	const det_sample** const samples = net->data.detr.current_batch;
+	const det_sample** const samples = net->data.detector.current_batch;
 	const bbox* const anchors = l->anchors;
 	const bbox* const all_anchors = net->anchors;
 	int l_id = l->id;
@@ -510,7 +510,6 @@ void forward_detect(layer* l, network* net) {
 	l->iou_loss = iou_loss / (float)n_iou_loss;	
 	l->loss = l->obj_loss + l->cls_loss + l->iou_loss;
 	printf("total detect loss: %f\navg obj loss: %f\navg class loss: %f\navg iou loss: %f\n", l->loss, l->obj_loss, l->cls_loss, l->iou_loss);
-	//pprint_detect_array(l->grads, l->h, l->w, n_classes, n_anchors);
 	cull_predictions_and_do_nms(l, net, 0);  // for debugging
 }
 
@@ -624,7 +623,7 @@ void cull_predictions_and_do_nms(layer* l, network* net, size_t b) {
 	}
 	printf("Duplicate detections culled: %zu\n", dupes);
 	// draw boxes on input image
-	det_sample** samples = net->data.detr.current_batch;
+	det_sample** samples = net->data.detector.current_batch;
 	image img = { 0 };
 	float buffer[3072] = { 0 };
 	img.w = 32;
@@ -634,9 +633,7 @@ void cull_predictions_and_do_nms(layer* l, network* net, size_t b) {
 	load_image_to_buffer(samples[0]->imgpath, &img, 0);
 	net->draw_thresh = 0.5F;  // TODO: Make a cfg parameter
 	draw_detections(l->sorted, n_dets, &img, net->draw_thresh);
-	//write_image(&img, "C:\\Users\\TNard\\OneDrive\\Desktop\\dev\\Nardenet\\data\\detector\\test.png");
-	show_image(&img);
-	//xfree(&img);
+	show_image("test", &img, 0);
 }
 
 void draw_detections(bbox** dets, size_t n_dets, image* img, float thresh) {
