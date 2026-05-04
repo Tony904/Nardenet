@@ -106,6 +106,7 @@
     <ClInclude Include="src\loss.h" />
     <ClInclude Include="src\nardenet.h" />
     <ClInclude Include="src\network.h" />
+    <ClInclude Include="src\imshow.h" />
     <ClInclude Include="src\state.h" />
     <ClInclude Include="src\stbimage.h" />
     <ClInclude Include="src\stb_image.h" />
@@ -260,13 +261,13 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8\include;C:\opencv\build\include;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
-    <LibraryPath>C:\opencv\build\x64\vc15\lib;$(LibraryPath);$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64)</LibraryPath>
+    <IncludePath>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8\include;C:\Users\TNard\OneDrive\Desktop\dev\opencv\opencv\build\include;$(VC_IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\TNard\OneDrive\Desktop\dev\opencv\opencv\build\x64\vc16\lib;$(LibraryPath);$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);C:\Users\TNard\OneDrive\Desktop\dev\opencv\opencv\build\x64\vc16\lib</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug-No OMP|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8\include;C:\opencv\build\include;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
-    <LibraryPath>C:\opencv\build\x64\vc15\lib;$(LibraryPath);$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64)</LibraryPath>
+    <IncludePath>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8\include;C:\Users\TNard\OneDrive\Desktop\dev\opencv\opencv\build\include;$(VC_IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\TNard\OneDrive\Desktop\dev\opencv\opencv\build\x64\vc16\lib;$(LibraryPath);$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);C:\Users\TNard\OneDrive\Desktop\dev\opencv\opencv\build\x64\vc16\lib</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug - No OMP|x64'">
     <LinkIncremental>true</LinkIncremental>
@@ -275,8 +276,9 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8\include;C:\opencv\build\include;$(VC_IncludePath)</IncludePath>
-    <LibraryPath>C:\opencv\build\x64\vc15\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8\include;C:\Users\TNard\OneDrive\Desktop\dev\opencv\opencv\build\include;$(VC_IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\TNard\OneDrive\Desktop\dev\opencv\opencv\build\x64\vc16\lib;$(LibraryPath)</LibraryPath>
+    <SourcePath>$(VC_SourcePath);</SourcePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='dll|x64'">
     <LinkIncremental>
@@ -354,7 +356,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <WarningLevel>Level4</WarningLevel>
+      <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>GPU;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
@@ -363,7 +365,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <TreatWarningAsError>true</TreatWarningAsError>
-      <DisableSpecificWarnings>4388;4820;5045;5054;4996;4244;6993</DisableSpecificWarnings>
+      <DisableSpecificWarnings>26439;4388;4820;5045;5054;4996;4244;6993</DisableSpecificWarnings>
       <AdditionalOptions>/openmp:llvm</AdditionalOptions>
       <OpenMPSupport>
       </OpenMPSupport>
@@ -373,7 +375,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>cublas.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>cublas.lib;C:\Users\TNard\OneDrive\Desktop\dev\opencv\opencv\build\x64\vc16\lib\opencv_world4120d.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8\include;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <DelayLoadDLLs>
       </DelayLoadDLLs>
@@ -384,7 +386,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug-No OMP|x64'">
     <ClCompile>
-      <WarningLevel>Level4</WarningLevel>
+      <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>GPU;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
@@ -393,7 +395,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <TreatWarningAsError>true</TreatWarningAsError>
-      <DisableSpecificWarnings>4388;4820;5045;5054;4996;4244;6993</DisableSpecificWarnings>
+      <DisableSpecificWarnings>26439;4388;4820;5045;5054;4996;4244;6993</DisableSpecificWarnings>
       <AdditionalOptions>
       </AdditionalOptions>
       <OpenMPSupport>
@@ -404,7 +406,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>cublas.lib;C:\Users\TNard\OneDrive\Desktop\dev\opencv\opencv\build\x64\vc16\lib\opencv_world4120d.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8\include;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <DelayLoadDLLs>
       </DelayLoadDLLs>
@@ -425,7 +427,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <TreatWarningAsError>true</TreatWarningAsError>
-      <DisableSpecificWarnings>4388;4820;5045;5054;4996;4244;6993</DisableSpecificWarnings>
+      <DisableSpecificWarnings>26439;4388;4820;5045;5054;4996;4244;6993</DisableSpecificWarnings>
       <AdditionalOptions>
       </AdditionalOptions>
       <OpenMPSupport>false</OpenMPSupport>
@@ -455,7 +457,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <TreatWarningAsError>true</TreatWarningAsError>
-      <DisableSpecificWarnings>4388;4820;5045;5054;4996;4244</DisableSpecificWarnings>
+      <DisableSpecificWarnings>26439;4388;4820;5045;5054;4996;4244;</DisableSpecificWarnings>
       <AdditionalOptions>/openmp:llvm</AdditionalOptions>
       <OpenMPSupport>
       </OpenMPSupport>
@@ -467,7 +469,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>cublas.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>cublas.lib;C:\Users\TNard\OneDrive\Desktop\dev\opencv\opencv\build\x64\vc16\lib\opencv_world4120.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8\include;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <DelayLoadDLLs>
       </DelayLoadDLLs>
@@ -482,7 +484,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>OPENMP;OPENCV;NDEBUG;_CONSOLE;LIB_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>OPENMP;NDEBUG;_CONSOLE;LIB_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -495,7 +497,7 @@
       <EnableModules>
       </EnableModules>
       <TreatWarningAsError>true</TreatWarningAsError>
-      <DisableSpecificWarnings>4388;4820;5045;5054;4996;4244</DisableSpecificWarnings>
+      <DisableSpecificWarnings>26439;4388;4820;5045;5054;4996;4244;</DisableSpecificWarnings>
       <AdditionalOptions>/openmp:llvm</AdditionalOptions>
       <OpenMPSupport>
       </OpenMPSupport>

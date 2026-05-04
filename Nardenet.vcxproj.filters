@@ -230,6 +230,9 @@
     <ClInclude Include="src\layer_fc.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\imshow.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="src\cpp.hint">
