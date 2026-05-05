@@ -37,14 +37,14 @@ extern "C" {
 	void ___cudaMalloc(void** devPtr, size_t num_elements, size_t size_per_element, const char* const filename, const char* const funcname, const int line, const char* time);
 	void ___cudaFree(void** devPtr, const char* const filename, const char* const funcname, const int line, const char* time);
 	void ___cudaMemcpy(void* dst, void* src, size_t size, enum cudaMemcpyKind kind, const char* const filename, const char* const funcname, const int line, const char* time);
-#define CHECK_CUDA(x) ___check_cuda(x, NARDENET_LOCATION, " - " __TIME__)
-#define CHECK_CUBLAS(x) ___check_cublas(x, NARDENET_LOCATION, " - " __TIME__)
-#define CUDA_MALLOC(pPtr, n, s) ___cudaMalloc(pPtr, n, s, NARDENET_LOCATION, " - " __TIME__)
-#define CUDA_FREE(pPtr) ___cudaFree((void**)pPtr, NARDENET_LOCATION, " - " __TIME__)
-#define CUDA_MEMCPY_H2D(dst, src, size) ___cudaMemcpy(dst, src, size, cudaMemcpyHostToDevice, NARDENET_LOCATION, " - " __TIME__)
-#define CUDA_MEMCPY_D2H(dst, src, size) ___cudaMemcpy(dst, src, size, cudaMemcpyDeviceToHost, NARDENET_LOCATION, " - " __TIME__)
+#define CHECK_CUDA(x) ___check_cuda((x), NARDENET_LOCATION, " - " __TIME__)
+#define CHECK_CUBLAS(x) ___check_cublas((x), NARDENET_LOCATION, " - " __TIME__)
+#define CUDA_MALLOC(pPtr, n, s) ___cudaMalloc((pPtr), (n), (s), NARDENET_LOCATION, " - " __TIME__)
+#define CUDA_FREE(pPtr) ___cudaFree((void**)(pPtr), NARDENET_LOCATION, " - " __TIME__)
+#define CUDA_MEMCPY_H2D(dst, src, size) ___cudaMemcpy((dst), (src), (size), cudaMemcpyHostToDevice, NARDENET_LOCATION, " - " __TIME__)
+#define CUDA_MEMCPY_D2H(dst, src, size) ___cudaMemcpy((dst), (src), (size), cudaMemcpyDeviceToHost, NARDENET_LOCATION, " - " __TIME__)
 #define BLOCKSIZE 512
-#define GET_GRIDSIZE(n, blocksize) (n + blocksize - 1) / blocksize
+#define GET_GRIDSIZE(n, blocksize) ((n) + (blocksize) - 1) / (blocksize)
 
 	cublasHandle_t get_cublas_handle(void);
 	void print_gpu_props(void);

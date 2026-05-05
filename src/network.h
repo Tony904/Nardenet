@@ -235,8 +235,8 @@ extern "C" {
         bbox* anchors;  // base anchors that will get copied to each cell
         bbox* detections;
         bbox** sorted;
-        float nms_obj_thresh;
-        float nms_cls_thresh;
+        size_t n_dets;  // # of detections after culling but before nms
+        float cull_thresh;  // cull detections with obj and best cls score < cull_thresh before nms
         float nms_iou_thresh;
         float* truth;  // truths for classifier
 

@@ -61,7 +61,7 @@ void forward_classify_cpu_gpu_compare(layer* l, network* net) {
 	compare_cpu_gpu_arrays(grads_cpu, grads_gpu, size, l->id, "forward clsasify, grads, post-loss");
 	compare_cpu_gpu_arrays(truth_cpu, truth_gpu, size, l->id, "forward classify, truth, post-loss");
 
-	float min_loss = fminf(avg_loss_gpu, l->loss);
+	float min_loss = min(avg_loss_gpu, l->loss);
 	if (min_loss < 0.1F || isnan(avg_loss_gpu)) {
 		printf("\n[DONE]\n");
 		wait_for_key_then_exit();
