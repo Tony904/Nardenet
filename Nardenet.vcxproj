@@ -395,7 +395,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <TreatWarningAsError>true</TreatWarningAsError>
-      <DisableSpecificWarnings>26439;4388;4820;5045;5054;4996;4244;6993</DisableSpecificWarnings>
+      <DisableSpecificWarnings>26439;4388;4820;5045;5054;4996;4244;</DisableSpecificWarnings>
       <AdditionalOptions>
       </AdditionalOptions>
       <OpenMPSupport>
