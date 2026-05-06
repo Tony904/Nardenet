@@ -19,9 +19,13 @@ static inline float clamp_x(float x, float thresh) {
 	return x;
 }
 
+void cull_predictions_and_do_nms(layer* l, network* net, size_t b);
 void get_class_grads(size_t cls_index, size_t n_classes, float* const grads, const float* const output, bbox truth_box, size_t spatial);
-size_t cull_predictions_and_do_nms(layer* l, network* net, size_t b);
+void debug_detections(layer* l, network* net);
+void get_detections(layer* l, network* net, size_t b);
+void nms(layer* l, size_t b);
 void draw_detections(bbox** dets, size_t n_dets, image* img, float thresh);
+void display_detections(layer* l, network* net, float thresh, size_t b, int waitkey);
 void apply_grid_scaling(layer* l, network* net);
 void pprint_detect_array(float* data, size_t rows, size_t cols, size_t n_classes, size_t n_anchors);
 
@@ -284,7 +288,8 @@ void forward_detect(layer* l, network* net) {
 	l->iou_loss = iou_loss / (float)n_iou_loss;	
 	l->loss = l->obj_loss + l->cls_loss + l->iou_loss;
 	printf("total detect loss: %f\navg obj loss: %f\navg class loss: %f\navg iou loss: %f\n", l->loss, l->obj_loss, l->cls_loss, l->iou_loss);
-	cull_predictions_and_do_nms(l, net, 0);  // for debugging
+	cull_predictions_and_do_nms(l, net, 0);
+	//debug_detections(l, net);
 }
 
 void get_class_grads(size_t cls_index, size_t n_classes, float* const grads, const float* const output, bbox truth_box, size_t spatial) {
@@ -323,9 +328,13 @@ void get_detections(layer* l, network* net, size_t b) {
 		float cell_left = col * cell_size;
 		float cell_top = row * cell_size;
 		for (size_t a = 0; a < n_anchors; a++) {
-			size_t p_index = b * l_n + s + a * A;
+			size_t d_index = s + a * A;
+			size_t p_index = b * l_n + d_index;
 			size_t obj_index = p_index + l_wh * 4;
-			if (p[obj_index] < cull_thresh) continue;
+			if (p[obj_index] < cull_thresh) {
+				dets[d_index].prob = 0.0F;
+				continue;
+			}
 			int best_cls = -1;
 			float best_cls_score = 0.0F;
 			size_t cls_index = obj_index + l_wh;
@@ -338,19 +347,22 @@ void get_detections(layer* l, network* net, size_t b) {
 					}
 				}
 			}
-			if (best_cls < 0) continue;
+			if (best_cls < 0) {
+				dets[d_index].prob = 0.0F;
+				continue;
+			}
 			bbox* anchor = &anchors[a];
 			bbox pbox = GET_PREDICTION_BOX(p, p_index, anchor, l_wh, scale, cell_left, cell_top);
 			SETUP_BBOX(pbox);
 			if (pbox.left >= 1.0F || pbox.right <= 0.0F || pbox.top >= 1.0F || pbox.bottom <= 0.0F) continue;
-			size_t d_index = s + a * A;
+			
 			bbox* det = &dets[d_index];
 			det->prob = best_cls_score;
 			det->lbl = best_cls;
-			float left = max(0.0F, pbox.left);
-			float right = min(1.0F, pbox.right);
-			float top = max(0.0F, pbox.top);
-			float bottom = min(1.0F, pbox.bottom);
+			float left = fmaxf(0.0F, pbox.left);
+			float right = fminf(1.0F, pbox.right);
+			float top = fmaxf(0.0F, pbox.top);
+			float bottom = fminf(1.0F, pbox.bottom);
 			det->cx = (left + right) / 2.0F;
 			det->cy = (top + bottom) / 2.0F;
 			det->w = right - left;
@@ -360,17 +372,21 @@ void get_detections(layer* l, network* net, size_t b) {
 	}
 	bbox** sorted = l->sorted;
 	size_t n_dets = 0;
-	for (size_t i = 0; i < l_n; i++) {
+	for (size_t i = 0; i < l_wh * n_anchors; i++) {
+		printf("dets[%zu].prob = %f\n", i, dets[i].prob);
 		if (dets[i].prob) {
-			sorted[i] = &dets[i];
+			*sorted = &dets[i];
 			n_dets++;
+			sorted++;
 		}
+	}
+	for (size_t i = 0; i < n_dets; i++) {
+		printf("sorted[%zu]->prob = %f\n", i, l->sorted[i]->prob);
 	}
 	l->n_dets = n_dets;
 }
 
-void nms(layer* l, network* net, size_t b) {
-	bbox* dets = l->detections;
+void nms(layer* l, size_t b) {
 	bbox** sorted = l->sorted;
 	size_t n_dets = l->n_dets;
 	// sort remaining detections
@@ -402,24 +418,16 @@ void nms(layer* l, network* net, size_t b) {
 			}
 		}
 	}
-	printf("Duplicate detections culled: %zu\n", dupes);
+	printf("Detections suppressed: %zu\n", dupes);
 }
 
-void display_detections(layer* l, network* net, float thresh) {
+void display_detections(layer* l, network* net, float thresh, size_t b, int waitkey) {
 	det_sample** samples = net->data.detector.current_batch;
-	size_t w = net->w;
-	size_t h = net->h;
-	size_t c = net->c;
-	size_t n = net->w * net->h * net->c;
-	for (size_t b = 0; b < net->batch_size; b++) {
-		image img = { 0 };
-		img.w = w;
-		img.h = h;
-		img.c = c;
-		img.data = &net->input->output[b * n];
-
-	draw_detections(l->sorted, n_dets, &img, thresh);
-	show_image("test", &img, 0);
+	image* img = load_image(samples[b]->imgpath);
+	draw_detections(l->sorted, l->n_dets, img, thresh);
+	show_image("test", img, waitkey);
+	xfree(&img->data);
+	xfree(&img);
 }
 
 void draw_detections(bbox** dets, size_t n_dets, image* img, float thresh) {
@@ -470,6 +478,127 @@ void draw_detections(bbox** dets, size_t n_dets, image* img, float thresh) {
 			row++;
 		}
 	}
+}
+
+void debug_detections(layer* l, network* net) {
+	for (size_t b = 0; b < net->batch_size; b++) {
+		get_detections(l, net, b);
+		nms(l, b);
+		display_detections(l, net, net->draw_thresh, b, 0);
+	}
+}
+
+void cull_predictions_and_do_nms(layer* l, network* net, size_t b) {
+	size_t net_w = net->w;
+	float obj_thresh = l->cull_thresh;
+	float cls_thresh = l->cull_thresh;
+	float iou_thresh = l->nms_iou_thresh;
+	float scale = l->scale_grid * 2.0F;
+	size_t batch_size = net->batch_size;
+	size_t l_w = l->w;
+	size_t l_h = l->h;
+	size_t l_wh = l_w * l_h;
+	size_t l_n = l->n;
+	size_t n_classes = l->n_classes;
+	bbox* anchors = l->anchors;
+	size_t n_anchors = l->n_anchors;
+	float cell_size = (float)l_w / (float)net_w;
+	size_t A = (NUM_ANCHOR_PARAMS + n_classes) * l_wh;
+	float* p = l->output;
+	bbox* dets = l->detections;  // note: l->detections size = l->w * l->h * l->n_anchors * sizeof(bbox)
+	bbox** sorted = l->sorted;
+	size_t n_dets = 0;
+	// cull predictions below thresholds
+	for (size_t s = 0; s < l_wh; s++) {
+		float row = s / l_w;
+		float col = s % l_w;
+		float cell_left = col * cell_size;
+		float cell_top = row * cell_size;
+		for (size_t a = 0; a < n_anchors; a++) {
+			size_t p_index = b * l_n + s + a * A;
+			size_t obj_index = p_index + l_wh * 4;
+			if (p[obj_index] < obj_thresh) continue;
+			int best_cls = -1;
+			float best_cls_score = 0.0F;
+			size_t cls_index = obj_index + l_wh;
+			for (size_t k = 0; k < n_classes; k++) {
+				float cls_score = p[cls_index + k * l_wh];
+				if (cls_score > cls_thresh) {  // class confidence thresh
+					if (cls_score > best_cls_score) {
+						best_cls_score = cls_score;
+						best_cls = (int)k;
+					}
+				}
+			}
+			if (best_cls < 0) continue;
+			bbox* anchor = &anchors[a];
+			bbox pbox = GET_PREDICTION_BOX(p, p_index, anchor, l_wh, scale, cell_left, cell_top);
+			SETUP_BBOX(pbox);
+			if (pbox.left >= 1.0F || pbox.right <= 0.0F || pbox.top >= 1.0F || pbox.bottom <= 0.0F) continue;
+			dets->prob = best_cls_score;
+			dets->lbl = best_cls;
+			float left = fmaxf(0.0F, pbox.left);
+			float right = fminf(1.0F, pbox.right);
+			float top = fmaxf(0.0F, pbox.top);
+			float bottom = fminf(1.0F, pbox.bottom);
+			dets->cx = (left + right) / 2.0F;
+			dets->cy = (top + bottom) / 2.0F;
+			dets->w = right - left;
+			dets->h = bottom - top;
+			SETUP_BBOX(*dets);
+			*sorted = dets;
+			sorted++;
+			dets++;
+			n_dets++;
+		}
+	}
+	printf("# of Detections (pre NMS): %zu\n", n_dets);
+	// sort remaining detections
+	dets = l->detections;
+	sorted = l->sorted;
+	size_t i = 0;
+	while (i + 1 < n_dets) {
+		if (sorted[i]->prob < sorted[i + 1]->prob) {
+			bbox* tmp = sorted[i];
+			sorted[i] = sorted[i + 1];
+			sorted[i + 1] = tmp;
+			i = i ? i - 1 : i + 1;
+		}
+		else i++;
+	}
+	// nms
+	size_t dupes = 0;
+	for (i = 0; i < n_dets; i++) {
+		bbox* test = sorted[i];
+		if (test->prob) {
+			for (size_t j = i + 1; j < n_dets; j++) {
+				if (test->lbl == sorted[j]->lbl) {
+					float diou = get_diou(*test, *sorted[j], 0);
+					if (diou > iou_thresh) {
+						sorted[j]->prob = 0.0F;
+						sorted[j]->lbl = -1;
+						dupes++;
+					}
+				}
+			}
+		}
+	}
+	printf("Duplicate detections culled: %zu\n", dupes);
+	// draw boxes on input image
+	det_sample** samples = net->data.detector.current_batch;
+	image img = { 0 };
+	float buffer[3072] = { 0 };
+	img.w = 32;
+	img.h = 32;
+	img.c = 3;
+	img.data = buffer;
+	load_image_to_buffer(samples[0]->imgpath, &img, 0);
+	net->draw_thresh = 0.5F;  // TODO: Make a cfg parameter
+	draw_detections(l->sorted, n_dets, &img, net->draw_thresh);
+	//write_image(&img, "C:\\Users\\TNard\\OneDrive\\Desktop\\dev\\Nardenet\\data\\detector\\test.png");
+	//show_image(&img);
+	//xfree(&img);
+	show_image("test", &img, 0);
 }
 
 void apply_grid_scaling(layer* l, network* net) {

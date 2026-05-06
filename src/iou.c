@@ -18,11 +18,11 @@ static inline float clamp_x(float x, float thresh) {
 
 float get_iou(bbox pbox, bbox tbox) {
 	// calculate intersection box
-	float top = max(pbox.top, tbox.top);
-	float bottom = min(pbox.bottom, tbox.bottom);
+	float top = fmaxf(pbox.top, tbox.top);
+	float bottom = fminf(pbox.bottom, tbox.bottom);
 	if (bottom < top) return 0.0F;
-	float left = max(pbox.left, tbox.left);
-	float right = min(pbox.right, tbox.right);
+	float left = fmaxf(pbox.left, tbox.left);
+	float right = fminf(pbox.right, tbox.right);
 	if (right < left) return 0.0F;
 	float width = right - left;
 	float height = bottom - top;
@@ -40,15 +40,15 @@ float get_grads_iou(bbox pbox, bbox tbox, float* dx, float* dy, float* dw, float
 	// I_w = max(0, R_min - L_max)
 	// I_h = max(0, B_min - T_max)
 	// dI/dx = I_h * (dR_min/dx - dL_max/dx)
-	float R = min(pbox.right, tbox.right);
-	float L = max(pbox.left, tbox.left);
+	float R = fminf(pbox.right, tbox.right);
+	float L = fmaxf(pbox.left, tbox.left);
 	float dR_dx = pbox.right < tbox.right ? 1.0F : 0.0F;
 	float dL_dx = pbox.left > tbox.left ? 1.0F : 0.0F;
-	float B = min(pbox.bottom, tbox.bottom);
-	float T = max(pbox.top, tbox.top);
-	float I_h = max(0.0F, B - T);
+	float B = fminf(pbox.bottom, tbox.bottom);
+	float T = fmaxf(pbox.top, tbox.top);
+	float I_h = fmaxf(0.0F, B - T);
 	float dI_dx = I_h * (dR_dx - dL_dx);
-	float I_w = max(0.0F, R - L);
+	float I_w = fmaxf(0.0F, R - L);
 	float I = I_w * I_h;
 	float U = pbox.area + tbox.area - I;
 	float dIOU_dx = dI_dx * (pbox.area + tbox.area) / (U * U + EPS);
@@ -87,10 +87,10 @@ float get_diou(bbox pbox, bbox tbox, float* iou) {
 	// C = distance between centers
 	// E = diagonal of smallest enclosing box
 	float C_sq = square(pbox.cx - tbox.cx) + square(pbox.cy - tbox.cy);
-	float top = min(pbox.top, tbox.top);
-	float bottom = max(pbox.bottom, tbox.bottom);
-	float left = min(pbox.left, tbox.left);
-	float right = max(pbox.right, tbox.right);
+	float top = fminf(pbox.top, tbox.top);
+	float bottom = fmaxf(pbox.bottom, tbox.bottom);
+	float left = fminf(pbox.left, tbox.left);
+	float right = fmaxf(pbox.right, tbox.right);
 	float E_sq = square(right - left) + square(bottom - top);
 	float _iou = get_iou(pbox, tbox);
 	if (iou) *iou = _iou;
@@ -103,10 +103,10 @@ float get_grads_diou(bbox pbox, bbox tbox, float* dx, float* dy, float* dw, floa
 	// C = distance between centers
 	// E = diagonal of smallest enclosing box
 	float C2 = square(pbox.cx - tbox.cx) + square(pbox.cy - tbox.cy);
-	float T = max(pbox.top, tbox.top);
-	float B = max(pbox.bottom, tbox.bottom);
-	float R = max(pbox.right, tbox.right);
-	float L = max(pbox.left, tbox.left);
+	float T = fmaxf(pbox.top, tbox.top);
+	float B = fmaxf(pbox.bottom, tbox.bottom);
+	float R = fmaxf(pbox.right, tbox.right);
+	float L = fmaxf(pbox.left, tbox.left);
 	float E2 = square(R - L) + square(B - T);
 	float E4 = square(E2) + EPS;
 
