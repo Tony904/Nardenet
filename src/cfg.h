@@ -59,9 +59,8 @@ extern "C" {
 		int id;
 		int train;
 		intarr in_ids;
-		intarr out_ids;
 		int batchnorm;
-		size_t n_filters;
+		int n_filters;
 		size_t n_groups;
 		size_t kernel_size;
 		size_t stride;
@@ -71,6 +70,7 @@ extern "C" {
 		size_t n_classes;
 		LOSS_TYPE loss_type;
 		floatarr anchors;
+		int objectness_smooth;
 	} cfg_layer;
 
 #ifdef __cplusplus

@@ -220,17 +220,17 @@ void copy_to_cfg_layer(cfg_layer* l, char** tokens, cfg* c) {
 		l->batchnorm = str2int(tokens[1]);
 	}
 	else if (strcmp(k, "filters") == 0 || strcmp(k, "outputs") == 0) {
-		if ((l->type == LAYER_FC && strcmp(k, "filters") == 0) || (l->type != LAYER_FC && strcmp(k, "outputs") == 0)) {
+		if (l->type == LAYER_FC) {
 			return;
 		}
 		if (strcmp(tokens[1], "num_classes") == 0) {
-			l->n_filters = c->n_classes;
+			l->n_filters = (int)c->n_classes;
 		}
-		else if (strcmp(tokens[1], "anchors") == 0) {
-			l->n_filters = (NUM_ANCHOR_PARAMS + c->n_classes) * 3;
+		else if (strcmp(tokens[1], "detect") == 0) {
+			l->n_filters = -1;
 		}
 		else {
-			l->n_filters = str2sizet(tokens[1]);
+			l->n_filters = str2int(tokens[1]);
 		}
 	}
 	else if (strcmp(k, "groups") == 0) {
@@ -256,6 +256,9 @@ void copy_to_cfg_layer(cfg_layer* l, char** tokens, cfg* c) {
 	}
 	else if (strcmp(k, "anchors") == 0) {
 		l->anchors = tokens2floatarr(tokens, 1);
+	}
+	else if (strcmp(k, "objectness_smooth") == 0) {
+		l->objectness_smooth = str2int(tokens[1]);
 	}
 }
 
@@ -301,7 +304,23 @@ void copy_cfg_to_network(cfg* cfig, network* net) {
 		l->id = cl->id;
 		l->type = cl->type;
 		l->activation = cl->activation;
-		l->n_filters = cl->n_filters;
+		if (cl->n_filters == -1) {
+			if (i + 1 >= n) {
+				printf("Invalid input for filters in layer %d\n", i);
+				wait_for_key_then_exit();
+			}
+			assert(noed->next);
+			cfg_layer* next_cl = (cfg_layer*)noed->next->val;
+			if (next_cl->type != LAYER_DETECT) {
+				printf("Filters cannot be set to 'detect' for a layer that does not output to a 'detect' layer.\n");
+				wait_for_key_then_exit();
+			}
+			size_t n_anchors = next_cl->anchors.n / 2;
+			l->n_filters = (NUM_ANCHOR_PARAMS + net->n_classes) * n_anchors;
+		}
+		else {
+			l->n_filters = cl->n_filters;
+		}
 		l->n_groups = cl->n_groups;
 		l->batchnorm = cl->batchnorm;
 		l->ksize = cl->kernel_size;
@@ -311,6 +330,7 @@ void copy_cfg_to_network(cfg* cfig, network* net) {
 		l->train = cl->train;
 		l->loss_type = cl->loss_type;
 		l->n_classes = cl->n_classes;
+		l->objectness_smooth = cl->objectness_smooth;
 		if (l->type == LAYER_DETECT) {
 			net->type = NET_DETECT;
 			if (cl->anchors.n % 2 != 0 || cl->anchors.n == 0) {
@@ -593,10 +613,8 @@ void print_cfg_layer(cfg_layer* l) {
 	printf("train = %d\n", l->train);
 	printf("in_ids = ");
 	print_intarr(&l->in_ids);
-	printf("out_ids = ");
-	print_intarr(&l->out_ids);
 	printf("batchnorm = %d\n", l->batchnorm);
-	printf("n_filters = %zu\n", l->n_filters);
+	printf("n_filters = %d\n", l->n_filters);
 	printf("kernel_size = %zu\n", l->kernel_size);
 	printf("stride = %zu\n", l->stride);
 	printf("pad = %zu\n", l->pad);

@@ -153,7 +153,7 @@ void build_conv_layer(int i, network* net) {
 		}
 	}
 
-	// Build array of input layer addresses.
+	// Addresses of input layers
 	l->in_layers = (layer**)xcalloc(l->in_ids.n, sizeof(layer*));
 	if (i > 0) {
 		for (size_t j = 0; j < l->in_ids.n; j++) {
@@ -956,11 +956,6 @@ void build_detect_layer(int i, network* net) {
 	l->grads = (float*)xcalloc(l->n * net->batch_size, sizeof(float));
 	l->errors = (float*)xcalloc(net->batch_size, sizeof(float));  // only used for storing iou losses
 
-	l->out_w = l->w;
-	l->out_h = l->h;
-	l->out_c = l->c;
-	l->out_n = l->out_w * l->out_h * l->out_c;
-
 	l->forward = forward_detect;
 	l->backward = backward_detect;
 	l->update = update_none;
@@ -970,7 +965,7 @@ void build_detect_layer(int i, network* net) {
 	l->output = (float*)xcalloc(l->n * net->batch_size, sizeof(float));
 
 	// set anchors
-	if (net->w != net->h || l->out_w != l->out_h) {
+	if (net->w != net->h || l->w != l->h) {
 		printf("Network input and output width & height must be square.\n");
 		wait_for_key_then_exit();
 	}

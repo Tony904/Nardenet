@@ -289,13 +289,6 @@ void forward_detect(layer* l, network* net) {
 	l->loss = l->obj_loss + l->cls_loss + l->iou_loss;
 	printf("total detect loss: %f\navg obj loss: %f\navg class loss: %f\navg iou loss: %f\n", l->loss, l->obj_loss, l->cls_loss, l->iou_loss);
 	
-	for (size_t i = 0; i < l->n; i++) {
-		for (b = 0; b < batch_size; b++) {
-			size_t index = b * l->n + i;
-			printf("grads[%zu] = %f   ", index, grads[index]);
-		}
-		printf("\n");
-	}
 	debug_detections(l, net, 1);
 }
 
@@ -530,12 +523,12 @@ void apply_grid_scaling(layer* l, network* net) {
 void backward_detect(layer* l, network* net) {
 	size_t batch_size = net->batch_size;
 	float* l_grads = l->grads;
-	size_t l_out_n = l->out_n;
+	size_t l_n = l->n;
 	layer** inls = l->in_layers;
 	size_t b;
-#pragma omp parallel for firstprivate(l_grads, l_out_n, inls)
+#pragma omp parallel for firstprivate(l_grads, l_n, inls)
 	for (b = 0; b < batch_size; b++) {
-		float* b_grads = &l_grads[b * l_out_n];
+		float* b_grads = &l_grads[b * l_n];
 		for (size_t i = 0; i < l->in_ids.n; i++) {
 			layer* inl = inls[i];
 			size_t inl_out_n = inl->out_n;
