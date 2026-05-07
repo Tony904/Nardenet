@@ -959,6 +959,7 @@ void build_detect_layer(int i, network* net) {
 	l->out_w = l->w;
 	l->out_h = l->h;
 	l->out_c = l->c;
+	l->out_n = l->out_w * l->out_h * l->out_c;
 
 	l->forward = forward_detect;
 	l->backward = backward_detect;
@@ -1247,7 +1248,13 @@ void free_network(network* n) {
 	xfree(&n->dataset_dir);
 	xfree(&n->weights_file);
 	xfree(&n->save_dir);
-	free_classifier_dataset_fields(&n->data.classifier);
+	if (n->type == NET_CLASSIFY) {
+		free_classifier_dataset(n->data.classifier);
+	}
+	else if (n->type == NET_DETECT) {
+		free_detector_dataset(n->data.detector);
+		xfree(&n->anchors);
+	}
 	if (n->use_gpu) {
 		CUDA_FREE(&n->gpu.workspace);
 		CUDA_FREE(&n->gpu.reg_loss);

@@ -11,6 +11,15 @@
 #include "xallocs.h"
 #include "xcuda.h"
 
+#define IS_WIN defined(_WIN32) || defined(_WIN64)
+#ifdef IS_WIN
+#include <windows.h>
+#else
+#include <termios.h>
+#include <unistd.h>
+#include <fcntl.h>
+#endif
+
 
 void train_classifer(network* net);
 void train_detector(network* net);
@@ -102,7 +111,6 @@ void train_classifer(network* net) {
 		}
 		if (net->abort) break;
 	}
-	free_classifier_dataset_fields(&net->data.classifier);
 }
 
 void train_detector(network* net) {
@@ -132,6 +140,9 @@ void train_detector(network* net) {
 		}
 		for (size_t i = 0; i < n_layers; i++) {
 			layers[i].update(&layers[i], net);
+		}
+		if ((GetAsyncKeyState(VK_ESCAPE) & 0x8000) != 0) {
+			break;
 		}
 	}
 }

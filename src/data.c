@@ -72,6 +72,15 @@ void load_detector_dataset(detector_dataset* dataset, char* dir) {
 	get_random_numbers_no_repeats(dataset->rands, count, 0, count - 1);
 }
 
+void free_detector_dataset(detector_dataset dataset) {
+	xfree(&dataset.rands);
+	for (size_t i = 0; i < dataset.n; i++) {
+		free_det_sample(dataset.samples[i]);
+	}
+	xfree(&dataset.samples);
+	xfree(&dataset.current_batch);
+}
+
 
 
 void classifier_get_next_batch(network* net) {
@@ -152,11 +161,7 @@ void load_classifier_dataset(classifier_dataset* dataset, char* classes_dir, cha
 	get_random_numbers_no_repeats(dataset->rands, n_classes, 0, n_classes - 1);
 }
 
-void free_classifier_dataset_fields(classifier_dataset* dataset) {
-	free_class_sets(dataset->sets, dataset->n);
-	xfree(&dataset->rands);
-	dataset->n = 0;
-	dataset->ri = 0;
-	dataset->rands = 0;
-	dataset->sets = 0;
+void free_classifier_dataset(classifier_dataset dataset) {
+	free_class_sets(dataset.sets, dataset.n);
+	xfree(&dataset.rands);
 }

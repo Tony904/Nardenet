@@ -8,7 +8,7 @@
 #define MAX_DIR_PATH _MAX_PATH - 5
 
 
-void load_det_sample(char* antfile, char* imgfile, det_sample* samp);
+void load_det_sample(char* antfile, char* imgfile, det_sample* sample);
 void print_det_sample(det_sample s, int print_annotations);
 void print_bboxes(bbox* boxes, size_t count);
 void print_bbox(bbox b);
@@ -47,14 +47,14 @@ det_sample* load_det_samples(char* directory, size_t* count_dst) {
 	return samples;
 }
 
-void load_det_sample(char* antfile, char* imgfile, det_sample* samp) {
+void load_det_sample(char* antfile, char* imgfile, det_sample* sample) {
 	if (!file_exists(imgfile)) wait_for_key_then_exit();
 	FILE* file = get_filestream(antfile, "r");
 	size_t n_lines = get_line_count(file);
-	samp->n = n_lines;  // # of bboxes
-	samp->imgpath = (char*)xcalloc(strlen(imgfile) + 1, sizeof(char));
-	strcpy(samp->imgpath, imgfile);
-	samp->bboxes = (bbox*)xcalloc(n_lines, sizeof(bbox));
+	sample->n = n_lines;  // # of bboxes
+	sample->imgpath = (char*)xcalloc(strlen(imgfile) + 1, sizeof(char));
+	strcpy(sample->imgpath, imgfile);
+	sample->bboxes = (bbox*)xcalloc(n_lines, sizeof(bbox));
 	char* line;
 	size_t n = 0;
 	while (line = read_line(file), line != 0) {
@@ -71,7 +71,7 @@ void load_det_sample(char* antfile, char* imgfile, det_sample* samp) {
 			printf("Line %zu, file %s\n", n, antfile);
 			wait_for_key_then_exit();
 		}
-		bbox* box = &samp->bboxes[n];
+		bbox* box = &sample->bboxes[n];
 		box->lbl = str2int(tokens[0]);
 		box->cx = str2float(tokens[1]);
 		box->cy = str2float(tokens[2]);
@@ -84,14 +84,15 @@ void load_det_sample(char* antfile, char* imgfile, det_sample* samp) {
 		box->right = box->cx + (box->w * 0.5F);
 		box->bottom = box->cy + (box->w * 0.5F);
 		xfree(&tokens);
+		xfree(&line);
 		n++;
 	}
 	close_filestream(file);
 }
 
-void free_det_sample(det_sample* samp) {
-	xfree(&samp->bboxes);
-	xfree(&samp);
+void free_det_sample(det_sample sample) {
+	xfree(&sample.imgpath);
+	xfree(&sample.bboxes);
 }
 
 void print_det_samples(det_sample* samples, size_t count, int print_annotations) {

@@ -11,7 +11,7 @@ extern "C" {
 #endif
 
 	det_sample* load_det_samples(char* directory, size_t* count_dst);
-	void free_det_sample(det_sample* samp);
+	void free_det_sample(det_sample sample);
 	void print_det_samples(det_sample* samples, size_t count, int print_annotations);
 
 #ifdef __cplusplus

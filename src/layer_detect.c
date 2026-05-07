@@ -21,9 +21,9 @@ static inline float clamp_x(float x, float thresh) {
 
 
 void get_class_grads(size_t cls_index, size_t n_classes, float* const grads, const float* const output, bbox truth_box, size_t spatial);
-void debug_detections(layer* l, network* net);
+void debug_detections(layer* l, network* net, int waitkey);
 void get_detections(layer* l, network* net, size_t b);
-void nms(layer* l, size_t b);
+void nms(layer* l);
 void draw_detections(bbox** dets, size_t n_dets, image* img, float thresh);
 void display_detections(layer* l, network* net, float thresh, size_t b, int waitkey);
 void apply_grid_scaling(layer* l, network* net);
@@ -35,7 +35,7 @@ void pprint_detect_array(float* data, size_t rows, size_t cols, size_t n_classes
 void forward_detect_batch(const float* const p, float* const grads,
 							const bbox* const anchors, const bbox* const all_anchors,
 							const det_sample** const samples,
-							float* const iou_losses,
+							float* iou_losses,
 							size_t b, int l_id,
 							size_t l_w, size_t l_h, size_t l_n, float scale_wh,
 							size_t n_anchors, size_t n_all_anchors, size_t n_classes,
@@ -64,7 +64,7 @@ void forward_detect_batch(const float* const p, float* const grads,
 			//printf("w: %f, h: %f, cx: %f, cy: %f\n", p[p_index], p[p_index + l_wh], p[p_index + l_wh * 2], p[p_index + l_wh * 3]);
 
 			size_t obj_index = p_index + l_wh * 4;  // index of objectness score
-			size_t cls_index = p[obj_index + l_wh];
+			size_t cls_index = obj_index + l_wh;
 			float best_iou = 0.0F;
 			// I think this check, when used with obj_smooth=1, is to provide a positive training signal to predictions that appear to be based on learned class features.
 			// I think it's also to prevent processing the iou for all truths for anchors that predict no object/class, as that would be expensive.
@@ -135,7 +135,7 @@ void forward_detect_batch(const float* const p, float* const grads,
 			}
 			else grads[obj_index] = p_obj - 1.0F;
 
-			size_t cls_index = p_index + l_wh * NUM_ANCHOR_PARAMS;
+			size_t cls_index = obj_index + l_wh;
 			get_class_grads(cls_index, n_classes, grads, p, tbox, l_wh);
 			l_a++;
 		}
@@ -167,7 +167,7 @@ void forward_detect_batch(const float* const p, float* const grads,
 				}
 				else grads[obj_index] = p_obj - 1.0F;
 
-				size_t cls_index = p_index + l_wh * NUM_ANCHOR_PARAMS;
+				size_t cls_index = obj_index + l_wh;
 				get_class_grads(cls_index, n_classes, grads, p, tbox, l_wh);
 			}
 		}
@@ -218,8 +218,8 @@ void forward_detect(layer* l, network* net) {
 	size_t l_n = l->n;
 	size_t n_classes = l->n_classes;
 	size_t n_anchors = l->n_anchors;
-	float* const errors = l->errors;
-	zero_array(errors, l_n * batch_size);
+	float* errors = l->errors;
+	zero_array(errors, batch_size);
 	float* const grads = l->grads;
 	zero_array(grads, l_n * batch_size);
 	float ignore_thresh = l->ignore_thresh;
@@ -288,7 +288,15 @@ void forward_detect(layer* l, network* net) {
 	l->iou_loss = iou_loss / (float)n_iou_loss;	
 	l->loss = l->obj_loss + l->cls_loss + l->iou_loss;
 	printf("total detect loss: %f\navg obj loss: %f\navg class loss: %f\navg iou loss: %f\n", l->loss, l->obj_loss, l->cls_loss, l->iou_loss);
-	debug_detections(l, net);
+	
+	for (size_t i = 0; i < l->n; i++) {
+		for (b = 0; b < batch_size; b++) {
+			size_t index = b * l->n + i;
+			printf("grads[%zu] = %f   ", index, grads[index]);
+		}
+		printf("\n");
+	}
+	debug_detections(l, net, 1);
 }
 
 void get_class_grads(size_t cls_index, size_t n_classes, float* const grads, const float* const output, bbox truth_box, size_t spatial) {
@@ -375,7 +383,6 @@ void get_detections(layer* l, network* net, size_t b) {
 	bbox** sorted = l->sorted;
 	size_t n_dets = 0;
 	for (size_t i = 0; i < l_wh * n_anchors; i++) {
-		printf("dets[%zu].prob = %f\n", i, dets[i].prob);
 		if (dets[i].prob) {
 			*sorted = &dets[i];
 			n_dets++;
@@ -388,7 +395,7 @@ void get_detections(layer* l, network* net, size_t b) {
 	l->n_dets = n_dets;
 }
 
-void nms(layer* l, size_t b) {
+void nms(layer* l) {
 	bbox** sorted = l->sorted;
 	size_t n_dets = l->n_dets;
 	// sort remaining detections
@@ -482,11 +489,11 @@ void draw_detections(bbox** dets, size_t n_dets, image* img, float thresh) {
 	}
 }
 
-void debug_detections(layer* l, network* net) {
+void debug_detections(layer* l, network* net, int waitkey) {
 	for (size_t b = 0; b < net->batch_size; b++) {
 		get_detections(l, net, b);
-		nms(l, b);
-		display_detections(l, net, 0.5F, b, 0);
+		nms(l);
+		display_detections(l, net, 0.5F, b, waitkey);
 	}
 }
 
