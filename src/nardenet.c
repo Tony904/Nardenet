@@ -9,13 +9,12 @@
 #include <time.h>
 
 
+
 int main(void) {
 #ifdef _DEBUG
 	cudaSetDeviceFlags(cudaDeviceScheduleBlockingSync);
 #endif
-#ifdef OPENCV
-	cv_set_num_threads(1);
-#endif
+
 	//srand(time(NULL));
 	srand(7777777);
 	activate_xalloc_tracking();

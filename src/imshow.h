@@ -335,7 +335,7 @@ extern "C" {
         s->height = height;
         s->hbmp = hbmp;
         s->hmemdc = hmemdc;
-        strncpy(s->title, safe_title, sizeof(s->title) - 1);
+        strncpy_s(s->title, 256, safe_title, sizeof(s->title) - 1);
         s->title[sizeof(s->title) - 1] = '\0';
 
         ShowWindow(hwnd, SW_SHOW);
@@ -557,7 +557,7 @@ extern "C" {
         s->ximg_data = imgdata;
         s->width = width;
         s->height = height;
-        strncpy(s->title, safe_title, sizeof(s->title) - 1);
+        strncpy_s(s->title, 256, safe_title, sizeof(s->title) - 1);
         s->title[sizeof(s->title) - 1] = '\0';
 
         XMapWindow(imshow__dpy, win);
