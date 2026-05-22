@@ -127,73 +127,81 @@ void build_input_layer(network* net) {
 	}
 }
 
-/* i = layer index in net->layers */
-void build_conv_layer(int i, network* net) {
-	layer* l = &(net->layers[i]);
+void set_input_layers(layer* l, network* net) {
 	layer* ls = net->layers;
-	l->id = i;
-	if (l->n_groups < 1) l->n_groups = 1;
-	if (l->stride < 1) l->stride = 1;
-	if (l->n_filters % l->n_groups > 0) {
-		printf("Cannot evenly distribute %zu filters between %zu groups. (layer %d)\n", l->n_filters, l->n_groups, i);
-		wait_for_key_then_exit();
-	}
-
 	// Set default in_ids if none specified.
 	if (l->in_ids.n == 0) {
 		l->in_ids.a = (int*)xcalloc(1, sizeof(int));
-		l->in_ids.a[0] = i - 1;
+		l->in_ids.a[0] = l->id - 1;
 		l->in_ids.n = 1;
 	}
 	else {
 		for (int j = 0; j < l->in_ids.n; j++) {
-			if (l->in_ids.a[j] < 0) l->in_ids.a[j] += i;
-			if (l->in_ids.a[j] > i || l->in_ids.a[j] < 0) {
-				printf("Invalid in_id of %d for layer %d\n", l->in_ids.a[j], i);
+			if (l->in_ids.a[j] < 0) l->in_ids.a[j] += l->id;  // relative id handling
+			if (l->in_ids.a[j] > l->id || l->in_ids.a[j] < 0) {
+				printf("Invalid in_id of %d for layer %d\n", l->in_ids.a[j], l->id);
 				wait_for_key_then_exit();
 			}
 		}
 	}
 
-	// Addresses of input layers
 	l->in_layers = (layer**)xcalloc(l->in_ids.n, sizeof(layer*));
-	if (i > 0) {
+	if (l->id) {
 		for (size_t j = 0; j < l->in_ids.n; j++) {
 			l->in_layers[j] = &ls[l->in_ids.a[j]];
 		}
 	}
-	else { // if first layer
+	else { // first layer
 		l->in_layers[0] = net->input;
 	}
-	
-	// Calculate input dimensions.
+}
+
+void set_input_dimensions(layer* l) {
 	l->w = l->in_layers[0]->out_w;
 	l->h = l->in_layers[0]->out_h;
 	l->c = l->in_layers[0]->out_c;
 	for (size_t j = 1; j < l->in_ids.n; j++) {
 		layer* inl = l->in_layers[j];
 		if (l->w != inl->out_w || l->h != inl->out_h) {
-			printf("Invalid input layer dimensions. Width and height must match.\n");
-			printf("Layer %d %zux%zu, Input layer %d %zux%zu\n", i, l->w, l->h, inl->id, inl->out_w, inl->out_h);
+			printf("Invalid input layer dimensions. Width and height must match.\n"
+			"Layer %d %zux%zu, Input layer %d %zux%zu\n", l->id, l->w, l->h, inl->id, inl->out_w, inl->out_h);
 			wait_for_key_then_exit();
 		}
-		l->c += inl->out_c;
+		if (l->type == LAYER_RESIDUAL) {
+			if (inl->out_c != l->c) {
+				printf("Inputs to residual layers must have equal depth.\nResidual layer %d, Input layer %d\n", l->id, inl->id);
+				printf("Residual layer %zux%zux%zu | Input layer %zux%zux%zu\n", l->w, l->h, l->c, inl->out_w, inl->out_h, inl->out_c);
+				wait_for_key_then_exit();
+			}
+		}
+		else {
+			l->c += inl->out_c;
+		}
 	}
 	l->n = l->w * l->h * l->c;
+}
+
+/* i = layer index in net->layers */
+void build_conv_layer(int i, network* net) {
+	layer* l = &(net->layers[i]);
+	layer* ls = net->layers;
+	l->id = i;
+	if (!l->n_groups) l->n_groups = 1;
+	if (!l->stride) l->stride = 1;
+	if (!l->n_filters) {
+		printf("Error: n_filters cannot be zero. (layer %d)\n", l->id);
+		wait_for_key_then_exit();
+	}
+	if (l->n_filters % l->n_groups > 0) {
+		printf("Cannot evenly distribute %zu filters between %zu groups. (layer %d)\n", l->n_filters, l->n_groups, i);
+		wait_for_key_then_exit();
+	}
+
+	set_input_layers(l, net);
+	set_input_dimensions(l);
 
 	if (l->c % l->n_groups > 0) {
 		printf("Cannot evenly distribute %zu channels between %zu groups. (layer %d)\n", l->c, l->n_groups, i);
-		wait_for_key_then_exit();
-	}
-
-	if (((l->w + (l->pad * 2)) - l->ksize) % l->stride != 0 || l->ksize > l->w) {
-		printf("Invalid kernel size or stride for input width.\n");
-		printf("Layer %d width %zu (w/ padding), kernel size %zu, stride %zu\n", i, l->w + 2 * l->pad, l->ksize, l->stride);
-		wait_for_key_then_exit();
-	}
-	if (((l->h + (l->pad * 2)) - l->ksize) % l->stride != 0 || l->ksize > l->h) {
-		printf("Invalid kernel size or stride for input height.\n");
-		printf("Layer %d height %zu (w/ padding), kernel size %zu, stride %zu\n", i, l->h + 2 * l->pad, l->ksize, l->stride);
 		wait_for_key_then_exit();
 	}
 
@@ -282,51 +290,13 @@ void build_conv_layer(int i, network* net) {
 
 void build_dense_layer(int i, network* net) {
 	layer* l = &(net->layers[i]);
-	layer* ls = net->layers;
 	l->id = i;
 
-	if (l->in_ids.n == 0) {
-		l->in_ids.a = (int*)xcalloc(1, sizeof(int));
-		l->in_ids.a[0] = i - 1;
-		l->in_ids.n = 1;
-	}
-	else {
-		for (int j = 0; j < l->in_ids.n; j++) {
-			if (l->in_ids.a[j] < 0) l->in_ids.a[j] += i;
-			if (l->in_ids.a[j] > i || l->in_ids.a[j] < 0) {
-				printf("Invalid in_id of %d for layer %d\n", l->in_ids.a[j], i);
-				wait_for_key_then_exit();
-			}
-		}
-	}
+	set_input_layers(l, net);
+	set_input_dimensions(l);
 
-	l->in_layers = (layer**)xcalloc(l->in_ids.n, sizeof(layer*));
-	for (size_t j = 0; j < l->in_ids.n; j++) {
-		l->in_layers[j] = &ls[l->in_ids.a[j]];
-	}
-
-	l->w = l->in_layers[0]->out_w;
-	l->h = l->in_layers[0]->out_h;
-	l->c = l->in_layers[0]->out_c;
-	for (size_t j = 1; j < l->in_ids.n; j++) {
-		layer* inl = l->in_layers[i];
-		if (l->w != inl->out_w || l->h != inl->out_h) {
-			printf("Invalid input layer dimensions. Width and height must match.\n");
-			printf("Layer %d %zux%zu, Input layer %d %zux%zu\n", i, l->w, l->h, inl->id, inl->out_w, inl->out_h);
-			wait_for_key_then_exit();
-		}
-		l->c += inl->out_c;
-	}
-	l->n = l->w * l->h * l->c;
-
-	l->pad = 0;
-	l->stride = 1;
-	assert(l->w == l->h);
-	l->ksize = l->w;
-
-	// Calculate output dimensions.
-	l->out_w = ((l->w + (l->pad * 2) - l->ksize) / l->stride) + 1;
-	l->out_h = ((l->h + (l->pad * 2) - l->ksize) / l->stride) + 1;
+	l->out_w = 1;
+	l->out_h = 1;
 	l->out_c = l->n_filters;
 	l->out_n = l->out_w * l->out_h * l->out_c;
 
@@ -417,50 +387,20 @@ void build_classify_layer(int i, network* net) {
 	}
 
 	layer* l = &(net->layers[i]);
-	layer* ls = net->layers;
 	l->id = i;
 
 	if (l->n_classes == 0) l->n_classes = net->n_classes;
 
-	if (l->in_ids.n == 0) {
-		l->in_ids.a = (int*)xcalloc(1, sizeof(int));
-		l->in_ids.a[0] = i - 1;
-		l->in_ids.n = 1;
+	if (l->in_ids.n > 1) {
+		printf("Classify layers cannot have multiple input layers. (layer %d)\n", l->id);
 	}
-	else if (l->in_ids.n == 1) {
-		if (l->in_ids.a[0] < 0) l->in_ids.a[0] += i;
-		if (l->in_ids.a[0] > i || l->in_ids.a[0] < 0) {
-			printf("Invalid in_id of %d for classify layer id %d\n", l->in_ids.a[0], i);
-			wait_for_key_then_exit();
-		}
-	}
-	else {
-		printf("Classify layers can only have one input layer.\n");
-		wait_for_key_then_exit();
-	}
+	set_input_layers(l, net);
+	set_input_dimensions(l);
 
-	l->in_layers = (layer**)xcalloc(l->in_ids.n, sizeof(layer*));
-	for (size_t j = 0; j < l->in_ids.n; j++) {
-		l->in_layers[j] = &ls[l->in_ids.a[j]];
-	}
-
-	l->w = l->in_layers[0]->out_w;
-	l->h = l->in_layers[0]->out_h;
-	l->c = l->in_layers[0]->out_c;
-	l->n = l->w * l->h * l->c;
-
-	l->pad = 0;
-	l->stride = 1;
 	if (l->w != 1 || l->h != 1 || l->c != l->n_classes) {
 		printf("The layer outputting to a classify layer must have a width, height, and depth of 1x1x%zu. (is %zux%zux%zu)\n", l->n_classes, l->w, l->h, l->c);
 		wait_for_key_then_exit();
 	}
-
-	// Calculate output dimensions.
-	l->out_w = l->w;
-	l->out_h = l->h;
-	l->out_c = l->c;
-	l->out_n = l->out_w * l->out_h * l->out_c;
 
 	l->output = l->in_layers[0]->output;
 	l->grads = l->in_layers[0]->grads;
@@ -487,52 +427,11 @@ void build_classify_layer(int i, network* net) {
 /* i = layer index in net->layers */
 void build_maxpool_layer(int i, network* net) {
 	layer* l = &(net->layers[i]);
-	layer* ls = net->layers;
 	l->id = i;
 
-	// Set default in_ids if none specified.
-	if (l->in_ids.n == 0) {
-		l->in_ids.a = (int*)xcalloc(1, sizeof(int));
-		l->in_ids.a[0] = i - 1;
-		l->in_ids.n = 1;
-	}
-	else {
-		for (int j = 0; j < l->in_ids.n; j++) {
-			if (l->in_ids.a[j] < 0) l->in_ids.a[j] += i;
-			if (l->in_ids.a[j] > i || l->in_ids.a[j] < 0) {
-				printf("Invalid in_id of %d for layer %d\n", l->in_ids.a[j], i);
-				wait_for_key_then_exit();
-			}
-		}
-	}
+	set_input_layers(l, net);
+	set_input_dimensions(l);
 
-	// Build array of input layer addresses.
-	l->in_layers = (layer**)xcalloc(l->in_ids.n, sizeof(layer*));
-	if (i > 0) {
-		for (size_t j = 0; j < l->in_ids.n; j++) {
-			l->in_layers[j] = &ls[l->in_ids.a[j]];
-		}
-	}
-	else { // if first layer
-		l->in_layers[0] = net->input;
-	}
-
-	// Calculate input dimensions.
-	l->w = l->in_layers[0]->out_w;
-	l->h = l->in_layers[0]->out_h;
-	l->c = l->in_layers[0]->out_c;
-	for (size_t j = 1; j < l->in_ids.n; j++) {
-		layer* inl = l->in_layers[j];
-		if (l->w != inl->out_w || l->h != inl->out_h) {
-			printf("Invalid input layer dimensions. Width and height must match.\n");
-			printf("Layer %d %zux%zu, Input layer %d %zux%zu\n", i, l->w, l->h, inl->id, inl->out_w, inl->out_h);
-			wait_for_key_then_exit();
-		}
-		l->c += inl->out_c;
-	}
-	l->n = l->w * l->h * l->c;
-
-	// Calculate output dimensions.
 	l->out_w = ((l->w - l->ksize) / l->stride) + 1;
 	l->out_h = ((l->h - l->ksize) / l->stride) + 1;
 	l->out_c = l->c;
@@ -561,53 +460,11 @@ void build_maxpool_layer(int i, network* net) {
 
 void build_residual_layer(int i, network* net) {
 	layer* l = &(net->layers[i]);
-	layer* ls = net->layers;
 	l->id = i;
 
-	// Set default in_ids if none specified.
-	if (l->in_ids.n == 0) {
-		l->in_ids.a = (int*)xcalloc(1, sizeof(int));
-		l->in_ids.a[0] = i - 1;
-		l->in_ids.n = 1;
-	}
-	else {
-		for (int j = 0; j < l->in_ids.n; j++) {
-			if (l->in_ids.a[j] < 0) l->in_ids.a[j] += i;
-			if (l->in_ids.a[j] > i || l->in_ids.a[j] < 0) {
-				printf("Invalid in_id of %d for layer %d\n", l->in_ids.a[j], i);
-				wait_for_key_then_exit();
-			}
-		}
-	}
+	set_input_layers(l, net);
+	set_input_dimensions(l);
 
-	// Build array of input layer addresses.
-	l->in_layers = (layer**)xcalloc(l->in_ids.n, sizeof(layer*));
-	if (i > 0) {
-		for (size_t j = 0; j < l->in_ids.n; j++) {
-			l->in_layers[j] = &ls[l->in_ids.a[j]];
-		}
-	}
-	else { // if first layer
-		l->in_layers[0] = net->input;
-	}
-
-	// Calculate input dimensions.
-	l->w = l->in_layers[0]->out_w;
-	l->h = l->in_layers[0]->out_h;
-	l->c = l->in_layers[0]->out_c;
-	l->n = l->w * l->h * l->c;
-
-	for (size_t j = 1; j < l->in_ids.n; j++) {
-		if (!(l->in_layers[j]->out_w == l->w && l->in_layers[j]->out_h == l->h && l->in_layers[j]->out_c == l->c)) {
-			layer* inl = l->in_layers[j];
-			printf("Inputs to residual layers must have matching dimensions.\n"
-				"Residual layer %d, Input layer %d\n", i, inl->id);
-			printf("Residual layer %zux%zux%zu | Input layer %zux%zux%zu\n", l->w, l->h, l->c, inl->out_w, inl->out_h, inl->out_c);
-			wait_for_key_then_exit();
-		}
-	}
-
-	// Calculate output dimensions.
 	l->out_w = l->w;
 	l->out_h = l->h;
 	l->out_c = l->c;
@@ -649,48 +506,9 @@ void build_route_layer(int i, network* net) {
 	layer* ls = net->layers;
 	l->id = i;
 
-	// Set default in_ids if none specified.
-	if (l->in_ids.n == 0) {
-		l->in_ids.a = (int*)xcalloc(1, sizeof(int));
-		l->in_ids.a[0] = i - 1;
-		l->in_ids.n = 1;
-	}
-	else {
-		for (int j = 0; j < l->in_ids.n; j++) {
-			if (l->in_ids.a[j] < 0) l->in_ids.a[j] += i;
-			if (l->in_ids.a[j] > i || l->in_ids.a[j] < 0) {
-				printf("Invalid in_id of %d for layer %d\n", l->in_ids.a[j], i);
-				wait_for_key_then_exit();
-			}
-		}
-	}
+	set_input_layers(l, net);
+	set_input_dimensions(l);
 
-	// Build array of input layer addresses.
-	l->in_layers = (layer**)xcalloc(l->in_ids.n, sizeof(layer*));
-	if (i > 0) {
-		for (size_t j = 0; j < l->in_ids.n; j++) {
-			l->in_layers[j] = &ls[l->in_ids.a[j]];
-		}
-	}
-	else { // if first layer
-		l->in_layers[0] = net->input;
-	}
-
-	// Calculate input dimensions.
-	l->w = l->in_layers[0]->out_w;
-	l->h = l->in_layers[0]->out_h;
-	l->c = l->in_layers[0]->out_c;
-	l->n = l->w * l->h * l->c;
-
-	for (size_t j = 1; j < l->in_ids.n; j++) {
-		if (!(l->in_layers[j]->out_w == l->w && l->in_layers[j]->out_h == l->h && l->in_layers[j]->out_c == l->c)) {
-			printf("Inputs smust have matching width and height.\n"
-				"Route layer %d, Input layer %d\n", i, l->in_layers[j]->id);
-			wait_for_key_then_exit();
-		}
-	}
-
-	// Calculate output dimensions.
 	l->out_w = l->w;
 	l->out_h = l->h;
 	l->out_c = l->c;
@@ -729,52 +547,11 @@ void build_route_layer(int i, network* net) {
 
 void build_avgpool_global_layer(int i, network* net) {
 	layer* l = &(net->layers[i]);
-	layer* ls = net->layers;
 	l->id = i;
 
-	// Set default in_ids if none specified.
-	if (l->in_ids.n == 0) {
-		l->in_ids.a = (int*)xcalloc(1, sizeof(int));
-		l->in_ids.a[0] = i - 1;
-		l->in_ids.n = 1;
-	}
-	else {
-		for (int j = 0; j < l->in_ids.n; j++) {
-			if (l->in_ids.a[j] < 0) l->in_ids.a[j] += i;
-			if (l->in_ids.a[j] > i || l->in_ids.a[j] < 0) {
-				printf("Invalid in_id of %d for layer %d\n", l->in_ids.a[j], i);
-				wait_for_key_then_exit();
-			}
-		}
-	}
+	set_input_layers(l, net);
+	set_input_dimensions(l);
 
-	// Build array of input layer addresses.
-	l->in_layers = (layer**)xcalloc(l->in_ids.n, sizeof(layer*));
-	if (i > 0) {
-		for (size_t j = 0; j < l->in_ids.n; j++) {
-			l->in_layers[j] = &ls[l->in_ids.a[j]];
-		}
-	}
-	else { // if first layer
-		l->in_layers[0] = net->input;
-	}
-
-	// Calculate input dimensions.
-	l->w = l->in_layers[0]->out_w;
-	l->h = l->in_layers[0]->out_h;
-	l->c = l->in_layers[0]->out_c;
-	for (size_t j = 1; j < l->in_ids.n; j++) {
-		layer* inl = l->in_layers[j];
-		if (l->w != inl->out_w || l->h != inl->out_h) {
-			printf("Invalid input layer dimensions. Width and height must match.\n");
-			printf("Layer %d %zux%zu, Input layer %d %zux%zu\n", i, l->w, l->h, inl->id, inl->out_w, inl->out_h);
-			wait_for_key_then_exit();
-		}
-		l->c += inl->out_c;
-	}
-	l->n = l->w * l->h * l->c;
-
-	// Calculate output dimensions.
 	l->out_w = 1;
 	l->out_h = 1;
 	l->out_c = l->c;
@@ -815,54 +592,13 @@ void build_avgpool_global_layer(int i, network* net) {
 
 void build_avgpool_local_layer(int i, network* net) {
 	layer* l = &(net->layers[i]);
-	layer* ls = net->layers;
 	l->id = i;
 
-	// Set default in_ids if none specified.
-	if (l->in_ids.n == 0) {
-		l->in_ids.a = (int*)xcalloc(1, sizeof(int));
-		l->in_ids.a[0] = i - 1;
-		l->in_ids.n = 1;
-	}
-	else {
-		for (int j = 0; j < l->in_ids.n; j++) {
-			if (l->in_ids.a[j] < 0) l->in_ids.a[j] += i;
-			if (l->in_ids.a[j] > i || l->in_ids.a[j] < 0) {
-				printf("Invalid in_id of %d for layer %d\n", l->in_ids.a[j], i);
-				wait_for_key_then_exit();
-			}
-		}
-	}
+	set_input_layers(l, net);
+	set_input_dimensions(l);
 
-	// Build array of input layer addresses.
-	l->in_layers = (layer**)xcalloc(l->in_ids.n, sizeof(layer*));
-	if (i > 0) {
-		for (size_t j = 0; j < l->in_ids.n; j++) {
-			l->in_layers[j] = &ls[l->in_ids.a[j]];
-		}
-	}
-	else { // if first layer
-		l->in_layers[0] = net->input;
-	}
-
-	// Calculate input dimensions.
-	l->w = l->in_layers[0]->out_w;
-	l->h = l->in_layers[0]->out_h;
-	l->c = l->in_layers[0]->out_c;
-	for (size_t j = 1; j < l->in_ids.n; j++) {
-		layer* inl = l->in_layers[j];
-		if (l->w != inl->out_w || l->h != inl->out_h) {
-			printf("Invalid input layer dimensions. Width and height must match.\n");
-			printf("Layer %d %zux%zu, Input layer %d %zux%zu\n", i, l->w, l->h, inl->id, inl->out_w, inl->out_h);
-			wait_for_key_then_exit();
-		}
-		l->c += inl->out_c;
-	}
-	l->n = l->w * l->h * l->c;
-
-	// Calculate output dimensions.
-	l->out_w = 1;
-	l->out_h = 1;
+	l->out_w = ((l->w + (l->pad * 2) - l->ksize) / l->stride) + 1;
+	l->out_h = ((l->h + (l->pad * 2) - l->ksize) / l->stride) + 1;
 	l->out_c = l->c;
 	l->out_n = l->out_w * l->out_h * l->out_c;
 
@@ -901,49 +637,11 @@ void build_avgpool_local_layer(int i, network* net) {
 
 void build_upsample_layer(int i, network* net) {
 	layer* l = &(net->layers[i]);
-	layer* ls = net->layers;
 	l->id = i;
 
-	// Set default in_ids if none specified.
-	if (l->in_ids.n == 0) {
-		l->in_ids.a = (int*)xcalloc(1, sizeof(int));
-		l->in_ids.a[0] = i - 1;
-		l->in_ids.n = 1;
-	}
-	else {
-		for (int j = 0; j < l->in_ids.n; j++) {
-			if (l->in_ids.a[j] < 0) l->in_ids.a[j] += i;
-			if (l->in_ids.a[j] > i || l->in_ids.a[j] < 0) {
-				printf("Invalid in_id of %d for layer %d\n", l->in_ids.a[j], i);
-				wait_for_key_then_exit();
-			}
-		}
-	}
+	set_input_layers(l, net);
+	set_input_dimensions(l);
 
-	// Build array of input layer addresses.
-	l->in_layers = (layer**)xcalloc(l->in_ids.n, sizeof(layer*));
-	if (i > 0) {
-		for (size_t j = 0; j < l->in_ids.n; j++) {
-			l->in_layers[j] = &ls[l->in_ids.a[j]];
-		}
-	}
-
-	// Calculate input dimensions.
-	l->w = l->in_layers[0]->out_w;
-	l->h = l->in_layers[0]->out_h;
-	l->c = l->in_layers[0]->out_c;
-	for (size_t j = 1; j < l->in_ids.n; j++) {
-		layer* inl = l->in_layers[j];
-		if (l->w != inl->out_w || l->h != inl->out_h) {
-			printf("Invalid input layer dimensions. Width and height must match.\n");
-			printf("Layer %d %zux%zu, Input layer %d %zux%zu\n", i, l->w, l->h, inl->id, inl->out_w, inl->out_h);
-			wait_for_key_then_exit();
-		}
-		l->c += inl->out_c;
-	}
-	l->n = l->w * l->h * l->c;
-
-	// Calculate output dimensions.
 	l->out_w = l->w * l->ksize;
 	l->out_h = l->h * l->ksize;
 	l->out_c = l->c;
@@ -985,61 +683,30 @@ void build_detect_layer(int i, network* net) {
 	}
 
 	layer* l = &(net->layers[i]);
-	layer* ls = net->layers;
 	l->id = i;
 
 	if (l->n_classes == 0) l->n_classes = net->n_classes;
 
-	// Set default in_ids if none specified
-	if (l->in_ids.n == 0) {
-		l->in_ids.a = (int*)xcalloc(1, sizeof(int));
-		l->in_ids.a[0] = i - 1;
-		l->in_ids.n = 1;
+	if (l->in_ids.n > 1) {
+		printf("Detect layers cannot have multiple input layers. (layer %d)\n", l->id);
 	}
-	else {
-		for (int j = 0; j < l->in_ids.n; j++) {
-			if (l->in_ids.a[j] < 0) l->in_ids.a[j] += i;
-			if (l->in_ids.a[j] > i || l->in_ids.a[j] < 0) {
-				printf("Invalid in_id of %d for layer %d\n", l->in_ids.a[j], i);
-				wait_for_key_then_exit();
-			}
-		}
-	}
+	set_input_layers(l, net);
 
-	// Build array of input layer addresses.
-	l->in_layers = (layer**)xcalloc(l->in_ids.n, sizeof(layer*));
-	if (i > 0) {
-		for (size_t j = 0; j < l->in_ids.n; j++) {
-			l->in_layers[j] = &ls[l->in_ids.a[j]];
-		}
-	}
-	else { // if first layer
-		l->in_layers[0] = net->input;
-	}
 	if (l->in_layers[0]->activation != ACT_SIGMOID) {
 		printf("Invalid cfg: The input layer to a detect layer must have an sigmoid activation.\n");
 		wait_for_key_then_exit();
 	}
 
-	// Calculate input dimensions.
 	l->w = l->in_layers[0]->out_w;
 	l->h = l->in_layers[0]->out_h;
 	l->c = l->in_layers[0]->out_c;
-	for (size_t j = 1; j < l->in_ids.n; j++) {
-		layer* inl = l->in_layers[j];
-		if (l->w != inl->out_w || l->h != inl->out_h) {
-			printf("Invalid input layer dimensions. Width and height must match.\n");
-			printf("Layer %d %zux%zu, Input layer %d %zux%zu\n", i, l->w, l->h, inl->id, inl->out_w, inl->out_h);
-			wait_for_key_then_exit();
-		}
-		l->c += inl->out_c;
-	}
+	l->n = l->w * l->h * l->c;
+
 	size_t c = (NUM_ANCHOR_PARAMS + l->n_classes) * l->n_anchors;
 	if (l->c != c) {
-		printf("Depth mismatch between Detect layer and its input layers. (%zu =/= %zu)\n", c, l->c);
+		printf("Depth mismatch between Detect layer and its input layer. (%zu =/= %zu)\n", c, l->c);
 		wait_for_key_then_exit();
 	}
-	l->n = l->w * l->h * l->c;
 
 	l->grads = (float*)xcalloc(l->n * net->batch_size, sizeof(float));
 	l->errors = (float*)xcalloc(net->batch_size, sizeof(float));  // only used for storing iou losses
