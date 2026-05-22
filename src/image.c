@@ -151,7 +151,7 @@ void resize_image_bilinear(image* dst, image* src) {
     float h_ratio = (float)(src_h - 1) / (float)(dst_h - 1);
 
     size_t y;
-#pragma omp parallel for firstprivate(dst_w, dst_h, src_w, src_h, c, src_wh, dst_wh, w_ratio, h_ratio)
+#pragma omp parallel for
     for (y = 0; y < dst_h; y++) {
         for (size_t x = 0; x < dst_w; x++) {
             float px = x * w_ratio;
@@ -160,7 +160,7 @@ void resize_image_bilinear(image* dst, image* src) {
             size_t x2 = x1 + 1;
             if (x2 >= src_w) x2 = src_w - 1;
             size_t y1 = (size_t)py;
-            size_t y2 = py + 1;
+            size_t y2 = (size_t)(py + 1);
             if (y2 >= src_h) y2 = src_h - 1;
             float dx = x1 ? px / (float)x1 : 0.0F;
             float dy = y1 ? py / (float)y1 : 0.0F;
@@ -197,7 +197,7 @@ void scale_contrast_rgb(image* img, float scalar) {
     float* data = img->data;
     size_t wh = w * h;
     size_t i;
-#pragma omp parallel for firstprivate(wh, scalar)
+#pragma omp parallel for
     for (i = 0; i < wh; i++) {
         float red = data[i];
         float green = data[wh + i];
@@ -231,7 +231,7 @@ void transform_colorspace(image* img, float brightness_scalar, float contrast_sc
     size_t wh = img->w * img->h;
     size_t wh2 = wh * 2;
     size_t i;
-#pragma omp parallel for firstprivate(hue_shift, saturation_scalar, brightness_scalar, wh, wh2)
+#pragma omp parallel for
     for (i = 0; i < wh; i++) {
         data[i] += hue_shift;
         if (data[i] > 1.0F) data[i] -= 1.0F;
@@ -250,7 +250,7 @@ void rgb2hsv(image* img) {
     size_t wh = w * h;
     size_t wh2 = wh * 2;
     size_t i;
-#pragma omp parallel for firstprivate(wh, wh2)
+#pragma omp parallel for
     for (i = 0; i < wh; i++) {
         float red = data[i];
         float green = data[wh + i];
@@ -292,7 +292,7 @@ void hsv2rgb(image* img) {
     size_t wh = w * h;
     size_t wh2 = wh * 2;
     size_t i;
-#pragma omp parallel for firstprivate(wh, wh2)
+#pragma omp parallel for
     for (i = 0; i < wh; i++) {
         float H = data[i] * 6.0F;
         float S = data[wh + i];

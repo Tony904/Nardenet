@@ -32,7 +32,6 @@ void forward_conv(layer* l, network* net) {
 			size_t inl_c = inl->out_c;
 			float* im = &inl->output[b * inl->out_n];
 			im2col(im, B, (int)l->w, (int)l->h, (int)inl_c, (int)l->out_w, (int)l->out_h, (int)l->ksize, (int)l->stride, (int)l->pad);
-			//B += K * l->ksize * l->ksize * inl_c;  // pretty sure is not correct
 			B += l->ksize * l->ksize * inl_c * N;
 		}
 		float* C = &l->Z[b * M * N];  // M * N
@@ -127,7 +126,7 @@ void update_conv(layer* l, network* net) {
 	float* bias_velocities = l->bias_velocities;
 	size_t n = l->n_filters;
 	size_t i;
-#pragma omp parallel for firstprivate(rate, momentum)
+#pragma omp parallel for
 	for (i = 0; i < n; i++) {
 		float v_old = bias_velocities[i];
 		float v_new = momentum * v_old - rate * bias_grads[i];
@@ -140,7 +139,7 @@ void update_conv(layer* l, network* net) {
 	float* weight_velocities = l->weight_velocities;
 	n = l->n_weights;
 	net->regularize_weights(weight_grads, weights, n, net->decay);
-#pragma omp parallel for firstprivate(rate, momentum)
+#pragma omp parallel for
 	for (i = 0; i < n; i++) {
 		float v_old = weight_velocities[i];
 		float v_new = momentum * v_old - rate * weight_grads[i];
@@ -153,7 +152,7 @@ void update_conv(layer* l, network* net) {
 		float* gamma_grads = l->gamma_grads;
 		float* gamma_velocities = l->gamma_velocities;
 		n = l->out_c;
-#pragma omp parallel for firstprivate(rate, momentum)
+#pragma omp parallel for
 		for (i = 0; i < n; i++) {
 			float v_old = weight_velocities[i];
 			float v_new = momentum * v_old - rate * weight_grads[i];
@@ -435,7 +434,7 @@ void update_conv_cpu_gpu_compare(layer* l, network* net) {
 	compare_cpu_gpu_arrays(l->bias_grads, l->gpu.bias_grads, l->n_filters, l->id, "update conv, bias grads, pre-update");
 
 	size_t i;
-#pragma omp parallel for firstprivate(rate, momentum)
+#pragma omp parallel for
 	for (i = 0; i < n; i++) {
 		float v_old = bias_velocities[i];
 		float v_new = momentum * v_old - rate * bias_grads[i];
@@ -460,7 +459,7 @@ void update_conv_cpu_gpu_compare(layer* l, network* net) {
 	float* weight_grads = l->weight_grads;
 	float* weight_velocities = l->weight_velocities;
 	n = l->n_weights;
-#pragma omp parallel for firstprivate(rate, momentum)
+#pragma omp parallel for
 	for (i = 0; i < n; i++) {
 		float v_old = weight_velocities[i];
 		float v_new = momentum * v_old - rate * weight_grads[i];
@@ -479,7 +478,7 @@ void update_conv_cpu_gpu_compare(layer* l, network* net) {
 		float* gamma_grads = l->gamma_grads;
 		float* gamma_velocities = l->gamma_velocities;
 		n = l->out_c;
-#pragma omp parallel for firstprivate(rate, momentum)
+#pragma omp parallel for
 		for (i = 0; i < n; i++) {
 			float v_old = weight_velocities[i];
 			float v_new = momentum * v_old - rate * weight_grads[i];

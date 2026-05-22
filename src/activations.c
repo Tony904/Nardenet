@@ -49,7 +49,7 @@ void activate_sigmoid(float* Z, float* output, size_t out_n, size_t batch_size) 
 
 void activate_softmax(float* Z, float* output, size_t out_n, size_t batch_size) {
 	size_t b;
-#pragma omp parallel for firstprivate(out_n)
+#pragma omp parallel for
 	for (b = 0; b < batch_size; b++) {
 		float* z = &Z[b * out_n];
 		float* a = &output[b * out_n];

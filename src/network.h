@@ -249,7 +249,7 @@ extern "C" {
 
         float** maxpool_addresses;  // addresses of input layer outputs that were max values (for backprop)
         gpu_layer_vars gpu;
-    } layer;    
+    } layer;
 
     typedef enum NET_TYPE {
         NET_NONE,
@@ -262,11 +262,12 @@ extern "C" {
         LAYER_NONE,
         LAYER_CONV,
         LAYER_MAXPOOL,
-        LAYER_FC,
+        LAYER_DENSE,
         LAYER_CLASSIFY,
         LAYER_RESIDUAL,
         LAYER_DETECT,
-        LAYER_AVGPOOL,
+        LAYER_AVGPOOL_GLOBAL,
+        LAYER_AVGPOOL_LOCAL,
         LAYER_UPSAMPLE,
         LAYER_ROUTE
     } LAYER_TYPE;

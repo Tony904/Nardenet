@@ -9,12 +9,12 @@
 #define hNET "[net]"
 #define hTRAINING "[training]"
 #define hCONV "[conv]"
-#define hFC "[fc]"
+#define hDENSE "[dense]"
 #define hMAXPOOL "[maxpool]"
 #define hRESIDUAL "[residual]"
 #define hCLASSIFY "[classify]"
 #define hDETECT "[detect]"
-#define hAVGPOOL "[avgpool]"
+#define hAVGPOOL_GLOBAL "[avgpool global]"
 #define hUPSAMPLE "[upsample]"
 #define hROUTE "[route]"
 
@@ -220,7 +220,7 @@ void copy_to_cfg_layer(cfg_layer* l, char** tokens, cfg* c) {
 		l->batchnorm = str2int(tokens[1]);
 	}
 	else if (strcmp(k, "filters") == 0 || strcmp(k, "outputs") == 0) {
-		if (l->type == LAYER_FC) {
+		if (l->type == LAYER_DENSE) {
 			return;
 		}
 		if (strcmp(tokens[1], "num_classes") == 0) {
@@ -436,8 +436,8 @@ int is_header(char* str, char* header, int* is_layer) {
 		*is_layer = 1;
 		return 1;
 	}
-	else if (strcmp(str, hFC) == 0) {
-		strcpy(header, hFC);
+	else if (strcmp(str, hDENSE) == 0) {
+		strcpy(header, hDENSE);
 		*is_layer = 1;
 		return 1;
 	}
@@ -446,8 +446,8 @@ int is_header(char* str, char* header, int* is_layer) {
 		*is_layer = 1;
 		return 1;
 	}
-	else if (strcmp(str, hAVGPOOL) == 0) {
-		strcpy(header, hAVGPOOL);
+	else if (strcmp(str, hAVGPOOL_GLOBAL) == 0) {
+		strcpy(header, hAVGPOOL_GLOBAL);
 		*is_layer = 1;
 		return 1;
 	}
@@ -543,9 +543,9 @@ LAYER_TYPE header2layertype(char* header) {
 	if (strcmp(header, hCLASSIFY) == 0) return LAYER_CLASSIFY;
 	if (strcmp(header, hMAXPOOL) == 0) return LAYER_MAXPOOL;
 	if (strcmp(header, hDETECT) == 0) return LAYER_DETECT;
-	if (strcmp(header, hFC) == 0) return LAYER_FC;
+	if (strcmp(header, hDENSE) == 0) return LAYER_DENSE;
 	if (strcmp(header, hRESIDUAL) == 0) return LAYER_RESIDUAL;
-	if (strcmp(header, hAVGPOOL) == 0) return LAYER_AVGPOOL;
+	if (strcmp(header, hAVGPOOL_GLOBAL) == 0) return LAYER_AVGPOOL_GLOBAL;
 	if (strcmp(header, hUPSAMPLE) == 0) return LAYER_UPSAMPLE;
 	if (strcmp(header, hROUTE) == 0) return LAYER_ROUTE;
 	return LAYER_NONE;
@@ -605,9 +605,9 @@ void print_cfg_layer(cfg_layer* l) {
 	else if (l->type == LAYER_CLASSIFY) printf(hCLASSIFY);
 	else if (l->type == LAYER_MAXPOOL) printf(hMAXPOOL);
 	else if (l->type == LAYER_DETECT) printf(hDETECT);
-	else if (l->type == LAYER_FC) printf(hFC);
+	else if (l->type == LAYER_DENSE) printf(hDENSE);
 	else if (l->type == LAYER_RESIDUAL) printf(hRESIDUAL);
-	else if (l->type == LAYER_AVGPOOL) printf(hAVGPOOL);
+	else if (l->type == LAYER_AVGPOOL_GLOBAL) printf(hAVGPOOL_GLOBAL);
 	else if (l->type == LAYER_UPSAMPLE) printf(hUPSAMPLE);
 	printf("\nid = %d\n", l->id);
 	printf("train = %d\n", l->train);

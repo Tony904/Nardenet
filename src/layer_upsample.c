@@ -24,7 +24,7 @@ void forward_upsample(layer* l, network* net) {
 			size_t inl_out_c = inl->out_c;
 			size_t b_offset = bwh * inl_out_c;
 			size_t ch;
-#pragma omp parallel for firstprivate(w, h, ksize)
+#pragma omp parallel for
 			for (ch = 0; ch < inl_out_c; ch++) {
 				size_t ch_offset = ch * wh + b_offset;
 				size_t z_offset = ch * out_wh;
@@ -68,7 +68,7 @@ void backward_upsample(layer* l, network* net) {
 			size_t inl_out_c = inl->out_c;
 			size_t b_offset = bwh * inl_out_c;
 			size_t ch;
-#pragma omp parallel for firstprivate(w, h, ksize)
+#pragma omp parallel for
 			for (ch = 0; ch < inl_out_c; ch++) {
 				size_t ch_offset = ch * wh + b_offset;
 				size_t z_offset = ch * out_wh;

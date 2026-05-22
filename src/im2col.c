@@ -18,7 +18,7 @@ void im2col(float* data_im, float* data_col,
 	int out_wh = out_w * out_h;
 	int im_wh = im_w * im_h;
 	int ch;
-#pragma omp parallel for firstprivate(im_w, im_h, out_w, out_h, ksize, pad, stride)
+#pragma omp parallel for
 	for (ch = 0; ch < im_channels; ch++) {
 		float* im = &data_im[ch * im_wh];
 		float* cm = &data_col[ch * out_wh * ksize * ksize];
@@ -135,7 +135,7 @@ void col2im(float* data_col, float* data_im,
 	int out_wh = out_w * out_h;
 	int im_wh = w * h;
 	int ch;
-#pragma omp parallel for firstprivate(w, h, out_w, out_h, ksize, pad, stride)
+#pragma omp parallel for
 	for (ch = 0; ch < channels; ch++) {
 		float* im = &data_im[ch * im_wh];
 		float* cm = &data_col[ch * out_wh * ksize * ksize];

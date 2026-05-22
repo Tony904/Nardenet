@@ -57,7 +57,7 @@ void get_grads_tanh(float* grads, float* act_inputs, size_t out_n, size_t batch_
 
 void regularize_l1(float* weight_grads, float* weights, size_t size, float decay) {
 	size_t i;
-#pragma omp parallel for firstprivate(decay)
+#pragma omp parallel for
 	for (i = 0; i < size; i++) {
 		weight_grads[i] -= (weights[i] > 0.0F) ? decay : -decay;
 	}
@@ -65,7 +65,7 @@ void regularize_l1(float* weight_grads, float* weights, size_t size, float decay
 
 void regularize_l2(float* weight_grads, float* weights, size_t size, float decay) {
 	size_t i;
-#pragma omp parallel for firstprivate(decay)
+#pragma omp parallel for
 	for (i = 0; i < size; i++) {
 		weight_grads[i] -= weights[i] * decay;  // not multiplying by 2 cus it doesn't matter, just set decay to a higher value
 	}

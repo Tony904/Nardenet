@@ -67,8 +67,8 @@ extern "C" {
 	void transform_colorspace_gpu(image* img, float brightness_scalar, float contrast_scalar, float saturation_scalar, float hue_shift);
 
 	// avgpool.cu
-	void launch_forward_avgpool_kernel(float* input, float* output, int spatial, int c, int batch_size);
-	void launch_backward_avgpool_kernel(float* grads_x, float* grads_y, int spatial, int c, int batch_size);
+	void launch_forward_avgpool_global_kernel(float* input, float* output, int spatial, int c, int batch_size);
+	void launch_backward_avgpool_global_kernel(float* grads_x, float* grads_y, int spatial, int c, int batch_size);
 
 	// maxpool.cu
 	void launch_forward_maxpool_general_kernel(float* input, float* output, float* grads, float** max_ptrs, int src_w, int src_h, int dst_w, int dst_h, int dst_n, int ksize, int stride);

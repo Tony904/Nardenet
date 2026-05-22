@@ -7,11 +7,12 @@
 #include "xallocs.h"
 #include "layer_conv.h"
 #include "layer_classify.h"
-#include "layer_fc.h"
+#include "layer_dense.h"
 #include "layer_maxpool.h"
 #include "layer_residual.h"
 #include "layer_detect.h"
-#include "layer_avgpool.h"
+#include "layer_avgpool_global.h"
+#include "layer_avgpool_local.h"
 #include "layer_upsample.h"
 #include "layer_route.h"
 #include "activations.h"
@@ -27,9 +28,10 @@
 void build_input_layer(network* net);
 void build_layer(int i, network* net);
 void build_conv_layer(int i, network* net);
-void build_fc_layer(int i, network* net);
+void build_dense_layer(int i, network* net);
 void build_maxpool_layer(int i, network* net);
-void build_avgpool_layer(int i, network* net);
+void build_avgpool_global_layer(int i, network* net);
+void build_avgpool_local_layer(int i, network* net);
 void build_residual_layer(int i, network* net);
 void build_upsample_layer(int i, network* net);
 void build_classify_layer(int i, network* net);
@@ -95,10 +97,10 @@ void build_layer(int i, network* net) {
 	if (l->type == LAYER_CONV) build_conv_layer(i, net);
 	else if (l->type == LAYER_CLASSIFY) build_classify_layer(i, net);
 	else if (l->type == LAYER_MAXPOOL) build_maxpool_layer(i, net);
-	else if (l->type == LAYER_FC) build_fc_layer(i, net);
+	else if (l->type == LAYER_DENSE) build_dense_layer(i, net);
 	else if (l->type == LAYER_RESIDUAL) build_residual_layer(i, net);
 	else if (l->type == LAYER_DETECT) build_detect_layer(i, net);
-	else if (l->type == LAYER_AVGPOOL) build_avgpool_layer(i, net);
+	else if (l->type == LAYER_AVGPOOL_GLOBAL) build_avgpool_global_layer(i, net);
 	else if (l->type == LAYER_UPSAMPLE) build_upsample_layer(i, net);
 	else {
 		printf("Unknown layer type: %d\n", (int)l->type);
@@ -278,7 +280,7 @@ void build_conv_layer(int i, network* net) {
 	set_activate(l, net->use_gpu);
 }
 
-void build_fc_layer(int i, network* net) {
+void build_dense_layer(int i, network* net) {
 	layer* l = &(net->layers[i]);
 	layer* ls = net->layers;
 	l->id = i;
@@ -388,18 +390,18 @@ void build_fc_layer(int i, network* net) {
 	}
 
 	if (net->use_gpu == 2) {
-		l->forward = forward_fc_cpu_gpu_compare;
-		l->backward = backward_fc_cpu_gpu_compare;
+		l->forward = forward_dense_cpu_gpu_compare;
+		l->backward = backward_dense_cpu_gpu_compare;
 		l->update = update_conv_cpu_gpu_compare;
 	}
 	else if (net->use_gpu == 1) {
-		l->forward = forward_fc_gpu;
-		l->backward = backward_fc_gpu;
+		l->forward = forward_dense_gpu;
+		l->backward = backward_dense_gpu;
 		l->update = update_conv_gpu;
 	}
 	else {
-		l->forward = forward_fc;
-		l->backward = backward_fc;
+		l->forward = forward_dense;
+		l->backward = backward_dense;
 		l->update = update_conv;
 	}
 
@@ -725,7 +727,7 @@ void build_route_layer(int i, network* net) {
 	set_activate(l, net->use_gpu);
 }
 
-void build_avgpool_layer(int i, network* net) {
+void build_avgpool_global_layer(int i, network* net) {
 	layer* l = &(net->layers[i]);
 	layer* ls = net->layers;
 	l->id = i;
@@ -799,12 +801,98 @@ void build_avgpool_layer(int i, network* net) {
 	}
 
 	if (net->use_gpu) {
-		l->forward = forward_avgpool_gpu;
-		l->backward = backward_avgpool_gpu;
+		l->forward = forward_avgpool_global_gpu;
+		l->backward = backward_avgpool_global_gpu;
 	}
 	else {
-		l->forward = forward_avgpool;
-		l->backward = backward_avgpool;
+		l->forward = forward_avgpool_global;
+		l->backward = backward_avgpool_global;
+	}
+	l->update = update_none;
+
+	set_activate(l, net->use_gpu);
+}
+
+void build_avgpool_local_layer(int i, network* net) {
+	layer* l = &(net->layers[i]);
+	layer* ls = net->layers;
+	l->id = i;
+
+	// Set default in_ids if none specified.
+	if (l->in_ids.n == 0) {
+		l->in_ids.a = (int*)xcalloc(1, sizeof(int));
+		l->in_ids.a[0] = i - 1;
+		l->in_ids.n = 1;
+	}
+	else {
+		for (int j = 0; j < l->in_ids.n; j++) {
+			if (l->in_ids.a[j] < 0) l->in_ids.a[j] += i;
+			if (l->in_ids.a[j] > i || l->in_ids.a[j] < 0) {
+				printf("Invalid in_id of %d for layer %d\n", l->in_ids.a[j], i);
+				wait_for_key_then_exit();
+			}
+		}
+	}
+
+	// Build array of input layer addresses.
+	l->in_layers = (layer**)xcalloc(l->in_ids.n, sizeof(layer*));
+	if (i > 0) {
+		for (size_t j = 0; j < l->in_ids.n; j++) {
+			l->in_layers[j] = &ls[l->in_ids.a[j]];
+		}
+	}
+	else { // if first layer
+		l->in_layers[0] = net->input;
+	}
+
+	// Calculate input dimensions.
+	l->w = l->in_layers[0]->out_w;
+	l->h = l->in_layers[0]->out_h;
+	l->c = l->in_layers[0]->out_c;
+	for (size_t j = 1; j < l->in_ids.n; j++) {
+		layer* inl = l->in_layers[j];
+		if (l->w != inl->out_w || l->h != inl->out_h) {
+			printf("Invalid input layer dimensions. Width and height must match.\n");
+			printf("Layer %d %zux%zu, Input layer %d %zux%zu\n", i, l->w, l->h, inl->id, inl->out_w, inl->out_h);
+			wait_for_key_then_exit();
+		}
+		l->c += inl->out_c;
+	}
+	l->n = l->w * l->h * l->c;
+
+	// Calculate output dimensions.
+	l->out_w = 1;
+	l->out_h = 1;
+	l->out_c = l->c;
+	l->out_n = l->out_w * l->out_h * l->out_c;
+
+	l->Z = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	l->act_inputs = l->Z;
+	l->grads = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	if (net->use_gpu) {
+		CUDA_MALLOC(&l->gpu.Z, l->out_n * net->batch_size, sizeof(float));
+		l->gpu.act_inputs = l->gpu.Z;
+		CUDA_MALLOC(&l->gpu.grads, l->out_n * net->batch_size, sizeof(float));
+	}
+
+	if (l->activation) {
+		l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+		if (net->use_gpu) {
+			CUDA_MALLOC(&l->gpu.output, l->out_n * net->batch_size, sizeof(float));
+		}
+	}
+	else {
+		l->output = l->Z;
+		l->gpu.output = l->gpu.Z;
+	}
+
+	if (net->use_gpu) {
+		l->forward = forward_avgpool_global_gpu;
+		l->backward = backward_avgpool_global_gpu;
+	}
+	else {
+		l->forward = forward_avgpool_global;
+		l->backward = backward_avgpool_global;
 	}
 	l->update = update_none;
 
@@ -1383,7 +1471,7 @@ void print_layer(layer* l) {
 	if (l->type == LAYER_CONV) print_layer_conv(l);
 	else if (l->type == LAYER_CLASSIFY) print_layer_classify(l);
 	else if (l->type == LAYER_MAXPOOL) print_layer_maxpool(l);
-	else if (l->type == LAYER_FC) print_layer_conv(l);
+	else if (l->type == LAYER_DENSE) print_layer_conv(l);
 	else if (l->type == LAYER_RESIDUAL) print_layer_residual(l);
 	else printf("NONE_LAYER\n");
 }
@@ -1470,11 +1558,12 @@ void print_lrpolicy(LR_POLICY lrp) {
 
 void print_layertype(LAYER_TYPE lt) {
 	if (lt == LAYER_NONE) printf("none\n");
-	else if (lt == LAYER_AVGPOOL) printf("avgpool\n");
+	else if (lt == LAYER_AVGPOOL_GLOBAL) printf("avgpool global\n");
+	else if (lt == LAYER_AVGPOOL_LOCAL) printf("avgpool local\n");
 	else if (lt == LAYER_CLASSIFY) printf("classify\n");
 	else if (lt == LAYER_CONV) printf("conv\n");
 	else if (lt == LAYER_DETECT) printf("detect\n");
-	else if (lt == LAYER_FC) printf("fc\n");
+	else if (lt == LAYER_DENSE) printf("dense\n");
 	else if (lt == LAYER_MAXPOOL) printf("maxpool\n");
 	else if (lt == LAYER_RESIDUAL) printf("residual\n");
 	else if (lt == LAYER_UPSAMPLE) printf("upsample\n");
@@ -1590,11 +1679,11 @@ void get_layer_type_str(char* buf, size_t bufsize, LAYER_TYPE lt) {
 	}
 	memset(buf, 0, bufsize);
 	if (lt == LAYER_NONE) strcpy(buf, "none");
-	else if (lt == LAYER_AVGPOOL) strcpy(buf, "avgpool");
+	else if (lt == LAYER_AVGPOOL_GLOBAL) strcpy(buf, "avgpool");
 	else if (lt == LAYER_CLASSIFY) strcpy(buf, "classify");
 	else if (lt == LAYER_CONV) strcpy(buf, "conv");
 	else if (lt == LAYER_DETECT) strcpy(buf, "detect");
-	else if (lt == LAYER_FC) strcpy(buf, "fc");
+	else if (lt == LAYER_DENSE) strcpy(buf, "dense");
 	else if (lt == LAYER_MAXPOOL) strcpy(buf, "maxpool");
 	else if (lt == LAYER_RESIDUAL) strcpy(buf, "residual");
 	else if (lt == LAYER_UPSAMPLE) strcpy(buf, "upsample");

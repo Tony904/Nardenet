@@ -46,7 +46,7 @@ void load_image_stbi_to_buffer(char* filename, size_t* w, size_t* h, size_t* c, 
 	}
 	size_t S = X * Y;
 	size_t ch;
-#pragma omp parallel for firstprivate(S, X, Y, N)
+#pragma omp parallel for
 	for (ch = 0; ch < N; ch++) {
 		size_t chS = ch * S;
 		for (size_t row = 0; row < Y; row++) {
@@ -83,7 +83,7 @@ float* load_image_stbi(char* filename, size_t* w, size_t* h, size_t* c) {
 	float* dataf = (float*)xcalloc(size, sizeof(float));
 	size_t S = X * Y;
 	size_t ch;
-#pragma omp parallel for firstprivate(S, X, Y, N)
+#pragma omp parallel for
 	for (ch = 0; ch < N; ch++) {
 		size_t chS = ch * S;
 		for (size_t row = 0; row < Y; row++) {

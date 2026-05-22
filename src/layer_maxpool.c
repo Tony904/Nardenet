@@ -40,7 +40,7 @@ void forward_maxpool(layer* l, network* net) {
 			float* inl_output = &inl->output[bwh * inl_out_c];
 			float* inl_grads = &inl->grads[bwh * inl_out_c];
 			size_t ch;
-#pragma omp parallel for firstprivate(w, h, wh, out_w, out_h, out_wh, ksize, stride)
+#pragma omp parallel for
 			for (ch = 0; ch < inl_out_c; ch++) {
 				size_t inl_ch_start = ch * wh;
 				size_t l_ch_start = ch * out_wh;
@@ -94,9 +94,10 @@ void forward_maxpool_general(layer* l, network* net) {
 	size_t out_h = l->out_h;
 	size_t out_wh = out_w * out_h;
 	float** l_max_ptrs = l->maxpool_addresses;
+	float* l_output = l->output;
+	fill_array(l_output, out_n * batch_size, -FLT_MAX);
 	for (size_t b = 0; b < batch_size; b++) {
-		float* b_output = &l->output[b * out_n];
-		fill_array(b_output, out_n, -FLT_MAX);
+		float* b_output = &l_output[b * out_n];
 		float** b_max_ptrs = &l_max_ptrs[b * out_n];
 		size_t bwh = b * wh;
 		for (size_t i = 0; i < l->in_ids.n; i++) {
@@ -105,7 +106,7 @@ void forward_maxpool_general(layer* l, network* net) {
 			float* inl_output = &inl->output[bwh * inl_out_c];
 			float* inl_grads = &inl->grads[bwh * inl_out_c];
 			size_t ch;
-#pragma omp parallel for firstprivate(w, h, wh, out_w, out_h, out_wh, ksize, pad, stride)
+#pragma omp parallel for
 			for (ch = 0; ch < inl_out_c; ch++) {
 				size_t inl_ch_start = ch * wh;
 				size_t l_ch_start = ch * out_wh;

@@ -23,7 +23,7 @@ void forward_batchnorm(layer* l, size_t batch_size) {
 	float SB = (float)(S * B);
 	// calculate means
 	size_t f;
-#pragma omp parallel for firstprivate(S, B, out_n, SB)
+#pragma omp parallel for
 	for (f = 0; f < F; f++) {
 		float sum = 0.0F;
 		size_t fS = f * S;
@@ -36,7 +36,7 @@ void forward_batchnorm(layer* l, size_t batch_size) {
 		means[f] = sum / SB;
 	}
 	// calculate variances
-#pragma omp parallel for firstprivate(S, B, out_n, SB)
+#pragma omp parallel for
 	for (f = 0; f < F; f++) {
 		float sum = 0.0F;
 		size_t fS = f * S;
@@ -50,7 +50,7 @@ void forward_batchnorm(layer* l, size_t batch_size) {
 		variances[f] = sum / SB;
 	}
 	// calculate Z_norm and apply scaling and shift
-#pragma omp parallel for firstprivate(S, B, out_n)
+#pragma omp parallel for
 	for (f = 0; f < F; f++) {
 		float mean = means[f];
 		float variance = variances[f];
@@ -86,7 +86,7 @@ void backward_batchnorm(layer* l, size_t batch_size) {
 
 	// Calculate gradients wrt gamma, which is dL/da * dznorm/dgamma (dznorm/dgamma is local grad of gamma which is just Z_norm)
 	size_t f;
-#pragma omp parallel for firstprivate(out_n)
+#pragma omp parallel for
 	for (f = 0; f < F; f++) {
 		float sum = 0.0F;
 		size_t fS = f * S;
@@ -101,7 +101,7 @@ void backward_batchnorm(layer* l, size_t batch_size) {
 
 	zero_array(Z_norm, out_n * batch_size);
 	// Get d(act_inputs)/dZnorm
-#pragma omp parallel for firstprivate(out_n)
+#pragma omp parallel for
 	for (f = 0; f < F; f++) {
 		size_t fS = f * S;
 		for (size_t b = 0; b < B; b++) {
@@ -115,7 +115,7 @@ void backward_batchnorm(layer* l, size_t batch_size) {
 
 	// Now we need to get the gradients wrt means and variances and then use those to get the gradients wrt Z.
 	float mean_grads[MAX_FILTERS] = { 0 };
-#pragma omp parallel for firstprivate(out_n)
+#pragma omp parallel for
 	for (f = 0; f < F; f++) {
 		float sum = 0.0F;
 		size_t fS = f * S;
@@ -129,7 +129,7 @@ void backward_batchnorm(layer* l, size_t batch_size) {
 	}
 
 	float variance_grads[MAX_FILTERS] = { 0 };
-#pragma omp parallel for firstprivate(out_n)
+#pragma omp parallel for
 	for (f = 0; f < F; f++) {
 		float sum = 0.0F;
 		size_t fS = f * S;
@@ -143,7 +143,7 @@ void backward_batchnorm(layer* l, size_t batch_size) {
 		variance_grads[f] = sum * -0.5F * powf(variances[f] + 0.00001F, (float)(-3.0F / 2.0F));
 	}
 
-#pragma omp parallel for firstprivate(out_n)
+#pragma omp parallel for
 	for (f = 0; f < F; f++) {
 		size_t fS = f * S;
 		float SB = (float)(S * B);

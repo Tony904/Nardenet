@@ -10,7 +10,7 @@
 
 #define COORD_MULTI 5.0F
 #define NO_OBJ_MULTI 0.1F
-#define GET_PREDICTION_BOX(p, i, anchor, spatial, scale, left, top) { .w=p[i]*p[i]*scale*anchor->w,.h=p[i+spatial]*p[i+spatial]*scale*anchor->h,.cx=p[i+spatial*2]+left,.cy=p[i+spatial*3]+top }
+#define GET_PREDICTION_BOX(p, i, anchor, spatial, scale, left, top) { .w=(p)[(i)]*(p)[(i)]*(scale)*(anchor)->w,.h=(p)[(i)+(spatial)]*(p)[(i)+(spatial)]*(scale)*(anchor)->h,.cx=(p)[(i)+(spatial)*2]+(left),.cy=(p)[(i)+(spatial)*3]+(top) }
 #define SETUP_BBOX(b) (b).area=(b).w*(b).h;(b).left=(b).cx-(b).w/2.0F;(b).right=(b).cx-(b).w/2.0F+(b).w;(b).top=(b).cy-(b).h/2.0F;(b).bottom=(b).cy-(b).h/2.0F+(b).h
 
 static inline float clamp_x(float x, float thresh) {
@@ -51,8 +51,8 @@ void forward_detect_batch(const float* const p, float* const grads,
 	bbox* tboxes = sample.bboxes;  // truth boxes
 	size_t n_tboxes = sample.n;
 	for (size_t s = 0; s < l_wh; s++) {
-		float row = s / l_w;
-		float col = s % l_w;
+		float row = (float)(s / l_w);
+		float col = (float)(s % l_w);
 		float cell_left = row * cell_size;
 		float cell_top = col * cell_size;
 		for (size_t a = 0; a < n_anchors; a++) {
@@ -103,8 +103,8 @@ void forward_detect_batch(const float* const p, float* const grads,
 				if (anchor.lbl != l_id) l_a = 0;
 			}
 		}
-		size_t col = tbox.cx * l_w;
-		size_t row = tbox.cy * l_h;
+		size_t col = (size_t)(tbox.cx * l_w);
+		size_t row = (size_t)(tbox.cy * l_h);
 		size_t s = row * l_w + col;
 		float cell_left = ((float)col) * cell_size;
 		float cell_top = ((float)row) * cell_size;
@@ -179,7 +179,7 @@ void forward_detect_batch(const float* const p, float* const grads,
 			for (size_t a = 0; a < n_anchors; a++) {
 				size_t p_index = b * l_n + s + a * A;
 				size_t obj_index = p_index + l_wh * 4;
-				size_t cls_index = p[obj_index + l_wh];
+				size_t cls_index = obj_index + l_wh;
 				if (grads[obj_index]) {
 					float count = 0.0F;
 					for (int k = 0; k < n_classes; k++) {
@@ -219,7 +219,7 @@ void forward_detect(layer* l, network* net) {
 	size_t n_classes = l->n_classes;
 	size_t n_anchors = l->n_anchors;
 	float* errors = l->errors;
-	zero_array(errors, batch_size);
+	zero_array(errors, batch_size);  // holds iou loss for each batch
 	float* const grads = l->grads;
 	zero_array(grads, l_n * batch_size);
 	float ignore_thresh = l->ignore_thresh;
@@ -228,7 +228,7 @@ void forward_detect(layer* l, network* net) {
 	float max_box_grad = l->max_box_grad;
 	int obj_smooth = l->objectness_smooth;
 	size_t b;
-#pragma omp parallel for firstprivate(output, grads, anchors, all_anchors, samples, errors, b, l_id, l_w, l_h, l_n, scale_wh, n_anchors, n_all_anchors, n_classes, obj_smooth, obj_normalizer, max_box_grad, ignore_thresh, iou_thresh)
+#pragma omp parallel for
 	for (b = 0; b < batch_size; b++) {
 		forward_detect_batch(output, grads,
 			anchors, all_anchors,
@@ -246,7 +246,7 @@ void forward_detect(layer* l, network* net) {
 	// sum objectness loss
 	float obj_loss = 0.0F;
 	size_t obj_offset = l_wh * 4;
-#pragma omp parallel for reduction(+:obj_loss) firstprivate(obj_offset, l_n, l_wh, n_anchors)
+#pragma omp parallel for reduction(+:obj_loss)
 	for (b = 0; b < batch_size; b++) {
 		size_t bn = b * l_n;
 		for (size_t s = 0; s < l_wh; s++) {
@@ -260,7 +260,7 @@ void forward_detect(layer* l, network* net) {
 	// sum class loss
 	float cls_loss = 0.0F;
 	size_t cls_offset = obj_offset + l_wh;
-#pragma omp parallel for reduction(+:cls_loss) firstprivate(cls_offset, l_n, l_wh, n_anchors, n_classes)
+#pragma omp parallel for reduction(+:cls_loss)
 	for (b = 0; b < batch_size; b++) {
 		size_t bn = b * l_n;
 		float n_tboxes = (float)samples[b]->n;
@@ -321,10 +321,10 @@ void get_detections(layer* l, network* net, size_t b) {
 	bbox* dets = l->detections;  // note: l->detections size = l->w * l->h * l->n_anchors * sizeof(bbox)
 	// cull predictions below thresholds
 	size_t s;
-#pragma omp parallel for firstprivate(cull_thresh, scale, l_w, l_wh, l_n, n_classes, anchors, n_anchors, cell_size, A, p, dets)
+#pragma omp parallel for
 	for (s = 0; s < l_wh; s++) {
-		float row = s / l_w;
-		float col = s % l_w;
+		float row = (float)(s / l_w);
+		float col = (float)(s % l_w);
 		float cell_left = col * cell_size;
 		float cell_top = row * cell_size;
 		for (size_t a = 0; a < n_anchors; a++) {
@@ -362,10 +362,10 @@ void get_detections(layer* l, network* net, size_t b) {
 			bbox* det = &dets[d_index];
 			det->prob = best_cls_score;
 			det->lbl = best_cls;
-			float left = fmaxf(0.0F, pbox.left);
-			float right = fminf(1.0F, pbox.right);
-			float top = fmaxf(0.0F, pbox.top);
-			float bottom = fminf(1.0F, pbox.bottom);
+			float left = max(0.0F, pbox.left);
+			float right = min(1.0F, pbox.right);
+			float top = max(0.0F, pbox.top);
+			float bottom = min(1.0F, pbox.bottom);
 			det->cx = (left + right) / 2.0F;
 			det->cy = (top + bottom) / 2.0F;
 			det->w = right - left;
@@ -445,10 +445,10 @@ void draw_detections(bbox** dets, size_t n_dets, image* img, float thresh) {
 	for (size_t i = 0; i < n_dets; i++) {
 		if (dets[i]->prob < thresh || dets[i]->lbl < 0) continue;
 		bbox* det = dets[i];
-		size_t box_left = det->left * img_w;
-		size_t box_top = det->top * img_h;
-		size_t box_right = (det->right * img_w) - 1.0F;
-		size_t box_bottom = (det->bottom * img_h) - 1.0F;
+		size_t box_left = (size_t)(det->left * img_w);
+		size_t box_top = (size_t)(det->top * img_h);
+		size_t box_right = (size_t)((det->right * img_w) - 1.0F);
+		size_t box_bottom = (size_t)((det->bottom * img_h) - 1.0F);
 		// draw horizontal lines
 		size_t row_offset_top =  box_top * img_w;
 		size_t row_offset_bottom = box_bottom * img_w;
@@ -462,7 +462,6 @@ void draw_detections(bbox** dets, size_t n_dets, image* img, float thresh) {
 			data[green_offset + offset_bottom] = green;
 			data[blue_offset + offset_top] = blue;
 			data[blue_offset + offset_bottom] = blue;
-			if (blue_offset + offset_bottom >= 3072) printf("offset: %zu\n", blue_offset + offset_bottom);
 			col++;
 		}
 		// draw vertical lines
@@ -501,10 +500,10 @@ void apply_grid_scaling(layer* l, network* net) {
 	size_t A = (NUM_ANCHOR_PARAMS + n_classes) * l_wh;
 	float alpha = l->scale_grid;
 	float beta = (alpha - 1.0F) * 0.5F;
-	size_t b;
-#pragma omp parallel for firstprivate(l_wh, n_anchors, l_n, A, alpha, beta)
-	for (b = 0; b < batch_size; b++) {
-		for (size_t s = 0; s < l_wh; s++) {
+	size_t s;
+#pragma omp parallel for
+	for (s = 0; s < l_wh; s++) {
+		for (size_t b = 0; b < batch_size; b++) {
 			for (size_t a = 0; a < n_anchors; a++) {
 				size_t p_index = b * l_n + s + a * A;
 				q[p_index] = p[p_index];  // w
@@ -526,7 +525,7 @@ void backward_detect(layer* l, network* net) {
 	size_t l_n = l->n;
 	layer** inls = l->in_layers;
 	size_t b;
-#pragma omp parallel for firstprivate(l_grads, l_n, inls)
+#pragma omp parallel for
 	for (b = 0; b < batch_size; b++) {
 		float* b_grads = &l_grads[b * l_n];
 		for (size_t i = 0; i < l->in_ids.n; i++) {

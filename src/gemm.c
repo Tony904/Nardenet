@@ -113,7 +113,7 @@ void gemm_atb_groups(size_t M, size_t N, size_t K, float* A, float* B, float* C,
 		size_t gNK = g * NK;
 		size_t gMK = g * MK;
 		size_t m;
-#pragma omp parallel for firstprivate(K, N, gMN, gNK, gMK)
+#pragma omp parallel for
 		for (m = 0; m < M; m++) {
 			size_t gMKmK = gMK + m * K;
 			size_t gMNmN = gMN + m * N;
@@ -175,7 +175,7 @@ void gemm_tab_groups(size_t M, size_t N, size_t K, float* A, float* B, float* C,
 			size_t gMNmN = gMN + m * N;
 			size_t gMKmK = gMK + m * K;
 			size_t n;
-#pragma omp parallel for firstprivate(K, gNK, gMNmN, gMKmK)
+#pragma omp parallel for
 			for (n = 0; n < N; n++) {
 				float a = A[gMNmN + n];
 				size_t gNKnK = gNK + n * K;

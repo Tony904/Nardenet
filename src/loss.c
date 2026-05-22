@@ -15,7 +15,7 @@ void loss_mae(layer* l, network* net) {
 	size_t n = l->n_filters;
 	float loss = 0.0F;
 	size_t b;
-#pragma omp parallel for reduction(+:loss) firstprivate(n)
+#pragma omp parallel for reduction(+:loss)
 	for (b = 0; b < batch_size; b++) {
 		size_t offset = b * n;
 		for (size_t i = 0; i < n; ++i) {
@@ -47,7 +47,7 @@ void loss_mse(layer* l, network* net) {
 	size_t n = l->n_filters;
 	float loss = 0.0F;
 	size_t b;
-#pragma omp parallel for reduction(+:loss) firstprivate(n)
+#pragma omp parallel for reduction(+:loss)
 	for (b = 0; b < batch_size; b++) {
 		size_t offset = b * n;
 		for (size_t i = 0; i < n; ++i) {
@@ -82,7 +82,7 @@ void loss_cce(layer* l, network* net) {
 	size_t n = l->n_classes;
 	float loss = 0.0F;
 	size_t b;
-#pragma omp parallel for reduction(+:loss) firstprivate(n)
+#pragma omp parallel for reduction(+:loss)
 	for (b = 0; b < batch_size; b++) {
 		size_t offset = b * n;
 		for (size_t i = 0; i < n; ++i) {
@@ -116,7 +116,7 @@ void loss_bce(layer* l, network* net) {
 	size_t n = l->n_filters;
 	float loss = 0.0F;
 	size_t b;
-#pragma omp parallel for reduction(+:loss) firstprivate(n)
+#pragma omp parallel for reduction(+:loss)
 	for (b = 0; b < batch_size; b++) {
 		size_t offset = b * n;
 		for (size_t i = 0; i < n; ++i) {
@@ -151,7 +151,7 @@ void reg_loss_l1(network* net) {
 	float loss = 0.0F;
 	float decay = net->decay;
 	size_t i;
-#pragma omp parallel for reduction(+:loss) firstprivate(decay)
+#pragma omp parallel for reduction(+:loss)
 	for (i = 0; i < n_layers; i++) {
 		float* weights = ls[i].weights;
 		for (size_t j = 0; j < ls[i].n_weights; j++) {
@@ -184,7 +184,7 @@ void reg_loss_l2(network* net) {
 	float loss = 0.0F;
 	float decay = net->decay;
 	size_t i;
-#pragma omp parallel for reduction(+:loss) firstprivate(decay)
+#pragma omp parallel for reduction(+:loss)
 	for (i = 0; i < n_layers; i++) {
 		float* weights = ls[i].weights;
 		for (size_t j = 0; j < ls[i].n_weights; j++) {
