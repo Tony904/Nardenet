@@ -15,14 +15,14 @@ inline static int is_a_ge_zero_and_a_lt_b(int a, int b) {
 void forward_avgpool_local(layer* l, network* net) {
 	size_t batch_size = net->batch_size;
 	zero_array(l->Z, l->out_n * batch_size);
-	size_t w = l->w;
+	int w = (int)l->w;
 	size_t h = l->h;
-	size_t wh = w * h;
+	size_t wh = l->w * h;
 	size_t out_w = l->out_w;
 	size_t out_h = l->out_h;
 	size_t out_wh = out_w * out_h;
-	size_t stride = l->stride;
 	size_t ksize = l->ksize;
+	int stride = (int)l->stride;
 	float divisor = (float)(ksize * ksize);
 	float* l_output = l->Z;
 	for (size_t b = 0; b < batch_size; b++) {
@@ -66,14 +66,14 @@ void forward_avgpool_local(layer* l, network* net) {
 void backward_avgpool_local(layer* l, network* net) {
 	size_t batch_size = net->batch_size;
 	if (l->activation) get_activation_grads(l, batch_size);
-	size_t w = l->w;
+	int w = (int)l->w;
 	size_t h = l->h;
-	size_t wh = w * h;
+	size_t wh = l->w * h;
 	size_t out_w = l->out_w;
 	size_t out_h = l->out_h;
 	size_t out_wh = l->out_w;
 	size_t ksize = l->ksize;
-	size_t stride = l->stride;
+	int stride = (int)l->stride;
 	float divisor = (float)(ksize * ksize);
 	float* l_grads = l->grads;
 	scale_array(l_grads, batch_size * l->out_n, 1.0F / divisor);
@@ -113,15 +113,15 @@ void backward_avgpool_local(layer* l, network* net) {
 void forward_avgpool_local_general(layer* l, network* net) {
 	size_t batch_size = net->batch_size;
 	zero_array(l->Z, l->out_n * batch_size);
-	size_t w = l->w;
-	size_t h = l->h;
-	size_t wh = w * h;
+	int w = (int)l->w;
+	int h = (int)l->h;
+	size_t wh = l->w * l->h;
 	size_t out_w = l->out_w;
 	size_t out_h = l->out_h;
 	size_t out_wh = out_w * out_h;
-	size_t stride = l->stride;
 	size_t ksize = l->ksize;
-	size_t pad = l->pad;
+	int pad = (int)l->pad;
+	int stride = (int)l->stride;
 	float divisor = (float)(ksize * ksize);
 	float* l_output = l->Z;
 	for (size_t b = 0; b < batch_size; b++) {
@@ -172,15 +172,15 @@ void forward_avgpool_local_general(layer* l, network* net) {
 void backward_avgpool_local_general(layer* l, network* net) {
 	size_t batch_size = net->batch_size;
 	if (l->activation) get_activation_grads(l, batch_size);
-	size_t w = l->w;
-	size_t h = l->h;
-	size_t wh = w * h;
+	int w = (int)l->w;
+	int h = (int)l->h;
+	size_t wh = l->w * l->h;
 	size_t out_w = l->out_w;
 	size_t out_h = l->out_h;
 	size_t out_wh = l->out_w;
 	size_t ksize = l->ksize;
-	size_t stride = l->stride;
-	size_t pad = l->pad;
+	int pad = (int)l->pad;
+	int stride = (int)l->stride;
 	float divisor = (float)(ksize * ksize);
 	float* l_grads = l->grads;
 	scale_array(l_grads, batch_size * l->out_n, 1.0F / divisor);
@@ -225,9 +225,9 @@ void backward_avgpool_local_general(layer* l, network* net) {
 }
 
 void forward_avgpool_local_gpu(layer* l, network* net) {
-
+	l; net;
 }
 
 void backward_avgpool_local_gpu(layer* l, network* net) {
-
+	l; net;
 }

@@ -86,7 +86,7 @@ void forward_avgpool_global_gpu(layer* l, network* net) {
 			}
 		}
 	}
-	else launch_forward_avgpool_kernel(l->in_layers[0]->gpu.output, Z, (int)wh, (int)l->c, (int)batch_size);
+	else launch_forward_avgpool_global_kernel(l->in_layers[0]->gpu.output, Z, (int)wh, (int)l->c, (int)batch_size);
 	if (l->activation) l->activate(l->gpu.Z, l->gpu.output, l->out_n, batch_size);
 	if (net->training) zero_array_gpu(l->gpu.grads, (int)(l->out_n * batch_size));
 }
@@ -211,7 +211,7 @@ void test_backward_avgpool_global(void) {
 	l.in_layers[0] = &inl1;
 	l.in_layers[1] = &inl2;
 	l.in_ids.n = 2;
-	forward_avgpool(&l, &net);
+	forward_avgpool_global(&l, &net);
 
 	l.grads = (float*)xcalloc(l.out_n * net.batch_size, sizeof(float));
 

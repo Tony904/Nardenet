@@ -28,24 +28,24 @@
 *******************************************/
 
 __global__ void im2col_kernel(const float* __restrict__ data_im,
-    const int width, const int height, const int channels,
-    const int ksize, const int pad, const int stride,
-    const int width_out, const int height_out,
+    int width, int height, int channels,
+    int ksize, int pad, int stride,
+    int width_out, int height_out,
     float* __restrict__ data_col,
     int n) {
     for (int index = blockIdx.x * blockDim.x + threadIdx.x; index < n; index += blockDim.x * gridDim.x) {
-        const int col_out = index % width_out;
-        const int row_out = (index / width_out) % height_out;
-        const int ch_in = (index / width_out / height_out) % channels;
-        const int row_in = row_out * stride - pad;
-        const int col_in = col_out * stride - pad;
-        const int data_im_offset = (ch_in * height + row_in) * width + col_in;
-        const int data_col_offset = ((ch_in * ksize * ksize) * height_out * width_out) + (row_out * width_out + col_out);
+        int col_out = index % width_out;
+        int row_out = (index / width_out) % height_out;
+        int ch_in = (index / width_out / height_out) % channels;
+        int row_in = row_out * stride - pad;
+        int col_in = col_out * stride - pad;
+        int data_im_offset = (ch_in * height + row_in) * width + col_in;
+        int data_col_offset = ((ch_in * ksize * ksize) * height_out * width_out) + (row_out * width_out + col_out);
         for (int krow = 0; krow < ksize; ++krow) {
             for (int kcol = 0; kcol < ksize; ++kcol) {
-                const int row = row_in + krow;
-                const int col = col_in + kcol;
-                const int data_col_index = data_col_offset + ((krow * ksize + kcol) * height_out * width_out);
+                int row = row_in + krow;
+                int col = col_in + kcol;
+                int data_col_index = data_col_offset + ((krow * ksize + kcol) * height_out * width_out);
                 if (row >= 0 && row < height && col >= 0 && col < width) {
                     data_col[data_col_index] = data_im[data_im_offset + krow * width + kcol];
                 }
@@ -63,9 +63,9 @@ void im2col_gpu(float* data_im, float* data_col, int im_w, int im_h, int im_c, i
 
 // leaving this here for future me as a reminder that this is not faster
 __global__ void im2col_kernel_that_uses_shared_memory_but_is_somehow_slower(const float* __restrict__ im, float* __restrict__ ex,
-    const int im_width, const int im_height, const int im_channels,
-    const int out_width, const int out_height,
-    const int ksize, const int stride, const int pad) {
+    int im_width, int im_height, int im_channels,
+    int out_width, int out_height,
+    int ksize, int stride, int pad) {
 
     extern __shared__ float shared[];
 
@@ -204,11 +204,11 @@ void cuda_test_im2col(void) {
 // src: https://github.com/BVLC/caffe/blob/master/src/caffe/util/im2col.cu
 // You may also want to read: https://github.com/BVLC/caffe/blob/master/LICENSE
 __global__ void col2im_kernel(const float* __restrict__ data_col,
-    const int out_w, const int out_h,
-    const int ksize, const int pad, const int stride,
-    const int width, const int height,
+    int out_w, int out_h,
+    int ksize, int pad, int stride,
+    int width, int height,
     float* __restrict__ data_im,
-    const int n) {
+    int n) {
 
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     for (; index < n; index += blockDim.x * gridDim.x) {

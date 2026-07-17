@@ -55,13 +55,14 @@ IN PROGRESS:
 	- l1/l2 normalizations (done)
 	- residual layer adds (done, blas)
 	- route layer copies (done*, blas)
-	- avgpool (done*)
+	- avgpool global (done*)
+	- avgpool local (NOT DONE)
 	- maxpool (done*)
 	- upsample (done*)
 	- data augmentation (done*)
 	- layers
-		- forward - done: conv, avgpool, maxpool, residual, route, upsample
-		- backward - done: conv, avgpool, maxpool, residual, route, upsample
+		- forward - done: conv, avgpool global, maxpool, residual, route, upsample
+		- backward - done: conv, avgpool global, maxpool, residual, route, upsample
 		- update - done
 	- classification - done
 	- object detection stuff

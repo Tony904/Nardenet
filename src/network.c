@@ -184,7 +184,6 @@ void set_input_dimensions(layer* l) {
 /* i = layer index in net->layers */
 void build_conv_layer(int i, network* net) {
 	layer* l = &(net->layers[i]);
-	layer* ls = net->layers;
 	l->id = i;
 	if (!l->n_groups) l->n_groups = 1;
 	if (!l->stride) l->stride = 1;
@@ -503,7 +502,6 @@ void build_residual_layer(int i, network* net) {
 
 void build_route_layer(int i, network* net) {
 	layer* l = &(net->layers[i]);
-	layer* ls = net->layers;
 	l->id = i;
 
 	set_input_layers(l, net);
