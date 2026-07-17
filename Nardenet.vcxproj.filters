@@ -99,7 +99,7 @@
     <ClCompile Include="src\state.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\layer_avgpool.c">
+    <ClCompile Include="src\layer_avgpool_global.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\layer_upsample.c">
@@ -114,7 +114,10 @@
     <ClCompile Include="src\blas.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\layer_fc.c">
+    <ClCompile Include="src\layer_dense.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\layer_avgpool_local.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -212,7 +215,7 @@
     <ClInclude Include="src\state.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\layer_avgpool.h">
+    <ClInclude Include="src\layer_avgpool_global.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\layer_upsample.h">
@@ -227,10 +230,13 @@
     <ClInclude Include="src\blas.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\layer_fc.h">
+    <ClInclude Include="src\imshow.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\imshow.h">
+    <ClInclude Include="src\layer_dense.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\layer_avgpool_local.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
