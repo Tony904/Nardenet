@@ -22,8 +22,6 @@ extern "C" {
 	void gemm_tab(size_t M, size_t N, size_t K, float* A, float* B, float* C, size_t n_groups);
 	void gemm_tab_groups(size_t M, size_t N, size_t K, float* A, float* B, float* C, size_t n_groups);
 
-	void test_gemm_groups(void);
-
 #ifdef __cplusplus
 }
 #endif

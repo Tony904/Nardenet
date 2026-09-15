@@ -73,6 +73,7 @@ extern "C" {
 	// maxpool.cu
 	void launch_forward_maxpool_general_kernel(float* input, float* output, float* grads, float** max_ptrs, int src_w, int src_h, int dst_w, int dst_h, int dst_n, int ksize, int stride);
 	void launch_forward_maxpool_standard_kernel(float* input, float* output, float* grads, float** max_ptrs, int src_w, int src_h, int dst_w, int dst_h, int dst_n);
+	void launch_forward_maxpool_standard_even_spatial_kernel(float* input, float* output, float* grads, float** max_ptrs, int src_w, int src_h, int dst_w, int dst_h, int dst_n);
 	void launch_backward_maxpool_kernel(float* grads, float** max_ptrs, int n);
 
 	// upsample.cu

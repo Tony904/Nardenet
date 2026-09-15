@@ -5,6 +5,7 @@
 #include "xallocs.h"
 #include "xcuda.h"
 #include "blas.h"
+#include "layer_testing.h"
 
 
 // https://github.com/BVLC/caffe/blob/master/src/caffe/util/im2col.cpp
@@ -224,10 +225,33 @@ void backward_avgpool_local_general(layer* l, network* net) {
 	}
 }
 
-void forward_avgpool_local_gpu(layer* l, network* net) {
-	l; net;
-}
-
-void backward_avgpool_local_gpu(layer* l, network* net) {
-	l; net;
-}
+//IN PROGRESS
+//void forward_avgpool_local_gpu(layer* l, network* net) {
+//	size_t batch_size = net->batch_size;
+//	zero_array(l->Z, l->out_n * batch_size);
+//	size_t w = l->w;
+//	size_t h = l->h;
+//	size_t wh = w * h;
+//	size_t out_w = l->out_w;
+//	size_t out_h = l->out_h;
+//	size_t out_wh = out_w * out_h;
+//	size_t ksize = l->ksize;
+//	int stride = (int)l->stride;
+//	float divisor = (float)(ksize * ksize);
+//
+//	float* l_output = l->Z;
+//	for (size_t b = 0; b < batch_size; b++) {
+//		size_t bwh = b * wh;
+//		for (size_t i = 0; i < l->in_ids.n; i++) {
+//			layer* inl = l->in_layers[i];
+//			size_t inl_c = inl->out_c;
+//			float* inl_output = &inl->output[bwh * inl_c];
+//			inl_output;
+//			l_output += inl_c * out_wh;
+//		}
+//	}
+//}
+//
+//void backward_avgpool_local_gpu(layer* l, network* net) {
+//	l; net;
+//}

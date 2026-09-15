@@ -14,7 +14,7 @@
 #define KARGS(...) <<< __VA_ARGS__ >>>
 #endif
 
-
+// GLOBAL
 __global__ void forward_avgpool_global_kernel(float* input, float* output, int spatial) {
 
 	__shared__ float shared[BLOCKSIZE];
@@ -68,5 +68,36 @@ void launch_backward_avgpool_global_kernel(float* grads_x, float* grads_y, int s
 	backward_avgpool_global_kernel KARGS(c * batch_size, BLOCKSIZE) (grads_x, grads_y, spatial);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
+
+// LOCAL
+//__global__ void forward_avgpool_local_kernel(float* input) {
+//
+//}
+//
+//void launch_forward_avgpool_local_kernel(float* input) {
+//	for (size_t ch = 0; ch < inl_c; ch++) {
+//		float* input_ch = &inl_output[ch * wh];
+//		float* output_ch = &l_output[ch * out_wh];
+//		for (int krow = 0; krow < ksize; krow++) {
+//			for (int kcol = 0; kcol < ksize; kcol++) {
+//				float* output = output_ch;
+//				int in_row = krow;
+//				for (size_t out_rows = out_h; out_rows; out_rows--) {
+//					int in_col = kcol;
+//					int r = in_row * w;
+//					for (size_t out_cols = out_w; out_cols; out_cols--) {
+//						*output += input_ch[r + in_col];
+//						output++;
+//						in_col += stride;
+//					}
+//					in_row += stride;
+//				}
+//			}
+//		}
+//		for (size_t s = 0; s < out_wh; s++) {
+//			output_ch[s] /= divisor;
+//		}
+//	}
+//}
 
 #endif

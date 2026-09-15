@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <omp.h>
 #include "xallocs.h"
+#include <time.h>
+#include "blas.h"
 
 
 void print_test_matrix(size_t rows, size_t cols, size_t channels, float* matrix);
