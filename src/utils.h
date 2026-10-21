@@ -30,7 +30,7 @@ extern "C" {
 	int read_line_to_buff(FILE* file, char* buff, int buffsize);
 	void clean_string(char* s);
 	char** split_string(char* str, char* delimiters);
-	void split_string_to_buff(char* str, char* delimiters, char** tokens);
+	void split_string_to_buff(char* str, char* delimiters, char** tokens_buff, size_t buffsize);
 	int file_exists(char* filename);
 	FILE* get_filestream(char* filename, char* mode);
 	void close_filestream(FILE* filestream);

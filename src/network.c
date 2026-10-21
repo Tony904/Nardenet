@@ -25,17 +25,17 @@
 
 #pragma warning (disable:4702)
 
-void build_input_layer(network* net);
-void build_layer(int i, network* net);
-void build_conv_layer(int i, network* net);
-void build_dense_layer(int i, network* net);
-void build_maxpool_layer(int i, network* net);
-void build_avgpool_global_layer(int i, network* net);
-void build_avgpool_local_layer(int i, network* net);
-void build_residual_layer(int i, network* net);
-void build_upsample_layer(int i, network* net);
-void build_classify_layer(int i, network* net);
-void build_detect_layer(int i, network* net);
+void build_network_input_layer(network* net);
+void build_layer(layer* l, network* net);
+void build_conv_layer(layer* l, network* net);
+void build_dense_layer(layer* l, network* net);
+void build_maxpool_layer(layer* l, network* net);
+void build_avgpool_global_layer(layer* l, network* net);
+void build_avgpool_local_layer(layer* l, network* net);
+void build_residual_layer(layer* l, network* net);
+void build_upsample_layer(layer* l, network* net);
+void build_classify_layer(layer* l, network* net);
+void build_detect_layer(layer* l, network* net);
 
 void set_activate(layer* l, int use_gpu);
 void set_loss(layer* l, int use_gpu);
@@ -57,7 +57,7 @@ void print_layer_maxpool(layer* l);
 void print_layer_residual(layer* l);
 
 void get_layer_type_str(char* buf, size_t bufsize, LAYER_TYPE lt);
-void get_in_ids_str(char* buf, size_t bufsize, intarr inputs);
+void get_input_ids_str(char* buf, size_t bufsize, layer_input* inputs, size_t n_inputs);
 
 
 network* new_network(size_t num_of_layers) {
@@ -73,184 +73,190 @@ void build_network(network* net) {
 		net->data.detector.current_batch = (det_sample**)xcalloc(net->batch_size, sizeof(det_sample*));
 		net->anchors = (bbox*)xcalloc(net->n_anchors, sizeof(bbox));
 	}
-	build_input_layer(net);
+	build_network_input_layer(net);
 	size_t largest_workspace = 0;
-	layer* ls = net->layers;
 	for (int i = 0; i < net->n_layers; i++) {
-		build_layer(i, net);
-		layer* l = &ls[i];
-		size_t ws_size = l->out_w * l->out_h * l->ksize * l->ksize * l->c;
-		largest_workspace = max(largest_workspace, ws_size);
+		layer* l = &net->layers[i];
+		build_layer(l, net);
+		if (l->type == LAYER_CONV) {
+			size_t ws_size = l->out.w * l->out.h * l->k.ksize * l->k.ksize * l->in.c;
+			largest_workspace = max(largest_workspace, ws_size);
+		}
 	}
-	net->workspace = (float*)xcalloc(largest_workspace, sizeof(float));
-	if (net->use_gpu) {
-		CUDA_MALLOC(&net->gpu.workspace, largest_workspace, sizeof(float));
+	if (largest_workspace > 0) {
+		net->workspace = (float*)xcalloc(largest_workspace, sizeof(float));
+		if (net->use_gpu) {
+			CUDA_MALLOC(&net->gpu.workspace, largest_workspace, sizeof(float));
+		}
 	}
 	net->workspace_size = largest_workspace;
 	net->current_learning_rate = net->learning_rate;
 	set_regularization(net);
 }
 
-void build_layer(int i, network* net) {
-	layer* l = &(net->layers[i]);
+void build_layer(layer* l, network* net) {
 	assert(l->type != LAYER_NONE);
-	if (l->type == LAYER_CONV) build_conv_layer(i, net);
-	else if (l->type == LAYER_CLASSIFY) build_classify_layer(i, net);
-	else if (l->type == LAYER_MAXPOOL) build_maxpool_layer(i, net);
-	else if (l->type == LAYER_DENSE) build_dense_layer(i, net);
-	else if (l->type == LAYER_RESIDUAL) build_residual_layer(i, net);
-	else if (l->type == LAYER_DETECT) build_detect_layer(i, net);
-	else if (l->type == LAYER_AVGPOOL_GLOBAL) build_avgpool_global_layer(i, net);
-	else if (l->type == LAYER_UPSAMPLE) build_upsample_layer(i, net);
+	if (l->type == LAYER_CONV) build_conv_layer(l, net);
+	else if (l->type == LAYER_CLASSIFY) build_classify_layer(l, net);
+	else if (l->type == LAYER_MAXPOOL) build_maxpool_layer(l, net);
+	else if (l->type == LAYER_DENSE) build_dense_layer(l, net);
+	else if (l->type == LAYER_RESIDUAL) build_residual_layer(l, net);
+	else if (l->type == LAYER_DETECT) build_detect_layer(l, net);
+	else if (l->type == LAYER_AVGPOOL_GLOBAL) build_avgpool_global_layer(l, net);
+	else if (l->type == LAYER_UPSAMPLE) build_upsample_layer(l, net);
 	else {
 		printf("Unknown layer type: %d\n", (int)l->type);
 		wait_for_key_then_exit();
 	}
 }
 
-void build_input_layer(network* net) {
+void build_network_input_layer(network* net) {
 	layer* l = net->input;
-	l->type = LAYER_INPUT;
+	l->type = LAYER_NETWORK_INPUT;
 	l->train = 0;
 	l->id = -1;
-	l->w = net->w;
-	l->h = net->h;
-	l->c = net->c;
-	l->n = l->w * l->h * l->c;
-	l->out_w = l->w;
-	l->out_h = l->h;
-	l->out_c = l->c;
-	l->out_n = l->n;
-	l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	l->in.w = net->w;
+	l->in.h = net->h;
+	l->in.c = net->c;
+	l->in.n = l->in.w * l->in.h * l->in.c;
+	l->out.w = l->in.w;
+	l->out.h = l->in.h;
+	l->out.c = l->in.c;
+	l->out.n = l->in.n;
+	l->output = (float*)xcalloc(l->out.n * net->batch_size, sizeof(float));
 	if (net->use_gpu) {
-		CUDA_MALLOC(&l->gpu.output, l->out_n * net->batch_size, sizeof(float));
+		CUDA_MALLOC(&l->gpu.output, l->out.n * net->batch_size, sizeof(float));
 	}
 }
 
-void set_input_layers(layer* l, network* net) {
+void set_layer_inputs(layer* l, network* net) {
 	layer* ls = net->layers;
-	// Set default in_ids if none specified.
-	if (l->in_ids.n == 0) {
-		l->in_ids.a = (int*)xcalloc(1, sizeof(int));
-		l->in_ids.a[0] = l->id - 1;
-		l->in_ids.n = 1;
-	}
-	else {
-		for (int j = 0; j < l->in_ids.n; j++) {
-			if (l->in_ids.a[j] < 0) l->in_ids.a[j] += l->id;  // relative id handling
-			if (l->in_ids.a[j] > l->id || l->in_ids.a[j] < 0) {
-				printf("Invalid in_id of %d for layer %d\n", l->in_ids.a[j], l->id);
-				wait_for_key_then_exit();
-			}
+	for (size_t i = 0; i < l->n_inputs; i++) {
+		layer_input* input = &l->inputs[i];
+		if (input->n_chunks == 0) {
+			assert(input->chunk_idx == 0);
+			input->n_chunks = 1;
 		}
-	}
-
-	l->in_layers = (layer**)xcalloc(l->in_ids.n, sizeof(layer*));
-	if (l->id) {
-		for (size_t j = 0; j < l->in_ids.n; j++) {
-			l->in_layers[j] = &ls[l->in_ids.a[j]];
+		layer* src;
+		if (l->id == 0) {
+			assert(l->n_inputs == 1);
+			src = net->input;
 		}
-	}
-	else { // first layer
-		l->in_layers[0] = net->input;
+		else {
+			src = &ls[input->source_id];
+		}
+		input->source = src;
+		if (src->out.c % input->n_chunks != 0) {
+			printf("Cannot evenly split %zu channels into %zu chunks. Layer ID: %d\n", src->out.c, input->n_chunks, l->id);
+			wait_for_key_then_exit();
+		}
+		input->c = src->out.c / input->n_chunks;
+		input->n = input->c * src->out.w * src->out.h;
+		input->stride = src->out.n;
+		input->data = &src->output[input->chunk_idx * input->n];
+		input->grads = l->id ?  &src->grads[input->chunk_idx * input->n] : 0;
+		if (net->use_gpu) {
+			input->gpu.data = &src->gpu.output[input->chunk_idx * input->n];
+			input->gpu.grads = l->id ? &src->gpu.grads[input->chunk_idx * input->n] : 0;
+		}
 	}
 }
 
 void set_input_dimensions(layer* l) {
-	l->w = l->in_layers[0]->out_w;
-	l->h = l->in_layers[0]->out_h;
-	l->c = l->in_layers[0]->out_c;
-	for (size_t j = 1; j < l->in_ids.n; j++) {
-		layer* inl = l->in_layers[j];
-		if (l->w != inl->out_w || l->h != inl->out_h) {
+	l->in.w = l->inputs[0].source->out.w;
+	l->in.h = l->inputs[0].source->out.h;
+	l->in.c = l->inputs[0].c;
+	for (size_t i = 1; i < l->n_inputs; i++) {
+		layer_input* input = &l->inputs[i];
+		if (l->in.w != input->source->out.w || l->in.h != input->source->out.h) {
 			printf("Invalid input layer dimensions. Width and height must match.\n"
-			"Layer %d %zux%zu, Input layer %d %zux%zu\n", l->id, l->w, l->h, inl->id, inl->out_w, inl->out_h);
+				"Layer %d %zux%zu, Input layer %d %zux%zu\n",
+				l->id, l->in.w, l->in.h, input->source_id, input->source->out.w, input->source->out.h);
 			wait_for_key_then_exit();
 		}
 		if (l->type == LAYER_RESIDUAL) {
-			if (inl->out_c != l->c) {
-				printf("Inputs to residual layers must have equal depth.\nResidual layer %d, Input layer %d\n", l->id, inl->id);
-				printf("Residual layer %zux%zux%zu | Input layer %zux%zux%zu\n", l->w, l->h, l->c, inl->out_w, inl->out_h, inl->out_c);
+			if (input->c != l->in.c) {
+				printf("Inputs to residual layers must have equal depth.\nResidual layer ID %d, Input layer ID %d\n", l->id, input->source_id);
+				printf("Residual layer channels: %zu | Input layer channels: %zu\n", l->in.c, input->c);
 				wait_for_key_then_exit();
 			}
 		}
 		else {
-			l->c += inl->out_c;
+			l->in.c += input->c;
 		}
 	}
-	l->n = l->w * l->h * l->c;
+	l->in.n = l->in.w * l->in.h * l->in.c;
+	l->in.sp = l->in.w * l->in.h;
 }
 
 /* i = layer index in net->layers */
-void build_conv_layer(int i, network* net) {
-	layer* l = &(net->layers[i]);
-	l->id = i;
-	if (!l->n_groups) l->n_groups = 1;
-	if (!l->stride) l->stride = 1;
-	if (!l->n_filters) {
+void build_conv_layer(layer* l, network* net) {
+	if (!l->k.n_groups) l->k.n_groups = 1;
+	if (!l->k.stride) l->k.stride = 1;
+	if (!l->k.n_filters) {
 		printf("Error: n_filters cannot be zero. (layer %d)\n", l->id);
 		wait_for_key_then_exit();
 	}
-	if (l->n_filters % l->n_groups > 0) {
-		printf("Cannot evenly distribute %zu filters between %zu groups. (layer %d)\n", l->n_filters, l->n_groups, i);
+	if (l->k.n_filters % l->k.n_groups > 0) {
+		printf("Cannot evenly distribute %zu filters between %zu groups. (layer %d)\n", l->k.n_filters, l->k.n_groups, l->id);
 		wait_for_key_then_exit();
 	}
 
-	set_input_layers(l, net);
+	set_layer_inputs(l, net);
 	set_input_dimensions(l);
 
-	if (l->c % l->n_groups > 0) {
-		printf("Cannot evenly distribute %zu channels between %zu groups. (layer %d)\n", l->c, l->n_groups, i);
+	if (l->in.c % l->k.n_groups > 0) {
+		printf("Cannot evenly distribute %zu channels between %zu groups. (layer %d)\n", l->in.c, l->k.n_groups, l->id);
 		wait_for_key_then_exit();
 	}
 
 	// Calculate output dimensions.
-	l->out_w = ((l->w + (l->pad * 2) - l->ksize) / l->stride) + 1;
-	l->out_h = ((l->h + (l->pad * 2) - l->ksize) / l->stride) + 1;
-	l->out_c = l->n_filters;
-	l->out_n = l->out_w * l->out_h * l->out_c;
+	l->out.w = ((l->in.w + (l->k.pad * 2) - l->k.ksize) / l->k.stride) + 1;
+	l->out.h = ((l->in.h + (l->k.pad * 2) - l->k.ksize) / l->k.stride) + 1;
+	l->out.c = l->k.n_filters;
+	l->out.n = l->out.w * l->out.h * l->out.c;
 
-	l->Z = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-	l->n_weights = l->n_filters * l->ksize * l->ksize * (l->c / l->n_groups);
+	l->Z = (float*)xcalloc(l->out.n * net->batch_size, sizeof(float));
+	l->n_weights = l->k.n_filters * l->k.ksize * l->k.ksize * (l->in.c / l->k.n_groups);
 	l->weights = (float*)xcalloc(l->n_weights, sizeof(float));
-	l->biases = (float*)xcalloc(l->n_filters, sizeof(float));
-	l->grads = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	l->biases = (float*)xcalloc(l->k.n_filters, sizeof(float));
+	l->grads = (float*)xcalloc(l->out.n * net->batch_size, sizeof(float));
 	l->weight_grads = (float*)xcalloc(l->n_weights, sizeof(float));
-	l->bias_grads = (float*)xcalloc(l->n_filters, sizeof(float));
+	l->bias_grads = (float*)xcalloc(l->k.n_filters, sizeof(float));
 	l->weight_velocities = (float*)xcalloc(l->n_weights, sizeof(float));
-	l->bias_velocities = (float*)xcalloc(l->n_filters, sizeof(float));
+	l->bias_velocities = (float*)xcalloc(l->k.n_filters, sizeof(float));
 	if (net->use_gpu) {
-		CUDA_MALLOC(&l->gpu.Z, l->out_n * net->batch_size, sizeof(float));
+		CUDA_MALLOC(&l->gpu.Z, l->out.n * net->batch_size, sizeof(float));
 		CUDA_MALLOC(&l->gpu.weights, l->n_weights, sizeof(float));
-		CUDA_MALLOC(&l->gpu.biases, l->n_filters, sizeof(float));
-		CUDA_MALLOC(&l->gpu.grads, l->out_n * net->batch_size, sizeof(float));
+		CUDA_MALLOC(&l->gpu.biases, l->k.n_filters, sizeof(float));
+		CUDA_MALLOC(&l->gpu.grads, l->out.n * net->batch_size, sizeof(float));
 		CUDA_MALLOC(&l->gpu.weight_grads, l->n_weights, sizeof(float));
-		CUDA_MALLOC(&l->gpu.bias_grads, l->n_filters, sizeof(float));
+		CUDA_MALLOC(&l->gpu.bias_grads, l->k.n_filters, sizeof(float));
 		CUDA_MALLOC(&l->gpu.weight_velocities, l->n_weights, sizeof(float));
-		CUDA_MALLOC(&l->gpu.bias_velocities, l->n_filters, sizeof(float));
+		CUDA_MALLOC(&l->gpu.bias_velocities, l->k.n_filters, sizeof(float));
 	}
 	if (l->batchnorm) {
-		l->Z_norm = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-		l->act_inputs = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-		l->means = (float*)xcalloc(l->n_filters, sizeof(float));
-		l->variances = (float*)xcalloc(l->n_filters, sizeof(float));
-		l->gammas = (float*)xcalloc(l->n_filters, sizeof(float));
-		fill_array(l->gammas, l->n_filters, 1.0F);
-		l->gamma_grads = (float*)xcalloc(l->n_filters, sizeof(float));
-		l->gamma_velocities = (float*)xcalloc(l->n_filters, sizeof(float));
-		l->rolling_means = (float*)xcalloc(l->n_filters, sizeof(float));
-		l->rolling_variances = (float*)xcalloc(l->n_filters, sizeof(float));
+		l->Z_norm = (float*)xcalloc(l->out.n * net->batch_size, sizeof(float));
+		l->act_inputs = (float*)xcalloc(l->out.n * net->batch_size, sizeof(float));
+		l->means = (float*)xcalloc(l->k.n_filters, sizeof(float));
+		l->variances = (float*)xcalloc(l->k.n_filters, sizeof(float));
+		l->gammas = (float*)xcalloc(l->k.n_filters, sizeof(float));
+		fill_array(l->gammas, l->k.n_filters, 1.0F);
+		l->gamma_grads = (float*)xcalloc(l->k.n_filters, sizeof(float));
+		l->gamma_velocities = (float*)xcalloc(l->k.n_filters, sizeof(float));
+		l->rolling_means = (float*)xcalloc(l->k.n_filters, sizeof(float));
+		l->rolling_variances = (float*)xcalloc(l->k.n_filters, sizeof(float));
 		if (net->use_gpu) {
-			CUDA_MALLOC(&l->gpu.Z_norm, l->out_n * net->batch_size, sizeof(float));
-			CUDA_MALLOC(&l->gpu.act_inputs, l->out_n * net->batch_size, sizeof(float));
-			CUDA_MALLOC(&l->gpu.means, l->n_filters, sizeof(float));
-			CUDA_MALLOC(&l->gpu.variances, l->n_filters, sizeof(float));
-			CUDA_MALLOC(&l->gpu.gammas, l->n_filters, sizeof(float));
-			CUDA_MEMCPY_H2D(l->gpu.gammas, l->gammas, l->n_filters * sizeof(float));
-			CUDA_MALLOC(&l->gpu.gamma_grads, l->n_filters, sizeof(float));
-			CUDA_MALLOC(&l->gpu.gamma_velocities, l->n_filters, sizeof(float));
-			CUDA_MALLOC(&l->gpu.rolling_means, l->n_filters, sizeof(float));
-			CUDA_MALLOC(&l->gpu.rolling_variances, l->n_filters, sizeof(float));
+			CUDA_MALLOC(&l->gpu.Z_norm, l->out.n * net->batch_size, sizeof(float));
+			CUDA_MALLOC(&l->gpu.act_inputs, l->out.n * net->batch_size, sizeof(float));
+			CUDA_MALLOC(&l->gpu.means, l->k.n_filters, sizeof(float));
+			CUDA_MALLOC(&l->gpu.variances, l->k.n_filters, sizeof(float));
+			CUDA_MALLOC(&l->gpu.gammas, l->k.n_filters, sizeof(float));
+			CUDA_MEMCPY_H2D(l->gpu.gammas, l->gammas, l->k.n_filters * sizeof(float));
+			CUDA_MALLOC(&l->gpu.gamma_grads, l->k.n_filters, sizeof(float));
+			CUDA_MALLOC(&l->gpu.gamma_velocities, l->k.n_filters, sizeof(float));
+			CUDA_MALLOC(&l->gpu.rolling_means, l->k.n_filters, sizeof(float));
+			CUDA_MALLOC(&l->gpu.rolling_variances, l->k.n_filters, sizeof(float));
 		}
 	}
 	else {
@@ -258,9 +264,9 @@ void build_conv_layer(int i, network* net) {
 		l->gpu.act_inputs = l->gpu.Z;
 	}
 	if (l->activation) {
-		l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+		l->output = (float*)xcalloc(l->out.n * net->batch_size, sizeof(float));
 		if (net->use_gpu) {
-			CUDA_MALLOC(&l->gpu.output, l->out_n * net->batch_size, sizeof(float));
+			CUDA_MALLOC(&l->gpu.output, l->out.n * net->batch_size, sizeof(float));
 		}
 	}
 	else {
@@ -287,59 +293,56 @@ void build_conv_layer(int i, network* net) {
 	set_activate(l, net->use_gpu);
 }
 
-void build_dense_layer(int i, network* net) {
-	layer* l = &(net->layers[i]);
-	l->id = i;
-
-	set_input_layers(l, net);
+void build_dense_layer(layer* l, network* net) {
+	set_layer_inputs(l, net);
 	set_input_dimensions(l);
 
-	l->out_w = 1;
-	l->out_h = 1;
-	l->out_c = l->n_filters;
-	l->out_n = l->out_w * l->out_h * l->out_c;
+	l->out.w = 1;
+	l->out.h = 1;
+	l->out.c = l->k.n_filters;
+	l->out.n = l->out.w * l->out.h * l->out.c;
 
-	l->Z = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-	l->n_weights = l->n_filters * l->ksize * l->ksize * l->c;
+	l->Z = (float*)xcalloc(l->out.n * net->batch_size, sizeof(float));
+	l->n_weights = l->in.w * l->in.h * l->in.c * l->k.n_filters;
 	l->weights = (float*)xcalloc(l->n_weights, sizeof(float));
-	l->biases = (float*)xcalloc(l->n_filters, sizeof(float));
-	l->grads = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	l->biases = (float*)xcalloc(l->k.n_filters, sizeof(float));
+	l->grads = (float*)xcalloc(l->out.n * net->batch_size, sizeof(float));
 	l->weight_grads = (float*)xcalloc(l->n_weights, sizeof(float));
-	l->bias_grads = (float*)xcalloc(l->n_filters, sizeof(float));
+	l->bias_grads = (float*)xcalloc(l->k.n_filters, sizeof(float));
 	l->weight_velocities = (float*)xcalloc(l->n_weights, sizeof(float));
-	l->bias_velocities = (float*)xcalloc(l->n_filters, sizeof(float));
+	l->bias_velocities = (float*)xcalloc(l->k.n_filters, sizeof(float));
 	if (net->use_gpu) {
-		CUDA_MALLOC(&l->gpu.Z, l->out_n * net->batch_size, sizeof(float));
+		CUDA_MALLOC(&l->gpu.Z, l->out.n * net->batch_size, sizeof(float));
 		CUDA_MALLOC(&l->gpu.weights, l->n_weights, sizeof(float));
-		CUDA_MALLOC(&l->gpu.biases, l->n_filters, sizeof(float));
-		CUDA_MALLOC(&l->gpu.grads, l->out_n * net->batch_size, sizeof(float));
+		CUDA_MALLOC(&l->gpu.biases, l->k.n_filters, sizeof(float));
+		CUDA_MALLOC(&l->gpu.grads, l->out.n * net->batch_size, sizeof(float));
 		CUDA_MALLOC(&l->gpu.weight_grads, l->n_weights, sizeof(float));
-		CUDA_MALLOC(&l->gpu.bias_grads, l->n_filters, sizeof(float));
+		CUDA_MALLOC(&l->gpu.bias_grads, l->k.n_filters, sizeof(float));
 		CUDA_MALLOC(&l->gpu.weight_velocities, l->n_weights, sizeof(float));
-		CUDA_MALLOC(&l->gpu.bias_velocities, l->n_filters, sizeof(float));
+		CUDA_MALLOC(&l->gpu.bias_velocities, l->k.n_filters, sizeof(float));
 	}
 	if (l->batchnorm) {
-		l->Z_norm = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-		l->act_inputs = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-		l->means = (float*)xcalloc(l->n_filters, sizeof(float));
-		l->variances = (float*)xcalloc(l->n_filters, sizeof(float));
-		l->gammas = (float*)xcalloc(l->n_filters, sizeof(float));
-		fill_array(l->gammas, l->n_filters, 1.0F);
-		l->gamma_grads = (float*)xcalloc(l->n_filters, sizeof(float));
-		l->gamma_velocities = (float*)xcalloc(l->n_filters, sizeof(float));
-		l->rolling_means = (float*)xcalloc(l->n_filters, sizeof(float));
-		l->rolling_variances = (float*)xcalloc(l->n_filters, sizeof(float));
+		l->Z_norm = (float*)xcalloc(l->out.n * net->batch_size, sizeof(float));
+		l->act_inputs = (float*)xcalloc(l->out.n * net->batch_size, sizeof(float));
+		l->means = (float*)xcalloc(l->k.n_filters, sizeof(float));
+		l->variances = (float*)xcalloc(l->k.n_filters, sizeof(float));
+		l->gammas = (float*)xcalloc(l->k.n_filters, sizeof(float));
+		fill_array(l->gammas, l->k.n_filters, 1.0F);
+		l->gamma_grads = (float*)xcalloc(l->k.n_filters, sizeof(float));
+		l->gamma_velocities = (float*)xcalloc(l->k.n_filters, sizeof(float));
+		l->rolling_means = (float*)xcalloc(l->k.n_filters, sizeof(float));
+		l->rolling_variances = (float*)xcalloc(l->k.n_filters, sizeof(float));
 		if (net->use_gpu) {
-			CUDA_MALLOC(&l->gpu.Z_norm, l->out_n * net->batch_size, sizeof(float));
-			CUDA_MALLOC(&l->gpu.act_inputs, l->out_n * net->batch_size, sizeof(float));
-			CUDA_MALLOC(&l->gpu.means, l->n_filters, sizeof(float));
-			CUDA_MALLOC(&l->gpu.variances, l->n_filters, sizeof(float));
-			CUDA_MALLOC(&l->gpu.gammas, l->n_filters, sizeof(float));
-			CUDA_MEMCPY_H2D(l->gpu.gammas, l->gammas, l->n_filters * sizeof(float));
-			CUDA_MALLOC(&l->gpu.gamma_grads, l->n_filters, sizeof(float));
-			CUDA_MALLOC(&l->gpu.gamma_velocities, l->n_filters, sizeof(float));
-			CUDA_MALLOC(&l->gpu.rolling_means, l->n_filters, sizeof(float));
-			CUDA_MALLOC(&l->gpu.rolling_variances, l->n_filters, sizeof(float));
+			CUDA_MALLOC(&l->gpu.Z_norm, l->out.n * net->batch_size, sizeof(float));
+			CUDA_MALLOC(&l->gpu.act_inputs, l->out.n * net->batch_size, sizeof(float));
+			CUDA_MALLOC(&l->gpu.means, l->k.n_filters, sizeof(float));
+			CUDA_MALLOC(&l->gpu.variances, l->k.n_filters, sizeof(float));
+			CUDA_MALLOC(&l->gpu.gammas, l->k.n_filters, sizeof(float));
+			CUDA_MEMCPY_H2D(l->gpu.gammas, l->gammas, l->k.n_filters * sizeof(float));
+			CUDA_MALLOC(&l->gpu.gamma_grads, l->k.n_filters, sizeof(float));
+			CUDA_MALLOC(&l->gpu.gamma_velocities, l->k.n_filters, sizeof(float));
+			CUDA_MALLOC(&l->gpu.rolling_means, l->k.n_filters, sizeof(float));
+			CUDA_MALLOC(&l->gpu.rolling_variances, l->k.n_filters, sizeof(float));
 		}
 	}
 	else {
@@ -348,9 +351,9 @@ void build_dense_layer(int i, network* net) {
 	}
 
 	if (l->activation) {
-		l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+		l->output = (float*)xcalloc(l->out.n * net->batch_size, sizeof(float));
 		if (net->use_gpu) {
-			CUDA_MALLOC(&l->gpu.output, l->out_n * net->batch_size, sizeof(float));
+			CUDA_MALLOC(&l->gpu.output, l->out.n * net->batch_size, sizeof(float));
 		}
 	}
 	else {
@@ -378,33 +381,30 @@ void build_dense_layer(int i, network* net) {
 }
 
 // i = layer index in net->layers
-void build_classify_layer(int i, network* net) {
+void build_classify_layer(layer* l, network* net) {
 	if (net->type == NET_NONE || net->type == NET_CLASSIFY) net->type = NET_CLASSIFY;
 	else {
 		printf("Invalid network cfg: Cannot have a classify layer in a non-classifier network.\n");
 		wait_for_key_then_exit();
 	}
 
-	layer* l = &(net->layers[i]);
-	l->id = i;
-
 	if (l->n_classes == 0) l->n_classes = net->n_classes;
 
-	if (l->in_ids.n > 1) {
+	if (l->n_inputs > 1) {
 		printf("Classify layers cannot have multiple input layers. (layer %d)\n", l->id);
 	}
-	set_input_layers(l, net);
+	set_layer_inputs(l, net);
 	set_input_dimensions(l);
 
-	if (l->w != 1 || l->h != 1 || l->c != l->n_classes) {
-		printf("The layer outputting to a classify layer must have a width, height, and depth of 1x1x%zu. (is %zux%zux%zu)\n", l->n_classes, l->w, l->h, l->c);
+	if (l->in.w != 1 || l->in.h != 1 || l->in.c != l->n_classes) {
+		printf("The layer outputting to a classify layer must have a width, height, and depth of 1x1x%zu. (is %zux%zux%zu)\n", l->n_classes, l->in.w, l->in.h, l->in.c);
 		wait_for_key_then_exit();
 	}
 
-	l->output = l->in_layers[0]->output;
-	l->grads = l->in_layers[0]->grads;
-	l->gpu.output = l->in_layers[0]->gpu.output;
-	l->gpu.grads = l->in_layers[0]->gpu.grads;
+	l->output = l->inputs[0].source->output;
+	l->grads = l->inputs[0].source->grads;
+	l->gpu.output = l->inputs[0].source->gpu.output;
+	l->gpu.grads = l->inputs[0].source->gpu.grads;
 
 	l->truth = (float*)xcalloc(l->n_classes * net->batch_size, sizeof(float));
 	l->errors = (float*)xcalloc(l->n_classes * net->batch_size, sizeof(float));
@@ -424,25 +424,22 @@ void build_classify_layer(int i, network* net) {
 }
 
 /* i = layer index in net->layers */
-void build_maxpool_layer(int i, network* net) {
-	layer* l = &(net->layers[i]);
-	l->id = i;
-
-	set_input_layers(l, net);
+void build_maxpool_layer(layer* l, network* net) {
+	set_layer_inputs(l, net);
 	set_input_dimensions(l);
 
-	l->out_w = ((l->w - l->ksize) / l->stride) + 1;
-	l->out_h = ((l->h - l->ksize) / l->stride) + 1;
-	l->out_c = l->c;
-	l->out_n = l->out_w * l->out_h * l->out_c;
+	l->out.w = ((l->in.w - l->k.ksize) / l->k.stride) + 1;
+	l->out.h = ((l->in.h - l->k.ksize) / l->k.stride) + 1;
+	l->out.c = l->in.c;
+	l->out.n = l->out.w * l->out.h * l->out.c;
 
-	l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-	l->grads = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-	l->maxpool_addresses = (float**)xcalloc(l->out_n * net->batch_size, sizeof(float*));
+	l->output = (float*)xcalloc(l->out.n * net->batch_size, sizeof(float));
+	l->grads = (float*)xcalloc(l->out.n * net->batch_size, sizeof(float));
+	l->maxpool_addresses = (float**)xcalloc(l->out.n * net->batch_size, sizeof(float*));
 	if (net->use_gpu) {
-		CUDA_MALLOC(&l->gpu.output, l->out_n * net->batch_size, sizeof(float));
-		CUDA_MALLOC(&l->gpu.grads, l->out_n * net->batch_size, sizeof(float));
-		CUDA_MALLOC((void**)(&l->gpu.maxpool_addresses), l->out_n * net->batch_size, sizeof(float*));
+		CUDA_MALLOC(&l->gpu.output, l->out.n * net->batch_size, sizeof(float));
+		CUDA_MALLOC(&l->gpu.grads, l->out.n * net->batch_size, sizeof(float));
+		CUDA_MALLOC((void**)(&l->gpu.maxpool_addresses), l->out.n * net->batch_size, sizeof(float*));
 	}
 
 	if (net->use_gpu) {
@@ -450,37 +447,34 @@ void build_maxpool_layer(int i, network* net) {
 		l->backward = backward_maxpool_gpu;
 	}
 	else {
-		//l->forward = (l->ksize != 2 || l->stride != 2) ? forward_maxpool_general : forward_maxpool;
+		//l->forward = (l->k.ksize != 2 || l->k.stride != 2) ? forward_maxpool_general : forward_maxpool;
 		l->forward = forward_maxpool_general;
 		l->backward = backward_maxpool;
 	}
 	l->update = update_none;
 }
 
-void build_residual_layer(int i, network* net) {
-	layer* l = &(net->layers[i]);
-	l->id = i;
-
-	set_input_layers(l, net);
+void build_residual_layer(layer* l, network* net) {
+	set_layer_inputs(l, net);
 	set_input_dimensions(l);
 
-	l->out_w = l->w;
-	l->out_h = l->h;
-	l->out_c = l->c;
-	l->out_n = l->out_w * l->out_h * l->out_c;
+	l->out.w = l->in.w;
+	l->out.h = l->in.h;
+	l->out.c = l->in.c;
+	l->out.n = l->out.w * l->out.h * l->out.c;
 
-	l->Z = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	l->Z = (float*)xcalloc(l->out.n * net->batch_size, sizeof(float));
 	l->act_inputs = l->Z;
-	l->grads = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	l->grads = (float*)xcalloc(l->out.n * net->batch_size, sizeof(float));
 	if (net->use_gpu) {
-		CUDA_MALLOC(&l->gpu.Z, l->out_n * net->batch_size, sizeof(float));
+		CUDA_MALLOC(&l->gpu.Z, l->out.n * net->batch_size, sizeof(float));
 		l->gpu.act_inputs = l->gpu.Z;
-		CUDA_MALLOC(&l->gpu.grads, l->out_n * net->batch_size, sizeof(float));
+		CUDA_MALLOC(&l->gpu.grads, l->out.n * net->batch_size, sizeof(float));
 	}
 
 	if (l->activation) {
-		l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-		if (net->use_gpu) CUDA_MALLOC(&l->gpu.output, l->out_n * net->batch_size, sizeof(float));
+		l->output = (float*)xcalloc(l->out.n * net->batch_size, sizeof(float));
+		if (net->use_gpu) CUDA_MALLOC(&l->gpu.output, l->out.n * net->batch_size, sizeof(float));
 	}
 	else {
 		l->output = l->Z;
@@ -500,30 +494,27 @@ void build_residual_layer(int i, network* net) {
 	set_activate(l, net->use_gpu);
 }
 
-void build_route_layer(int i, network* net) {
-	layer* l = &(net->layers[i]);
-	l->id = i;
-
-	set_input_layers(l, net);
+void build_route_layer(layer* l, network* net) {
+	set_layer_inputs(l, net);
 	set_input_dimensions(l);
 
-	l->out_w = l->w;
-	l->out_h = l->h;
-	l->out_c = l->c;
-	l->out_n = l->out_w * l->out_h * l->out_c;
+	l->out.w = l->in.w;
+	l->out.h = l->in.h;
+	l->out.c = l->in.c;
+	l->out.n = l->out.w * l->out.h * l->out.c;
 
-	l->Z = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	l->Z = (float*)xcalloc(l->out.n * net->batch_size, sizeof(float));
 	l->act_inputs = l->Z;
-	l->grads = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	l->grads = (float*)xcalloc(l->out.n * net->batch_size, sizeof(float));
 	if (net->use_gpu) {
-		CUDA_MALLOC(&l->gpu.Z, l->out_n * net->batch_size, sizeof(float));
+		CUDA_MALLOC(&l->gpu.Z, l->out.n * net->batch_size, sizeof(float));
 		l->gpu.act_inputs = l->gpu.Z;
-		CUDA_MALLOC(&l->gpu.grads, l->out_n * net->batch_size, sizeof(float));
+		CUDA_MALLOC(&l->gpu.grads, l->out.n * net->batch_size, sizeof(float));
 	}
 
 	if (l->activation) {
-		l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-		if (net->use_gpu) CUDA_MALLOC(&l->gpu.output, l->out_n * net->batch_size, sizeof(float));
+		l->output = (float*)xcalloc(l->out.n * net->batch_size, sizeof(float));
+		if (net->use_gpu) CUDA_MALLOC(&l->gpu.output, l->out.n * net->batch_size, sizeof(float));
 	}
 	else {
 		l->output = l->Z;
@@ -543,31 +534,28 @@ void build_route_layer(int i, network* net) {
 	set_activate(l, net->use_gpu);
 }
 
-void build_avgpool_global_layer(int i, network* net) {
-	layer* l = &(net->layers[i]);
-	l->id = i;
-
-	set_input_layers(l, net);
+void build_avgpool_global_layer(layer* l, network* net) {
+	set_layer_inputs(l, net);
 	set_input_dimensions(l);
 
-	l->out_w = 1;
-	l->out_h = 1;
-	l->out_c = l->c;
-	l->out_n = l->out_w * l->out_h * l->out_c;
+	l->out.w = 1;
+	l->out.h = 1;
+	l->out.c = l->in.c;
+	l->out.n = l->out.w * l->out.h * l->out.c;
 
-	l->Z = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	l->Z = (float*)xcalloc(l->out.n * net->batch_size, sizeof(float));
 	l->act_inputs = l->Z;
-	l->grads = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	l->grads = (float*)xcalloc(l->out.n * net->batch_size, sizeof(float));
 	if (net->use_gpu) {
-		CUDA_MALLOC(&l->gpu.Z, l->out_n * net->batch_size, sizeof(float));
+		CUDA_MALLOC(&l->gpu.Z, l->out.n * net->batch_size, sizeof(float));
 		l->gpu.act_inputs = l->gpu.Z;
-		CUDA_MALLOC(&l->gpu.grads, l->out_n * net->batch_size, sizeof(float));
+		CUDA_MALLOC(&l->gpu.grads, l->out.n * net->batch_size, sizeof(float));
 	}
 
 	if (l->activation) {
-		l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+		l->output = (float*)xcalloc(l->out.n * net->batch_size, sizeof(float));
 		if (net->use_gpu) {
-			CUDA_MALLOC(&l->gpu.output, l->out_n * net->batch_size, sizeof(float));
+			CUDA_MALLOC(&l->gpu.output, l->out.n * net->batch_size, sizeof(float));
 		}
 	}
 	else {
@@ -588,31 +576,28 @@ void build_avgpool_global_layer(int i, network* net) {
 	set_activate(l, net->use_gpu);
 }
 
-void build_avgpool_local_layer(int i, network* net) {
-	layer* l = &(net->layers[i]);
-	l->id = i;
-
-	set_input_layers(l, net);
+void build_avgpool_local_layer(layer* l, network* net) {
+	set_layer_inputs(l, net);
 	set_input_dimensions(l);
 
-	l->out_w = ((l->w + (l->pad * 2) - l->ksize) / l->stride) + 1;
-	l->out_h = ((l->h + (l->pad * 2) - l->ksize) / l->stride) + 1;
-	l->out_c = l->c;
-	l->out_n = l->out_w * l->out_h * l->out_c;
+	l->out.w = ((l->in.w + (l->k.pad * 2) - l->k.ksize) / l->k.stride) + 1;
+	l->out.h = ((l->in.h + (l->k.pad * 2) - l->k.ksize) / l->k.stride) + 1;
+	l->out.c = l->in.c;
+	l->out.n = l->out.w * l->out.h * l->out.c;
 
-	l->Z = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	l->Z = (float*)xcalloc(l->out.n * net->batch_size, sizeof(float));
 	l->act_inputs = l->Z;
-	l->grads = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	l->grads = (float*)xcalloc(l->out.n * net->batch_size, sizeof(float));
 	if (net->use_gpu) {
-		CUDA_MALLOC(&l->gpu.Z, l->out_n * net->batch_size, sizeof(float));
+		CUDA_MALLOC(&l->gpu.Z, l->out.n * net->batch_size, sizeof(float));
 		l->gpu.act_inputs = l->gpu.Z;
-		CUDA_MALLOC(&l->gpu.grads, l->out_n * net->batch_size, sizeof(float));
+		CUDA_MALLOC(&l->gpu.grads, l->out.n * net->batch_size, sizeof(float));
 	}
 
 	if (l->activation) {
-		l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+		l->output = (float*)xcalloc(l->out.n * net->batch_size, sizeof(float));
 		if (net->use_gpu) {
-			CUDA_MALLOC(&l->gpu.output, l->out_n * net->batch_size, sizeof(float));
+			CUDA_MALLOC(&l->gpu.output, l->out.n * net->batch_size, sizeof(float));
 		}
 	}
 	else {
@@ -633,28 +618,25 @@ void build_avgpool_local_layer(int i, network* net) {
 	set_activate(l, net->use_gpu);
 }
 
-void build_upsample_layer(int i, network* net) {
-	layer* l = &(net->layers[i]);
-	l->id = i;
-
-	set_input_layers(l, net);
+void build_upsample_layer(layer* l, network* net) {
+	set_layer_inputs(l, net);
 	set_input_dimensions(l);
 
-	l->out_w = l->w * l->ksize;
-	l->out_h = l->h * l->ksize;
-	l->out_c = l->c;
-	l->out_n = l->out_w * l->out_h * l->out_c;
-	l->Z = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
+	l->out.w = l->in.w * l->k.ksize;
+	l->out.h = l->in.h * l->k.ksize;
+	l->out.c = l->in.c;
+	l->out.n = l->out.w * l->out.h * l->out.c;
+	l->Z = (float*)xcalloc(l->out.n * net->batch_size, sizeof(float));
 	if (net->use_gpu) {
-		CUDA_MALLOC(&l->gpu.Z, l->out_n * net->batch_size, sizeof(float));
+		CUDA_MALLOC(&l->gpu.Z, l->out.n * net->batch_size, sizeof(float));
 	}
 
 	l->act_inputs = l->Z;
 	l->gpu.act_inputs = l->gpu.Z;
 
 	if (l->activation) {
-		l->output = (float*)xcalloc(l->out_n * net->batch_size, sizeof(float));
-		if (net->use_gpu) CUDA_MALLOC(&l->gpu.output, l->out_n * net->batch_size, sizeof(float));
+		l->output = (float*)xcalloc(l->out.n * net->batch_size, sizeof(float));
+		if (net->use_gpu) CUDA_MALLOC(&l->gpu.output, l->out.n * net->batch_size, sizeof(float));
 	}
 	else {
 		l->output = l->act_inputs;
@@ -674,39 +656,26 @@ void build_upsample_layer(int i, network* net) {
 	set_activate(l, net->use_gpu);
 }
 
-void build_detect_layer(int i, network* net) {
+void build_detect_layer(layer* l, network* net) {
 	if (net->type != NET_DETECT) {
 		printf("Invalid network cfg: Cannot have a detect layer in a non-detector network.\n");
 		wait_for_key_then_exit();
 	}
 
-	layer* l = &(net->layers[i]);
-	l->id = i;
+	if (!l->n_classes) l->n_classes = net->n_classes;
 
-	if (l->n_classes == 0) l->n_classes = net->n_classes;
-
-	if (l->in_ids.n > 1) {
+	if (l->n_inputs > 1) {
 		printf("Detect layers cannot have multiple input layers. (layer %d)\n", l->id);
 	}
-	set_input_layers(l, net);
+	set_layer_inputs(l, net);
+	set_input_dimensions(l);
 
-	if (l->in_layers[0]->activation != ACT_SIGMOID) {
+	if (l->inputs[0].source->activation != ACT_SIGMOID) {
 		printf("Invalid cfg: The input layer to a detect layer must have an sigmoid activation.\n");
 		wait_for_key_then_exit();
 	}
 
-	l->w = l->in_layers[0]->out_w;
-	l->h = l->in_layers[0]->out_h;
-	l->c = l->in_layers[0]->out_c;
-	l->n = l->w * l->h * l->c;
-
-	size_t c = (NUM_ANCHOR_PARAMS + l->n_classes) * l->n_anchors;
-	if (l->c != c) {
-		printf("Depth mismatch between Detect layer and its input layer. (%zu =/= %zu)\n", c, l->c);
-		wait_for_key_then_exit();
-	}
-
-	l->grads = (float*)xcalloc(l->n * net->batch_size, sizeof(float));
+	l->grads = (float*)xcalloc(l->in.n * net->batch_size, sizeof(float));
 	l->errors = (float*)xcalloc(net->batch_size, sizeof(float));  // only used for storing iou losses
 
 	l->forward = forward_detect;
@@ -715,10 +684,10 @@ void build_detect_layer(int i, network* net) {
 
 	l->activation = ACT_NONE;
 
-	l->output = (float*)xcalloc(l->n * net->batch_size, sizeof(float));
+	l->output = (float*)xcalloc(l->in.n * net->batch_size, sizeof(float));
 
 	// set anchors
-	if (net->w != net->h || l->w != l->h) {
+	if (net->w != net->h || l->in.w != l->in.h) {
 		printf("Network input and output width & height must be square.\n");
 		wait_for_key_then_exit();
 	}
@@ -747,8 +716,8 @@ void build_detect_layer(int i, network* net) {
 			break;
 		}
 	}
-	l->detections = (bbox*)xcalloc(l->w * l->h * l->n_anchors, sizeof(bbox));
-	l->sorted = (bbox**)xcalloc(l->w * l->h * l->n_anchors, sizeof(bbox*));
+	l->detections = (bbox*)xcalloc(l->in.w * l->in.h * l->n_anchors, sizeof(bbox));
+	l->sorted = (bbox**)xcalloc(l->in.w * l->in.h * l->n_anchors, sizeof(bbox*));
 	// TODO: Make these cfg parameters
 	l->cull_thresh = 0.5F;
 	l->nms_iou_thresh = 0.5F;
@@ -870,12 +839,12 @@ void activate(float* Z, float* output, size_t out_n, size_t batch_size, ACTIVATI
 }
 
 void get_activation_grads(layer* l, size_t batch_size) {
-	if (l->activation == ACT_MISH) get_grads_mish(l->grads, l->act_inputs, l->out_n, batch_size);
-	else if (l->activation == ACT_RELU) get_grads_relu(l->grads, l->act_inputs, l->out_n, batch_size);
-	else if (l->activation == ACT_LEAKY) get_grads_leaky_relu(l->grads, l->act_inputs, l->out_n, batch_size);
-	else if (l->activation == ACT_SIGMOID) get_grads_sigmoid(l->grads, l->output, l->out_n, batch_size);
+	if (l->activation == ACT_MISH) get_grads_mish(l->grads, l->act_inputs, l->out.n, batch_size);
+	else if (l->activation == ACT_RELU) get_grads_relu(l->grads, l->act_inputs, l->out.n, batch_size);
+	else if (l->activation == ACT_LEAKY) get_grads_leaky_relu(l->grads, l->act_inputs, l->out.n, batch_size);
+	else if (l->activation == ACT_SIGMOID) get_grads_sigmoid(l->grads, l->output, l->out.n, batch_size);
 	else if (l->activation == ACT_SOFTMAX);
-	else if (l->activation == ACT_TANH) get_grads_tanh(l->grads, l->act_inputs, l->out_n, batch_size);
+	else if (l->activation == ACT_TANH) get_grads_tanh(l->grads, l->act_inputs, l->out.n, batch_size);
 	else if (l->activation == ACT_NONE);
 	else {
 		printf("Invalid activation function.");
@@ -886,12 +855,12 @@ void get_activation_grads(layer* l, size_t batch_size) {
 #pragma warning (suppress:4100)
 void get_activation_grads_gpu(layer* l, size_t batch_size) {
 #ifdef GPU
-	if (l->activation == ACT_MISH) get_grads_mish_gpu(l->gpu.grads, l->gpu.act_inputs, (int)l->out_n, (int)batch_size);
-	else if (l->activation == ACT_RELU) get_grads_relu_gpu(l->gpu.grads, l->gpu.act_inputs, (int)l->out_n, (int)batch_size);
-	else if (l->activation == ACT_LEAKY) get_grads_leaky_relu_gpu(l->gpu.grads, l->gpu.act_inputs, (int)l->out_n, (int)batch_size);
-	else if (l->activation == ACT_SIGMOID) get_grads_sigmoid_gpu(l->gpu.grads, l->gpu.output, (int)l->out_n, (int)batch_size);
+	if (l->activation == ACT_MISH) get_grads_mish_gpu(l->gpu.grads, l->gpu.act_inputs, (int)l->out.n, (int)batch_size);
+	else if (l->activation == ACT_RELU) get_grads_relu_gpu(l->gpu.grads, l->gpu.act_inputs, (int)l->out.n, (int)batch_size);
+	else if (l->activation == ACT_LEAKY) get_grads_leaky_relu_gpu(l->gpu.grads, l->gpu.act_inputs, (int)l->out.n, (int)batch_size);
+	else if (l->activation == ACT_SIGMOID) get_grads_sigmoid_gpu(l->gpu.grads, l->gpu.output, (int)l->out.n, (int)batch_size);
 	else if (l->activation == ACT_SOFTMAX);
-	else if (l->activation == ACT_TANH) get_grads_tanh_gpu(l->gpu.grads, l->gpu.act_inputs, (int)l->out_n, (int)batch_size);
+	else if (l->activation == ACT_TANH) get_grads_tanh_gpu(l->gpu.grads, l->gpu.act_inputs, (int)l->out.n, (int)batch_size);
 	else if (l->activation == ACT_NONE);
 	else {
 		printf("Invalid activation function.");
@@ -1018,8 +987,7 @@ void free_network_layers(network* net) {
 }
 
 void free_layer_fields(layer* l, network* net) {
-	xfree(&l->in_ids.a);
-	xfree(&l->in_layers);
+	xfree(&l->inputs);
 	xfree(&l->anchors);
 	xfree(&l->biases);
 	xfree(&l->bias_grads);
@@ -1091,8 +1059,8 @@ size_t get_train_params_count(network* net) {
 
 size_t get_layer_param_count(layer* l) {
 	size_t N = l->n_weights;
-	N += l->n_filters;  // # of biases
-	if (l->batchnorm) N += l->out_c * 3;  // gammas, rolling means & variances
+	N += l->k.n_filters;  // # of biases
+	if (l->batchnorm) N += l->out.c * 3;  // gammas, rolling means & variances
 	return N;
 }
 
@@ -1138,7 +1106,7 @@ void print_layer(layer* l) {
 	else if (l->type == LAYER_MAXPOOL) print_layer_maxpool(l);
 	else if (l->type == LAYER_DENSE) print_layer_conv(l);
 	else if (l->type == LAYER_RESIDUAL) print_layer_residual(l);
-	else printf("NONE_LAYER\n");
+	else printf("Not Implemented\n");
 }
 
 void print_layer_conv(layer* l) {
@@ -1149,17 +1117,21 @@ void print_layer_conv(layer* l) {
 	printf("activation: ");
 	print_activation(l->activation);
 	printf("batchnorm: %d\n", l->batchnorm);
-	printf("w, h, c: %zu, %zu, %zu\n", l->w, l->h, l->c);
-	printf("n_filters: %zu\n", l->n_filters);
-	printf("ksize: %zu\n", l->ksize);
-	printf("stride: %zu\n", l->stride);
-	printf("pad: %zu\n", l->pad);
-	printf("# of inputs: %zu\n", l->n);
-	printf("# of outputs: %zu\n", l->out_n);
+	printf("w, h, c: %zu, %zu, %zu\n", l->in.w, l->in.h, l->in.c);
+	printf("n_filters: %zu\n", l->k.n_filters);
+	printf("ksize: %zu\n", l->k.ksize);
+	printf("stride: %zu\n", l->k.stride);
+	printf("pad: %zu\n", l->k.pad);
+	printf("# of inputs: %zu\n", l->in.n);
+	printf("# of outputs: %zu\n", l->out.n);
 	printf("# of weights: %zu\n", l->n_weights);
 	printf("train: %d\n", l->train);
-	printf("in_ids: ");
-	print_intarr(&(l->in_ids));
+	printf("input ids: ");
+	for (int i = 0; i < l->n_inputs; i++) {
+		printf("%d", l->inputs[i].source_id);
+		if (i < l->n_inputs - 1) printf(", ");
+		else printf("\n");
+	}
 	printf("[END LAYER]\n");
 }
 
@@ -1173,14 +1145,18 @@ void print_layer_classify(layer* l) {
 	printf("loss: ");
 	print_loss_type(l->loss_type);
 	printf("# of classes: %zu\n", l->n_classes);
-	printf("w, h, c: %zu, %zu, %zu\n", l->w, l->h, l->c);
-	printf("stride: %zu\n", l->stride);
-	printf("# of inputs: %zu\n", l->n);
-	printf("# of outputs: %zu\n", l->out_n);
+	printf("w, h, c: %zu, %zu, %zu\n", l->in.w, l->in.h, l->in.c);
+	printf("stride: %zu\n", l->k.stride);
+	printf("# of inputs: %zu\n", l->in.n);
+	printf("# of outputs: %zu\n", l->out.n);
 	printf("# of weights: %zu\n", l->n_weights);
 	printf("train: %d\n", l->train);
-	printf("in_ids: ");
-	print_intarr(&(l->in_ids));
+	printf("input ids: ");
+	for (int i = 0; i < l->n_inputs; i++) {
+		printf("%d", l->inputs[i].source_id);
+		if (i < l->n_inputs - 1) printf(", ");
+		else printf("\n");
+	}
 	printf("[END LAYER]\n");
 }
 
@@ -1189,15 +1165,19 @@ void print_layer_maxpool(layer* l) {
 	printf("id: %d\n", l->id);
 	printf("layer_type: ");
 	print_layertype(l->type);
-	printf("w, h, c: %zu, %zu, %zu\n", l->w, l->h, l->c);
-	printf("ksize: %zu\n", l->ksize);
-	printf("stride: %zu\n", l->stride);
-	printf("pad: %zu\n", l->pad);
-	printf("# of inputs: %zu\n", l->n);
-	printf("# of outputs: %zu\n", l->out_n);
+	printf("w, h, c: %zu, %zu, %zu\n", l->in.w, l->in.h, l->in.c);
+	printf("ksize: %zu\n", l->k.ksize);
+	printf("stride: %zu\n", l->k.stride);
+	printf("pad: %zu\n", l->k.pad);
+	printf("# of inputs: %zu\n", l->in.n);
+	printf("# of outputs: %zu\n", l->out.n);
 	printf("train: %d\n", l->train);
-	printf("in_ids: ");
-	print_intarr(&(l->in_ids));
+	printf("input ids: ");
+	for (int i = 0; i < l->n_inputs; i++) {
+		printf("%d", l->inputs[i].source_id);
+		if (i < l->n_inputs - 1) printf(", ");
+		else printf("\n");
+	}
 	printf("[END LAYER]\n");
 }
 
@@ -1208,11 +1188,15 @@ void print_layer_residual(layer* l) {
 	print_layertype(l->type);
 	printf("activation: ");
 	print_activation(l->activation);
-	printf("w, h, c: %zu, %zu, %zu\n", l->w, l->h, l->c);
-	printf("# of inputs: %zu\n", l->n);
-	printf("# of outputs: %zu\n", l->out_n);
-	printf("in_ids: ");
-	print_intarr(&(l->in_ids));
+	printf("w, h, c: %zu, %zu, %zu\n", l->in.w, l->in.h, l->in.c);
+	printf("# of inputs: %zu\n", l->in.n);
+	printf("# of outputs: %zu\n", l->out.n);
+	printf("input ids: ");
+	for (int i = 0; i < l->n_inputs; i++) {
+		printf("%d", l->inputs[i].source_id);
+		if (i < l->n_inputs - 1) printf(", ");
+		else printf("\n");
+	}
 	printf("[END LAYER]\n");
 }
 
@@ -1320,8 +1304,8 @@ void print_network_structure(network* net) {
 	for (size_t i = 0; i < n_layers; i++) {
 		layer* l = &layers[i];
 		get_layer_type_str(ltbuf, sizeof(ltbuf), l->type);
-		get_in_ids_str(idbuf, 50, l->in_ids);
-		printf("[%d] %s inputs[%s] %zux%zux%zu -> %zux%zux%zu pad: %zu stride: %zu ksize: %zu\n", l->id, ltbuf, idbuf, l->w, l->h, l->c, l->out_w, l->out_h, l->out_c, l->pad, l->stride, l->ksize);
+		get_input_ids_str(idbuf, 50, l->inputs, l->n_inputs);
+		printf("[%d] %s inputs[%s] %zux%zux%zu -> %zux%zux%zu pad: %zu stride: %zu ksize: %zu\n", l->id, ltbuf, idbuf, l->in.w, l->in.h, l->in.c, l->out.w, l->out.h, l->out.c, l->k.pad, l->k.stride, l->k.ksize);
 	}
 }
 
@@ -1354,16 +1338,16 @@ void get_layer_type_str(char* buf, size_t bufsize, LAYER_TYPE lt) {
 	else if (lt == LAYER_UPSAMPLE) strcpy(buf, "upsample");
 }
 
-void get_in_ids_str(char* buf, size_t bufsize, intarr inputs) {
+void get_input_ids_str(char* buf, size_t bufsize, layer_input* inputs, size_t n_inputs) {
 	if (bufsize < 50) {
 		printf("Error: bufsize too small.\n");
 		wait_for_key_then_exit();
 	}
 	memset(buf, 0, bufsize);
-	if (!inputs.a) return;
-	snprintf(buf, bufsize, "%d", inputs.a[0]);
-	for (size_t i = 1; i < inputs.n; i++) {
+	if (!inputs) return;
+	snprintf(buf, bufsize, "%d", inputs[0].source_id);
+	for (size_t i = 1; i < n_inputs; i++) {
 		size_t length = strlen(buf);
-		snprintf(&buf[length], bufsize - length, ",%d", inputs.a[i]);
+		snprintf(&buf[length], bufsize - length, ",%d", inputs[i].source_id);
 	}
 }

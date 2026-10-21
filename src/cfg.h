@@ -4,19 +4,18 @@
 
 #include "network.h"
 #include "list.h"
-#include "utils.h"
 
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-	typedef struct cfg cfg;
-	typedef struct cfg_section cfg_section;
+	typedef struct network_cfg network_cfg;
+	typedef struct layer_cfg layer_cfg;
 
 	network* create_network_from_cfg(char* cfgfile);
 
-	typedef struct cfg {
+	typedef struct network_cfg {
 		// [data]
 		char* dataset_dir;
 		char* classes_file;
@@ -48,17 +47,18 @@ extern "C" {
 		floatarr saturation;
 		floatarr exposure;
 		floatarr hue;
-		// layers
 		list* layers;
-		// not read from cfg
-		int batchnorm;  // is 1 if any layer has batch norm enabled
-	} cfg;
+	} network_cfg;
 
-	typedef struct cfg_layer {
+	typedef struct layer_cfg {
 		LAYER_TYPE type;
 		int id;
 		int train;
+
 		intarr in_ids;
+		intarr in_chunks;
+		int* in_chunk_idxs;
+
 		int batchnorm;
 		int n_filters;
 		size_t n_groups;
@@ -71,7 +71,7 @@ extern "C" {
 		LOSS_TYPE loss_type;
 		floatarr anchors;
 		int objectness_smooth;
-	} cfg_layer;
+	} layer_cfg;
 
 #ifdef __cplusplus
 }

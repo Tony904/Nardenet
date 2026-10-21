@@ -55,25 +55,25 @@ void save_state(network* net) {
 		int id = l->id;
 		if (net->use_gpu && net->iteration > 0) {
 			CUDA_MEMCPY_D2H(l->weights, l->gpu.weights, l->n_weights * sizeof(float));
-			CUDA_MEMCPY_D2H(l->biases, l->gpu.biases, l->n_filters * sizeof(float));
+			CUDA_MEMCPY_D2H(l->biases, l->gpu.biases, l->k.n_filters * sizeof(float));
 			CUDA_MEMCPY_D2H(l->weight_velocities, l->gpu.weight_velocities, l->n_weights * sizeof(float));
-			CUDA_MEMCPY_D2H(l->bias_velocities, l->gpu.bias_velocities, l->n_filters * sizeof(float));
+			CUDA_MEMCPY_D2H(l->bias_velocities, l->gpu.bias_velocities, l->k.n_filters * sizeof(float));
 		}
 		total_vals += write_floats(l->weights, l->n_weights, file, "weights", id);
-		total_vals += write_floats(l->biases, l->n_filters, file, "biases", id);
+		total_vals += write_floats(l->biases, l->k.n_filters, file, "biases", id);
 		total_vals += write_floats(l->weight_velocities, l->n_weights, file, "weight_velocities", id);
-		total_vals += write_floats(l->bias_velocities, l->n_filters, file, "bias_velocities", id);
+		total_vals += write_floats(l->bias_velocities, l->k.n_filters, file, "bias_velocities", id);
 		if (l->batchnorm) {
 			if (net->use_gpu && net->iteration > 0) {
-				CUDA_MEMCPY_D2H(l->gammas, l->gpu.gammas, l->n_filters * sizeof(float));
-				CUDA_MEMCPY_D2H(l->rolling_means, l->gpu.rolling_means, l->n_filters * sizeof(float));
-				CUDA_MEMCPY_D2H(l->rolling_variances, l->gpu.rolling_variances, l->n_filters * sizeof(float));
-				CUDA_MEMCPY_D2H(l->gamma_velocities, l->gpu.gamma_velocities, l->n_filters * sizeof(float));
+				CUDA_MEMCPY_D2H(l->gammas, l->gpu.gammas, l->k.n_filters * sizeof(float));
+				CUDA_MEMCPY_D2H(l->rolling_means, l->gpu.rolling_means, l->k.n_filters * sizeof(float));
+				CUDA_MEMCPY_D2H(l->rolling_variances, l->gpu.rolling_variances, l->k.n_filters * sizeof(float));
+				CUDA_MEMCPY_D2H(l->gamma_velocities, l->gpu.gamma_velocities, l->k.n_filters * sizeof(float));
 			}
-			total_vals += write_floats(l->gammas, l->n_filters, file, "gammas", id);
-			total_vals += write_floats(l->rolling_means, l->n_filters, file, "rolling_means", id);
-			total_vals += write_floats(l->rolling_variances, l->n_filters, file, "rolling_variances", id);
-			total_vals += write_floats(l->gamma_velocities, l->n_filters, file, "gamma_velocities", id);
+			total_vals += write_floats(l->gammas, l->k.n_filters, file, "gammas", id);
+			total_vals += write_floats(l->rolling_means, l->k.n_filters, file, "rolling_means", id);
+			total_vals += write_floats(l->rolling_variances, l->k.n_filters, file, "rolling_variances", id);
+			total_vals += write_floats(l->gamma_velocities, l->k.n_filters, file, "gamma_velocities", id);
 		}
 	}
 	if (fseek(file, sizeof(uint64_t) * 3, SEEK_SET)) {
@@ -150,25 +150,25 @@ void load_state(network* net) {
 		int id = l->id;
 		if (net->use_gpu) {
 			CUDA_MEMCPY_H2D(l->gpu.weights, l->weights, l->n_weights * sizeof(float));
-			CUDA_MEMCPY_H2D(l->gpu.biases, l->biases, l->n_filters * sizeof(float));
+			CUDA_MEMCPY_H2D(l->gpu.biases, l->biases, l->k.n_filters * sizeof(float));
 			CUDA_MEMCPY_H2D(l->gpu.weight_velocities, l->weight_velocities, l->n_weights * sizeof(float));
-			CUDA_MEMCPY_H2D(l->gpu.bias_velocities, l->bias_velocities, l->n_filters * sizeof(float));
+			CUDA_MEMCPY_H2D(l->gpu.bias_velocities, l->bias_velocities, l->k.n_filters * sizeof(float));
 		}
 		total_vals += read_floats(l->weights, l->n_weights, file, "weights", id);
-		total_vals += read_floats(l->biases, l->n_filters, file, "biases", id);
+		total_vals += read_floats(l->biases, l->k.n_filters, file, "biases", id);
 		total_vals += read_floats(l->weight_velocities, l->n_weights, file, "weight_velocities", id);
-		total_vals += read_floats(l->bias_velocities, l->n_filters, file, "bias_velocities", id);
+		total_vals += read_floats(l->bias_velocities, l->k.n_filters, file, "bias_velocities", id);
 		if (l->batchnorm) {
 			if (net->use_gpu) {
-				CUDA_MEMCPY_H2D(l->gpu.gammas, l->gammas, l->n_filters * sizeof(float));
-				CUDA_MEMCPY_H2D(l->gpu.rolling_means, l->rolling_means, l->n_filters * sizeof(float));
-				CUDA_MEMCPY_H2D(l->gpu.rolling_variances, l->rolling_variances, l->n_filters * sizeof(float));
-				CUDA_MEMCPY_H2D(l->gpu.gamma_velocities, l->gamma_velocities, l->n_filters * sizeof(float));
+				CUDA_MEMCPY_H2D(l->gpu.gammas, l->gammas, l->k.n_filters * sizeof(float));
+				CUDA_MEMCPY_H2D(l->gpu.rolling_means, l->rolling_means, l->k.n_filters * sizeof(float));
+				CUDA_MEMCPY_H2D(l->gpu.rolling_variances, l->rolling_variances, l->k.n_filters * sizeof(float));
+				CUDA_MEMCPY_H2D(l->gpu.gamma_velocities, l->gamma_velocities, l->k.n_filters * sizeof(float));
 			}
-			total_vals += read_floats(l->gammas, l->n_filters, file, "gammas", id);
-			total_vals += read_floats(l->rolling_means, l->n_filters, file, "rolling_means", id);
-			total_vals += read_floats(l->rolling_variances, l->n_filters, file, "rolling_variances", id);
-			total_vals += read_floats(l->gamma_velocities, l->n_filters, file, "gamma_velocities", id);
+			total_vals += read_floats(l->gammas, l->k.n_filters, file, "gammas", id);
+			total_vals += read_floats(l->rolling_means, l->k.n_filters, file, "rolling_means", id);
+			total_vals += read_floats(l->rolling_variances, l->k.n_filters, file, "rolling_variances", id);
+			total_vals += read_floats(l->gamma_velocities, l->k.n_filters, file, "gamma_velocities", id);
 		}
 	}
 	if (total_vals != h[3]) {
@@ -228,7 +228,7 @@ void test_save_state(void) {
 	l2->n_weights = 4;
 	l2->weights = (float*)xcalloc(l2->n_weights, sizeof(float));
 	fill_array_increment(l2->weights, l2->n_weights, 7.0F, 2.0F);
-	l1->n_filters = 0;
+	l1->k.n_filters = 0;
 	net.weights_file = "C:\\Users\\TNard\\OneDrive\\Desktop\\dev\\Nardenet-main\\data\\test_weights.txt";
 	save_state(&net);
 	zero_array(l1->weights, l1->n_weights);
@@ -255,7 +255,7 @@ void test_load_state(void) {
 	l2->n_weights = 4;
 	l2->weights = (float*)xcalloc(l2->n_weights, sizeof(float));
 	fill_array_increment(l2->weights, l2->n_weights, 7.0F, 2.0F);
-	l1->n_filters = 0;
+	l1->k.n_filters = 0;
 	net.weights_file = "C:\\Users\\TNard\\OneDrive\\Desktop\\dev\\Nardenet-main\\data\\test_weights.txt";
 	save_state(&net);
 	zero_array(l1->weights, l1->n_weights);

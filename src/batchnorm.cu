@@ -316,10 +316,10 @@ void test_forward_batchnorm_gpu(void) {
 	CHECK_CUDA(cudaFree(d_rolling_variances));
 
 	layer l = { 0 };
-	l.out_w = (size_t)w;
-	l.out_h = (size_t)h;
-	l.n_filters = (size_t)n_filters;
-	l.out_n = (size_t)out_n;
+	l.out.w = (size_t)w;
+	l.out.h = (size_t)h;
+	l.k.n_filters = (size_t)n_filters;
+	l.out.n = (size_t)out_n;
 	l.Z = Z;
 	l.Z_norm = Z_norm;
 	l.act_inputs = (float*)xcalloc(out_n * batch_size, sizeof(float));
@@ -565,10 +565,10 @@ void test_backward_batchnorm_gpu(void) {
 
 	layer l = { 0 };
 
-	l.out_w = (size_t)w;
-	l.out_h = (size_t)h;
-	l.n_filters = (size_t)n_filters;
-	l.out_n = (size_t)out_n;
+	l.out.w = (size_t)w;
+	l.out.h = (size_t)h;
+	l.k.n_filters = (size_t)n_filters;
+	l.out.n = (size_t)out_n;
 	l.Z = Z;
 	l.Z_norm = Z_norm;
 	l.means = means;

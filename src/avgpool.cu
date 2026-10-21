@@ -14,7 +14,9 @@
 #define KARGS(...) <<< __VA_ARGS__ >>>
 #endif
 
-// GLOBAL
+
+
+// GLOBAL FORWARD
 __global__ void forward_avgpool_global_kernel(float* input, float* output, int spatial) {
 
 	__shared__ float shared[BLOCKSIZE];
@@ -48,12 +50,13 @@ __global__ void forward_avgpool_global_kernel(float* input, float* output, int s
 		}
 	}
 }
-
 void launch_forward_avgpool_global_kernel(float* input, float* output, int spatial, int c, int batch_size) {
 	forward_avgpool_global_kernel KARGS(c * batch_size, BLOCKSIZE) (input, output, spatial);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
+
+// GLOBAL BACKWARD
 __global__ void backward_avgpool_global_kernel(float* grads_x, float* grads_y, int spatial) {
 	int tid = threadIdx.x;
 	int channel = blockIdx.x;
@@ -63,41 +66,118 @@ __global__ void backward_avgpool_global_kernel(float* grads_x, float* grads_y, i
 		grads_x[offset + s] += grad;
 	}
 }
-
 void launch_backward_avgpool_global_kernel(float* grads_x, float* grads_y, int spatial, int c, int batch_size) {
 	backward_avgpool_global_kernel KARGS(c * batch_size, BLOCKSIZE) (grads_x, grads_y, spatial);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
-// LOCAL
-//__global__ void forward_avgpool_local_kernel(float* input) {
-//
-//}
-//
-//void launch_forward_avgpool_local_kernel(float* input) {
-//	for (size_t ch = 0; ch < inl_c; ch++) {
-//		float* input_ch = &inl_output[ch * wh];
-//		float* output_ch = &l_output[ch * out_wh];
-//		for (int krow = 0; krow < ksize; krow++) {
-//			for (int kcol = 0; kcol < ksize; kcol++) {
-//				float* output = output_ch;
-//				int in_row = krow;
-//				for (size_t out_rows = out_h; out_rows; out_rows--) {
-//					int in_col = kcol;
-//					int r = in_row * w;
-//					for (size_t out_cols = out_w; out_cols; out_cols--) {
-//						*output += input_ch[r + in_col];
-//						output++;
-//						in_col += stride;
-//					}
-//					in_row += stride;
-//				}
-//			}
-//		}
-//		for (size_t s = 0; s < out_wh; s++) {
-//			output_ch[s] /= divisor;
-//		}
-//	}
-//}
+
+
+// LOCAL FORWARD
+__global__ void forward_avgpool_local_general_kernel(float* src, float* dst, int src_w, int src_h, int dst_w, int dst_sp, int dst_n, int ksize, int stride) {
+	int gtid = threadIdx.x + blockIdx.x * blockDim.x;
+	if (gtid < dst_n) {
+		int ch = gtid / (dst_w * dst_sp);
+		int s = gtid % (dst_w * dst_sp);
+		int dst_row = s / dst_w;
+		int dst_col = s % dst_w;
+		int src_row = dst_row * stride;
+		int src_col = dst_col * stride;
+		int src_index = ch * (src_w * src_h) + src_w * src_row + src_col;
+
+		float sum = 0.0F;
+		for (int krow = 0; krow < ksize; krow++) {
+			int offset = src_index + krow * src_w;
+			for (int kcol = 0; kcol < ksize; kcol++) {
+				sum += src[offset + kcol];
+			}
+		}
+		dst[gtid] = sum / (ksize * ksize);
+	}
+}
+void launch_forward_avgpool_local_general_kernel(float* src, float* dst, int src_w, int src_h, int dst_w, int dst_h, int dst_n, int ksize, int stride) {
+	int grid_size = GET_GRIDSIZE(dst_n, BLOCKSIZE);
+	forward_avgpool_local_general_kernel KARGS(grid_size, BLOCKSIZE) (src, dst, src_w, src_h, dst_w, dst_w * dst_h, dst_n, ksize, stride);
+	CHECK_CUDA(cudaPeekAtLastError());
+}
+
+
+
+// ksize = 2, stride = 2
+__global__ void forward_avgpool_local_standard_kernel(float* src, float* dst, int src_w, int src_h, int dst_w, int dst_h, int dst_n) {
+	int gtid = threadIdx.x + blockIdx.x * blockDim.x;
+	if (gtid < dst_n) {
+		int ch = gtid / (dst_w * dst_h);
+		int s = gtid % (dst_w * dst_h);
+		int dst_row = s / dst_w;
+		int dst_col = s % dst_w;
+		int src_row = dst_row * 2;
+		int src_col = dst_col * 2;
+		int i = ch * (src_w * src_h) + src_w * src_row + src_col;
+
+		dst[gtid] = (src[i] + src[i + 1] + src[i + src_w] + src[i + src_w + 1]) / 4.0F;
+	}
+}
+void launch_forward_avgpool_local_standard_kernel(float* src, float* dst, int src_w, int src_h, int dst_w, int dst_h, int dst_n) {
+	int grid_size = GET_GRIDSIZE(dst_n, BLOCKSIZE);
+	forward_avgpool_local_standard_kernel KARGS(grid_size, BLOCKSIZE) (src, dst, src_w, src_h, dst_w, dst_h, dst_n);
+	CHECK_CUDA(cudaPeekAtLastError());
+}
+
+
+
+// LOCAL BACKWARD
+__global__ void backward_avgpool_local_general_kernel(float* grads_x, float* grads_y, int src_w, int src_h, int dst_w, int dst_sp, int dst_n, int ksize, int stride) {
+	int gtid = threadIdx.x + blockIdx.x * blockDim.x;
+	if (gtid < dst_n) {
+		int ch = gtid / dst_sp;
+		int s = gtid % dst_sp;
+		int dst_row = s / dst_w;
+		int dst_col = s % dst_w;
+		int src_row = dst_row * stride;
+		int src_col = dst_col * stride;
+		int src_index = ch * (src_w * src_h) + src_w * src_row + src_col;
+
+		float grad = grads_y[gtid] / (ksize * ksize);
+		for (int krow = 0; krow < ksize; krow++) {
+			int offset = src_index + krow * src_w;
+			for (int kcol = 0; kcol < ksize; kcol++) {
+				grads_x[offset + kcol] += grad;
+			}
+		}
+	}
+}
+void launch_backward_avgpool_local_general_kernel(float* grads_x, float* grads_y, int src_w, int src_h, int dst_w, int dst_h, int dst_n, int ksize, int stride) {
+	int grid_size = GET_GRIDSIZE(dst_n, BLOCKSIZE);
+	backward_avgpool_local_general_kernel KARGS(grid_size, BLOCKSIZE) (grads_x, grads_y, src_w, src_h, dst_w, dst_w * dst_h, dst_n, ksize, stride);
+	CHECK_CUDA(cudaPeekAtLastError());
+}
+
+
+
+// ksize = 2, stride = 2
+__global__ void backward_avgpool_local_standard_kernel(float* grads_x, float* grads_y, int src_w, int src_h, int dst_w, int dst_sp, int dst_n) {
+	int gtid = threadIdx.x + blockIdx.x * blockDim.x;
+	if (gtid < dst_n) {
+		int ch = gtid / dst_sp;
+		int s = gtid % dst_sp;
+		int dst_row = s / dst_w;
+		int dst_col = s % dst_w;
+		int src_row = dst_row * 2;
+		int src_col = dst_col * 2;
+		int src_index = ch * (src_w * src_h) + src_w * src_row + src_col;
+
+		float grad = grads_y[gtid] / 4.0F;
+		grads_x[src_index] += grad;
+		grads_x[src_index + 1] += grad;
+		grads_x[src_index + src_w] += grad;
+		grads_x[src_index + src_w + 1] += grad;
+	}
+}
+void launch_backward_avgpool_local_standard_kernel(float* grads_x, float* grads_y, int src_w, int src_h, int dst_w, int dst_h, int dst_n) {
+	int grid_size = GET_GRIDSIZE(dst_n, BLOCKSIZE);
+	backward_avgpool_local_standard_kernel KARGS(grid_size, BLOCKSIZE) (grads_x, grads_y, src_w, src_h, dst_w, dst_w * dst_h, dst_n);
+	CHECK_CUDA(cudaPeekAtLastError());
+}
 
 #endif

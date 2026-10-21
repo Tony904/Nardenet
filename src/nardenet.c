@@ -7,6 +7,7 @@
 #include "xallocs.h"
 #include "xcuda.h"
 #include "layer_testing.h"
+#include "time.h"
 
 
 
@@ -14,9 +15,9 @@ int main(void) {
 #ifdef _DEBUG
 	cudaSetDeviceFlags(cudaDeviceScheduleBlockingSync);
 #endif
-	test_launch_forward_maxpool_standard_even_spatial_kernel();
+	srand(time(NULL));
 
-	/*srand(time(NULL));
+	
 	srand(7777777);
 	activate_xalloc_tracking();
 	activate_cuda_alloc_tracking();
@@ -27,7 +28,7 @@ int main(void) {
 	free_network(net);
 
 	print_alloc_list();
-	print_cuda_alloc_list();*/
+	print_cuda_alloc_list();
 
 #ifndef _DEBUG
 	printf("\n\nPress ENTER to exit the program.");

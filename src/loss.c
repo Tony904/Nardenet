@@ -12,7 +12,7 @@ void loss_mae(layer* l, network* net) {
 	float* output = l->output;
 	float* grads = l->grads;
 	float* truth = l->truth;
-	size_t n = l->n_filters;
+	size_t n = l->k.n_filters;
 	float loss = 0.0F;
 	size_t b;
 #pragma omp parallel for reduction(+:loss)
@@ -31,7 +31,7 @@ void loss_mae(layer* l, network* net) {
 #pragma warning (suppress:4100)
 void loss_mae_gpu(layer* l, network* net) {
 #ifdef GPU
-	launch_loss_mae_kernel(l->gpu.grads, l->gpu.output, l->gpu.truth, l->gpu.errors, (int)l->n, (int)net->batch_size);
+	launch_loss_mae_kernel(l->gpu.grads, l->gpu.output, l->gpu.truth, l->gpu.errors, (int)l->in.n, (int)net->batch_size);
 #else
 	gpu_not_defined();
 #endif
@@ -44,7 +44,7 @@ void loss_mse(layer* l, network* net) {
 	float* output = l->output;
 	float* grads = l->grads;
 	float* truth = l->truth;
-	size_t n = l->n_filters;
+	size_t n = l->k.n_filters;
 	float loss = 0.0F;
 	size_t b;
 #pragma omp parallel for reduction(+:loss)
@@ -63,7 +63,7 @@ void loss_mse(layer* l, network* net) {
 #pragma warning (suppress:4100)
 void loss_mse_gpu(layer* l, network* net) {
 #ifdef GPU
-	launch_loss_mse_kernel(l->gpu.grads, l->gpu.output, l->gpu.truth, l->gpu.errors, (int)l->n, (int)net->batch_size);
+	launch_loss_mse_kernel(l->gpu.grads, l->gpu.output, l->gpu.truth, l->gpu.errors, (int)l->in.n, (int)net->batch_size);
 #else
 	gpu_not_defined();
 #endif
@@ -99,7 +99,7 @@ void loss_cce(layer* l, network* net) {
 #pragma warning (suppress:4100)
 void loss_cce_gpu(layer* l, network* net) {
 #ifdef GPU
-	launch_loss_cce_kernel(l->gpu.grads, l->gpu.output, l->gpu.truth, l->gpu.errors, (int)l->n, (int)net->batch_size);
+	launch_loss_cce_kernel(l->gpu.grads, l->gpu.output, l->gpu.truth, l->gpu.errors, (int)l->in.n, (int)net->batch_size);
 #else
 	gpu_not_defined();
 #endif
@@ -113,7 +113,7 @@ void loss_bce(layer* l, network* net) {
 	float* output = l->output;
 	float* grads = l->grads;
 	float* truth = l->truth;
-	size_t n = l->n_filters;
+	size_t n = l->k.n_filters;
 	float loss = 0.0F;
 	size_t b;
 #pragma omp parallel for reduction(+:loss)
@@ -134,7 +134,7 @@ void loss_bce(layer* l, network* net) {
 #pragma warning (suppress:4100)
 void loss_bce_gpu(layer* l, network* net) {
 #ifdef GPU
-	launch_loss_bce_kernel(l->gpu.grads, l->gpu.output, l->gpu.truth, l->gpu.errors, (int)l->n, (int)net->batch_size);
+	launch_loss_bce_kernel(l->gpu.grads, l->gpu.output, l->gpu.truth, l->gpu.errors, (int)l->in.n, (int)net->batch_size);
 #else
 	gpu_not_defined();
 #endif

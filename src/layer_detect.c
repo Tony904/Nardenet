@@ -213,15 +213,13 @@ void forward_detect(layer* l, network* net) {
 	const bbox* const all_anchors = net->anchors;
 	int l_id = l->id;
 	size_t n_all_anchors = net->n_anchors;
-	size_t l_w = l->w;
-	size_t l_h = l->h;
-	size_t l_n = l->n;
+	tensor_dims in = l->in;
 	size_t n_classes = l->n_classes;
 	size_t n_anchors = l->n_anchors;
 	float* errors = l->errors;
 	zero_array(errors, batch_size);  // holds iou loss for each batch
 	float* const grads = l->grads;
-	zero_array(grads, l_n * batch_size);
+	zero_array(grads, in.n * batch_size);
 	float ignore_thresh = l->ignore_thresh;
 	float iou_thresh = l->iou_thresh;
 	float obj_normalizer = l->obj_normalizer;
@@ -235,21 +233,20 @@ void forward_detect(layer* l, network* net) {
 			samples,
 			errors,
 			b, l_id,
-			l_w, l_h, l_n, scale_wh,
+			in.w, in.h, in.n, scale_wh,
 			n_anchors, n_all_anchors, n_classes,
 			obj_smooth, obj_normalizer, max_box_grad,
 			ignore_thresh, iou_thresh);
 	}
 
-	size_t l_wh = l_w * l_h;
-	size_t A = (NUM_ANCHOR_PARAMS + n_classes) * l_wh;
+	size_t A = (NUM_ANCHOR_PARAMS + n_classes) * in.sp;
 	// sum objectness loss
 	float obj_loss = 0.0F;
-	size_t obj_offset = l_wh * 4;
+	size_t obj_offset = in.sp * 4;
 #pragma omp parallel for reduction(+:obj_loss)
 	for (b = 0; b < batch_size; b++) {
-		size_t bn = b * l_n;
-		for (size_t s = 0; s < l_wh; s++) {
+		size_t bn = b * in.n;
+		for (size_t s = 0; s < in.sp; s++) {
 			size_t bns = bn + s;
 			for (size_t a = 0; a < n_anchors; a++) {
 				size_t obj_index = bns + a * A + obj_offset;
@@ -259,24 +256,24 @@ void forward_detect(layer* l, network* net) {
 	}
 	// sum class loss
 	float cls_loss = 0.0F;
-	size_t cls_offset = obj_offset + l_wh;
+	size_t cls_offset = obj_offset + in.sp;
 #pragma omp parallel for reduction(+:cls_loss)
 	for (b = 0; b < batch_size; b++) {
-		size_t bn = b * l_n;
+		size_t bn = b * in.n;
 		float n_tboxes = (float)samples[b]->n;
-		for (size_t s = 0; s < l_wh; s++) {
+		for (size_t s = 0; s < in.sp; s++) {
 			size_t bns = bn + s;
 			for (size_t a = 0; a < n_anchors; a++) {
 				size_t cls_index = bns + a * A + cls_offset;
 				for (size_t k = 0; k < n_classes; k++) {
-					cls_loss += (grads[cls_index + k * l_wh] * grads[cls_index + k * l_wh]) / n_tboxes;
+					cls_loss += (grads[cls_index + k * in.sp] * grads[cls_index + k * in.sp]) / n_tboxes;
 				}
 			}
 		}
 	}
 
-	l->obj_loss = obj_loss / (float)(batch_size * l_wh * n_anchors);
-	l->cls_loss = cls_loss / (float)(batch_size * l_wh * n_anchors * n_classes);
+	l->obj_loss = obj_loss / (float)(batch_size * in.sp * n_anchors);
+	l->cls_loss = cls_loss / (float)(batch_size * in.sp * n_anchors * n_classes);
 
 	float iou_loss = 0.0F;
 	int n_iou_loss = 0;
@@ -309,37 +306,35 @@ void get_detections(layer* l, network* net, size_t b) {
 	size_t net_w = net->w;
 	float cull_thresh = l->cull_thresh;
 	float scale = l->scale_grid * 2.0F;
-	size_t l_w = l->w;
-	size_t l_wh = l_w * l->h;
-	size_t l_n = l->n;
+	tensor_dims in = l->in;
 	size_t n_classes = l->n_classes;
 	bbox* anchors = l->anchors;
 	size_t n_anchors = l->n_anchors;
-	float cell_size = (float)l_w / (float)net_w;
-	size_t A = (NUM_ANCHOR_PARAMS + n_classes) * l_wh;
+	float cell_size = (float)in.w / (float)net_w;
+	size_t A = (NUM_ANCHOR_PARAMS + n_classes) * in.sp;
 	float* p = l->output;
 	bbox* dets = l->detections;  // note: l->detections size = l->w * l->h * l->n_anchors * sizeof(bbox)
 	// cull predictions below thresholds
 	size_t s;
 #pragma omp parallel for
-	for (s = 0; s < l_wh; s++) {
-		float row = (float)(s / l_w);
-		float col = (float)(s % l_w);
+	for (s = 0; s < in.sp; s++) {
+		float row = (float)(s / in.w);
+		float col = (float)(s % in.w);
 		float cell_left = col * cell_size;
 		float cell_top = row * cell_size;
 		for (size_t a = 0; a < n_anchors; a++) {
-			size_t d_index = l_wh * a + s;
-			size_t p_index = b * l_n + s + a * A;
-			size_t obj_index = p_index + l_wh * 4;
+			size_t d_index = in.sp * a + s;
+			size_t p_index = b * in.n + s + a * A;
+			size_t obj_index = p_index + in.sp * 4;
 			if (p[obj_index] < cull_thresh) {
 				dets[d_index].prob = 0.0F;
 				continue;
 			}
 			int best_cls = -1;
 			float best_cls_score = 0.0F;
-			size_t cls_index = obj_index + l_wh;
+			size_t cls_index = obj_index + in.sp;
 			for (size_t k = 0; k < n_classes; k++) {
-				float cls_score = p[cls_index + k * l_wh];
+				float cls_score = p[cls_index + k * in.sp];
 				if (cls_score > cull_thresh) {  // class confidence thresh
 					if (cls_score > best_cls_score) {
 						best_cls_score = cls_score;
@@ -352,7 +347,7 @@ void get_detections(layer* l, network* net, size_t b) {
 				continue;
 			}
 			bbox* anchor = &anchors[a];
-			bbox pbox = GET_PREDICTION_BOX(p, p_index, anchor, l_wh, scale, cell_left, cell_top);
+			bbox pbox = GET_PREDICTION_BOX(p, p_index, anchor, in.sp, scale, cell_left, cell_top);
 			SETUP_BBOX(pbox);
 			if (pbox.left >= 1.0F || pbox.right <= 0.0F || pbox.top >= 1.0F || pbox.bottom <= 0.0F) {
 				dets[d_index].prob = 0.0F;
@@ -375,7 +370,7 @@ void get_detections(layer* l, network* net, size_t b) {
 	}
 	bbox** sorted = l->sorted;
 	size_t n_dets = 0;
-	for (size_t i = 0; i < l_wh * n_anchors; i++) {
+	for (size_t i = 0; i < in.sp * n_anchors; i++) {
 		if (dets[i].prob) {
 			*sorted = &dets[i];
 			n_dets++;
@@ -490,29 +485,29 @@ void debug_detections(layer* l, network* net, int waitkey) {
 }
 
 void apply_grid_scaling(layer* l, network* net) {
-	float* p = l->in_layers[0]->output;
+	float* p = l->inputs[0].data;
 	float* q = l->output;
 	size_t batch_size = net->batch_size;
-	size_t l_n = l->n;
-	size_t l_wh = l->w * l->h;
-	size_t n_classes = l->n_classes;
+	tensor_dims in = l->in;
+	size_t n_classes = net->n_classes;
 	size_t n_anchors = l->n_anchors;
-	size_t A = (NUM_ANCHOR_PARAMS + n_classes) * l_wh;
+	size_t A = (NUM_ANCHOR_PARAMS + n_classes) * in.sp;
 	float alpha = l->scale_grid;
 	float beta = (alpha - 1.0F) * 0.5F;
 	size_t s;
 #pragma omp parallel for
-	for (s = 0; s < l_wh; s++) {
+	for (s = 0; s < in.sp; s++) {
 		for (size_t b = 0; b < batch_size; b++) {
 			for (size_t a = 0; a < n_anchors; a++) {
-				size_t p_index = b * l_n + s + a * A;
+				size_t p_index = b * in.n + a * A + s;
 				q[p_index] = p[p_index];  // w
-				q[p_index + l_wh] = p[p_index + l_wh];  // h
-				q[p_index + 2 * l_wh] = p[p_index + 2 * l_wh] * alpha - beta;  // cx
-				q[p_index + 3 * l_wh] = p[p_index + 3 * l_wh] * alpha - beta;  // cy
-				q[p_index + 4 * l_wh] = p[p_index + 4 * l_wh];  // objectness
+				q[p_index + in.sp] = p[p_index + in.sp];  // h
+				q[p_index + 2 * in.sp] = p[p_index + 2 * in.sp] * alpha - beta;  // cx
+				q[p_index + 3 * in.sp] = p[p_index + 3 * in.sp] * alpha - beta;  // cy
+				q[p_index + 4 * in.sp] = p[p_index + 4 * in.sp];  // objectness
 				for (size_t k = 0; k < n_classes; k++) {
-					q[p_index + NUM_ANCHOR_PARAMS * l_wh + k * l_wh] = p[p_index + NUM_ANCHOR_PARAMS * l_wh + k * l_wh];
+					size_t idx = p_index + (NUM_ANCHOR_PARAMS + k) * in.sp;
+					q[idx] = p[idx];
 				}
 			}
 		}
@@ -522,20 +517,18 @@ void apply_grid_scaling(layer* l, network* net) {
 void backward_detect(layer* l, network* net) {
 	size_t batch_size = net->batch_size;
 	float* l_grads = l->grads;
-	size_t l_n = l->n;
-	layer** inls = l->in_layers;
+	size_t l_n = l->in.n;
 	size_t b;
 #pragma omp parallel for
 	for (b = 0; b < batch_size; b++) {
 		float* b_grads = &l_grads[b * l_n];
-		for (size_t i = 0; i < l->in_ids.n; i++) {
-			layer* inl = inls[i];
-			size_t inl_out_n = inl->out_n;
-			float* inl_grads = &inl->grads[b * inl_out_n];
-			for (size_t g = 0; g < inl_out_n; g++) {
+		for (size_t i = 0; i < l->n_inputs; i++) {
+			layer_input input = l->inputs[i];
+			float* inl_grads = &input.grads[b * input.stride];
+			for (size_t g = 0; g < input.n; g++) {
 				inl_grads[g] = b_grads[g];
 			}
-			b_grads += inl_out_n;
+			b_grads += input.n;
 		}
 	}
 }

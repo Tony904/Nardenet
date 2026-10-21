@@ -8,7 +8,7 @@ extern "C" {
 #endif
 
 	void test_forward_avgpool_local(void);
-	void test_launch_forward_maxpool_standard_even_spatial_kernel(void);
+	void test_launch_forward_maxpool_kernel(void);
 	
 
 #ifdef __cplusplus

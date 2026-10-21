@@ -8,22 +8,22 @@
 
 
 void forward_residual(layer* l, network* net) {
-	size_t n = l->out_n * net->batch_size;
+	size_t n = l->out.n * net->batch_size;
 	float* Z = l->Z;
-	float* inl0_output = l->in_layers[0]->output;
+	float* inl0_output = l->inputs[0].data;
 	size_t i;
 #pragma omp parallel for
 	for (i = 0; i < n; i++) {
 		Z[i] = inl0_output[i];
 	}
-	for (size_t a = 1; a < l->in_ids.n; a++) {
-		float* inl_output = l->in_layers[a]->output;
+	for (size_t a = 1; a < l->n_inputs; a++) {
+		float* inl_output = l->inputs[a].data;
 #pragma omp parallel for
 		for (i = 0; i < n; i++) {
 			Z[i] += inl_output[i];
 		}
 	}
-	if (l->activation) l->activate(Z, l->output, l->out_n, net->batch_size);
+	if (l->activation) l->activate(Z, l->output, l->out.n, net->batch_size);
 	if (net->training) zero_array(l->grads, n);
 }
 
@@ -31,9 +31,9 @@ void backward_residual(layer* l, network* net) {
 	size_t batch_size = net->batch_size;
 	float* grads = l->grads;
 	if (l->activation) get_activation_grads(l, batch_size);
-	size_t n = batch_size * l->out_n;
-	for (size_t a = 0; a < l->in_ids.n; a++) {
-		float* inl_grads = l->in_layers[a]->grads;
+	size_t n = batch_size * l->out.n;
+	for (size_t a = 0; a < l->n_inputs; a++) {
+		float* inl_grads = l->inputs[a].grads;
 		size_t i;
 #pragma omp parallel for
 		for (i = 0; i < n; i++) {
@@ -44,15 +44,15 @@ void backward_residual(layer* l, network* net) {
 
 #ifdef GPU
 void forward_residual_gpu(layer* l, network* net) {
-	int n = (int)(l->out_n * net->batch_size);
+	int n = (int)(l->out.n * net->batch_size);
 	float* Z = l->gpu.Z;
-	float* inl0_output = l->in_layers[0]->gpu.output;
+	float* inl0_output = l->inputs[0].gpu.data;
 	copy_array_gpu(inl0_output, Z, n);
-	for (size_t a = 1; a < l->in_ids.n; a++) {
-		float* inl_output = l->in_layers[a]->gpu.output;
+	for (size_t a = 1; a < l->n_inputs; a++) {
+		float* inl_output = l->inputs[a].gpu.data;
 		add_arrays_gpu(inl_output, Z, n);
 	}
-	if (l->activation) l->activate(Z, l->gpu.output, l->out_n, net->batch_size);
+	if (l->activation) l->activate(Z, l->gpu.output, l->out.n, net->batch_size);
 	if (net->training) zero_array_gpu(l->gpu.grads, n);
 }
 
@@ -60,9 +60,9 @@ void backward_residual_gpu(layer* l, network* net) {
 	size_t batch_size = net->batch_size;
 	float* grads = l->gpu.grads;
 	if (l->activation) get_activation_grads(l, batch_size);
-	int n = (int)(batch_size * l->out_n);
-	for (size_t a = 0; a < l->in_ids.n; a++) {
-		float* inl_grads = l->in_layers[a]->gpu.grads;
+	int n = (int)(batch_size * l->out.n);
+	for (size_t a = 0; a < l->n_inputs; a++) {
+		float* inl_grads = l->inputs[a].gpu.grads;
 		add_arrays_gpu(grads, inl_grads, n);
 	}
 }
@@ -78,87 +78,87 @@ void backward_residual_gpu(layer* l, network* net) {
 #endif
 
 /*** TESTING ***/
-void test_forward_residual(void) {
-	layer l = { 0 };
-	network net = { 0 };
-	net.batch_size = 2;
-	l.w = 4;
-	l.h = 4;
-	l.c = 2;
-	l.n = l.w * l.h * l.c;
-	l.out_w = l.w;
-	l.out_h = l.h;
-	l.out_c = l.c;
-	l.out_n = l.out_w * l.out_h * l.out_c;
-	l.output = (float*)xcalloc(l.out_n * net.batch_size, sizeof(float));
-	l.Z = l.output;
-	layer inl1 = { 0 };
-	layer inl2 = { 0 };
-	inl1.out_w = l.w;
-	inl2.out_w = l.w;
-	inl1.out_h = l.h;
-	inl2.out_h = l.h;
-	inl1.out_c = l.c;
-	inl2.out_c = l.c;
-	inl1.out_n = inl1.out_w * inl1.out_h * inl1.out_c;
-	inl2.out_n = inl2.out_w * inl2.out_h * inl2.out_c;
-	inl1.output = (float*)xcalloc(inl1.out_n * net.batch_size, sizeof(float));
-	fill_array_rand_float(inl1.output, inl1.out_n * net.batch_size, 0.0, 1.0);
-	inl2.output = (float*)xcalloc(inl2.out_n * net.batch_size, sizeof(float));
-	fill_array_rand_float(inl2.output, inl2.out_n * net.batch_size, 0.0, 1.0);
-	inl1.grads = (float*)xcalloc(inl1.out_n * net.batch_size, sizeof(float));
-	inl2.grads = (float*)xcalloc(inl2.out_n * net.batch_size, sizeof(float));
-	l.in_layers = (layer**)xcalloc(2, sizeof(layer*));
-	l.in_layers[0] = &inl1;
-	l.in_layers[1] = &inl2;
-	l.in_ids.n = 2;
-	forward_residual(&l, &net);
-
-	pprint_mat(inl1.output, (int)inl1.out_w, (int)inl1.out_h, (int)inl1.out_c * (int)net.batch_size);
-	pprint_mat(inl2.output, (int)inl2.out_w, (int)inl2.out_h, (int)inl2.out_c * (int)net.batch_size);
-	pprint_mat(l.output, (int)l.out_w, (int)l.out_h, (int)l.out_c * (int)net.batch_size);
-}
-
-void test_backward_residual(void) {
-	layer l = { 0 };
-	network net = { 0 };
-	net.batch_size = 2;
-	l.w = 4;
-	l.h = 4;
-	l.c = 2;
-	l.n = l.w * l.h * l.c;
-	l.out_w = l.w;
-	l.out_h = l.h;
-	l.out_c = l.c;
-	l.out_n = l.out_w * l.out_h * l.out_c;
-	l.output = (float*)xcalloc(l.out_n * net.batch_size, sizeof(float));
-	l.grads = (float*)xcalloc(l.out_n * net.batch_size, sizeof(float));
-	l.Z = l.output;
-	layer inl1 = { 0 };
-	layer inl2 = { 0 };
-	inl1.out_w = l.w;
-	inl2.out_w = l.w;
-	inl1.out_h = l.h;
-	inl2.out_h = l.h;
-	inl1.out_c = l.c;
-	inl2.out_c = l.c;
-	inl1.out_n = inl1.out_w * inl1.out_h * inl1.out_c;
-	inl2.out_n = inl2.out_w * inl2.out_h * inl2.out_c;
-	inl1.output = (float*)xcalloc(inl1.out_n * net.batch_size, sizeof(float));
-	fill_array_rand_float(inl1.output, inl1.out_n * net.batch_size, 0.0, 1.0);
-	inl2.output = (float*)xcalloc(inl2.out_n * net.batch_size, sizeof(float));
-	fill_array_rand_float(inl2.output, inl2.out_n * net.batch_size, 0.0, 1.0);
-	inl1.grads = (float*)xcalloc(inl1.out_n * net.batch_size, sizeof(float));
-	inl2.grads = (float*)xcalloc(inl2.out_n * net.batch_size, sizeof(float));
-	l.in_layers = (layer**)xcalloc(2, sizeof(layer*));
-	l.in_layers[0] = &inl1;
-	l.in_layers[1] = &inl2;
-	l.in_ids.n = 2;
-	forward_residual(&l, &net);
-
-	// note: in_layers are not concatinated for residual layers, only added.
-	fill_array_rand_float(l.grads, l.out_n * net.batch_size, 5.0, 1.0);
-	backward_residual(&l, &net);
-	pprint_mat(inl1.grads, (int)inl1.out_w, (int)inl1.out_h, (int)(inl1.out_c * net.batch_size));
-	pprint_mat(inl2.grads, (int)inl2.out_w, (int)inl2.out_h, (int)(inl2.out_c * net.batch_size));
-}
+//void test_forward_residual(void) {
+//	layer l = { 0 };
+//	network net = { 0 };
+//	net.batch_size = 2;
+//	l.w = 4;
+//	l.h = 4;
+//	l.c = 2;
+//	l.n = l.w * l.h * l.c;
+//	l.out_w = l.w;
+//	l.out_h = l.h;
+//	l.out_c = l.c;
+//	l.out_n = l.out_w * l.out_h * l.out_c;
+//	l.output = (float*)xcalloc(l.out_n * net.batch_size, sizeof(float));
+//	l.Z = l.output;
+//	layer inl1 = { 0 };
+//	layer inl2 = { 0 };
+//	inl1.out_w = l.w;
+//	inl2.out_w = l.w;
+//	inl1.out_h = l.h;
+//	inl2.out_h = l.h;
+//	inl1.out_c = l.c;
+//	inl2.out_c = l.c;
+//	inl1.out_n = inl1.out_w * inl1.out_h * inl1.out_c;
+//	inl2.out_n = inl2.out_w * inl2.out_h * inl2.out_c;
+//	inl1.output = (float*)xcalloc(inl1.out_n * net.batch_size, sizeof(float));
+//	fill_array_rand_float(inl1.output, inl1.out_n * net.batch_size, 0.0, 1.0);
+//	inl2.output = (float*)xcalloc(inl2.out_n * net.batch_size, sizeof(float));
+//	fill_array_rand_float(inl2.output, inl2.out_n * net.batch_size, 0.0, 1.0);
+//	inl1.grads = (float*)xcalloc(inl1.out_n * net.batch_size, sizeof(float));
+//	inl2.grads = (float*)xcalloc(inl2.out_n * net.batch_size, sizeof(float));
+//	l.in_layers = (layer**)xcalloc(2, sizeof(layer*));
+//	l.in_layers[0] = &inl1;
+//	l.in_layers[1] = &inl2;
+//	l.in_ids.n = 2;
+//	forward_residual(&l, &net);
+//
+//	pprint_mat(inl1.output, (int)inl1.out_w, (int)inl1.out_h, (int)inl1.out_c * (int)net.batch_size);
+//	pprint_mat(inl2.output, (int)inl2.out_w, (int)inl2.out_h, (int)inl2.out_c * (int)net.batch_size);
+//	pprint_mat(l.output, (int)l.out_w, (int)l.out_h, (int)l.out_c * (int)net.batch_size);
+//}
+//
+//void test_backward_residual(void) {
+//	layer l = { 0 };
+//	network net = { 0 };
+//	net.batch_size = 2;
+//	l.w = 4;
+//	l.h = 4;
+//	l.c = 2;
+//	l.n = l.w * l.h * l.c;
+//	l.out_w = l.w;
+//	l.out_h = l.h;
+//	l.out_c = l.c;
+//	l.out_n = l.out_w * l.out_h * l.out_c;
+//	l.output = (float*)xcalloc(l.out_n * net.batch_size, sizeof(float));
+//	l.grads = (float*)xcalloc(l.out_n * net.batch_size, sizeof(float));
+//	l.Z = l.output;
+//	layer inl1 = { 0 };
+//	layer inl2 = { 0 };
+//	inl1.out_w = l.w;
+//	inl2.out_w = l.w;
+//	inl1.out_h = l.h;
+//	inl2.out_h = l.h;
+//	inl1.out_c = l.c;
+//	inl2.out_c = l.c;
+//	inl1.out_n = inl1.out_w * inl1.out_h * inl1.out_c;
+//	inl2.out_n = inl2.out_w * inl2.out_h * inl2.out_c;
+//	inl1.output = (float*)xcalloc(inl1.out_n * net.batch_size, sizeof(float));
+//	fill_array_rand_float(inl1.output, inl1.out_n * net.batch_size, 0.0, 1.0);
+//	inl2.output = (float*)xcalloc(inl2.out_n * net.batch_size, sizeof(float));
+//	fill_array_rand_float(inl2.output, inl2.out_n * net.batch_size, 0.0, 1.0);
+//	inl1.grads = (float*)xcalloc(inl1.out_n * net.batch_size, sizeof(float));
+//	inl2.grads = (float*)xcalloc(inl2.out_n * net.batch_size, sizeof(float));
+//	l.in_layers = (layer**)xcalloc(2, sizeof(layer*));
+//	l.in_layers[0] = &inl1;
+//	l.in_layers[1] = &inl2;
+//	l.in_ids.n = 2;
+//	forward_residual(&l, &net);
+//
+//	// note: in_layers are not concatinated for residual layers, only added.
+//	fill_array_rand_float(l.grads, l.out_n * net.batch_size, 5.0, 1.0);
+//	backward_residual(&l, &net);
+//	pprint_mat(inl1.grads, (int)inl1.out_w, (int)inl1.out_h, (int)(inl1.out_c * net.batch_size));
+//	pprint_mat(inl2.grads, (int)inl2.out_w, (int)inl2.out_h, (int)(inl2.out_c * net.batch_size));
+//}

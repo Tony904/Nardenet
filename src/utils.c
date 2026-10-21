@@ -131,10 +131,9 @@ void clean_string(char* str) {
 	str[i - offset] = '\0';
 }
 
-/*
-Splits string by delimiter and returns a null-terminated char* array with pointers to str.
-Modifies str.
-*/
+
+// Splits string by delimiter and returns a null-terminated char* array with pointers to str.
+// Modifies str.
 char** split_string(char* str, char* delimiters) {
 	size_t length = strlen(str);
 	if (!length) return NULL;
@@ -169,10 +168,10 @@ char** split_string(char* str, char* delimiters) {
 	return strings;
 }
 
-void split_string_to_buff(char* str, char* delimiters, char** tokens) {
+void split_string_to_buff(char* str, char* delimiters, char** tokens_buff, size_t buffsize) {
 	size_t length = strlen(str);
 	if (!length) {
-		tokens[0] = NULL;
+		tokens_buff[0] = NULL;
 		return;
 	}
 	if (char_in_string(str[0], delimiters) || char_in_string(str[length - 1], delimiters)) {
@@ -190,18 +189,22 @@ void split_string_to_buff(char* str, char* delimiters, char** tokens) {
 			count++;
 		}
 	}
-	tokens[0] = str;
+	if (count > buffsize) {
+		fprintf(stderr, "buffsize too small.\n");
+		print_location_and_exit(NARDENET_LOCATION);
+	}
+	tokens_buff[0] = str;
 	size_t j = 1;
 	if (count > 1)
 		for (i = 1; i < length; i++) {
 			if (char_in_string(str[i], delimiters)) {
 				str[i] = '\0';
-				tokens[j] = &str[i + 1];
+				tokens_buff[j] = &str[i + 1];
 				j++;
 				i++;
 			}
 		}
-	tokens[count] = NULL;
+	tokens_buff[count] = NULL;
 }
 
 int file_exists(char* filename) {
@@ -298,7 +301,7 @@ list* get_files_list(char* dir, char* extensions) {
 	char buff[100];
 	strcpy(buff, extensions);
 	char* exts[100];
-	split_string_to_buff(buff, ",", exts);
+	split_string_to_buff(buff, ",", exts, 100);
 #ifdef IS_WIN
 	WIN32_FIND_DATA filedata;
 	HANDLE handle;
@@ -527,6 +530,7 @@ int insert_chars(char* arr, size_t arr_size, int index, char* chars) {
 }
 
 size_t tokens_length(char** tokens) {
+	if (!tokens) return 0;
 	size_t i = 0;
 	while (tokens[i] != NULL) {
 		i++;
@@ -554,9 +558,11 @@ void pprint_mat(float* data, int width, int height, int channels) {
 			printf("\n");
 			for (int col = 0; col < width; col++) {
 				float val = data[channel * width * height + row * width + col];
-				if (val < 10 && val >= 0) printf("%0.1f   ", val);
-				else if (val >= 10 && val < 100) printf("%0.1f  ", val);
-				else printf("%0.1f ", val);
+				char sign = (val < 0) ? '-' : ' ';
+				val = (float)fabs(((int)(val * 100.0F))/100.0F);
+				if (val < 10 && val >= 0) printf("%c%0.2f   ", sign, val);
+				else if (val >= 10 && val < 100) printf("%c%0.2f  ", sign, val);
+				else printf("%c%0.2f ", sign, val);
 			}
 		}
 		printf("(ch%d)", channel);

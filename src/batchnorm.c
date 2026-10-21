@@ -16,10 +16,10 @@ void forward_batchnorm(layer* l, size_t batch_size) {
 	float* betas = l->biases;
 	float* rolling_means = l->rolling_means;
 	float* rolling_variances = l->rolling_variances;
-	size_t F = l->n_filters;
-	size_t S = l->out_w * l->out_h;
+	size_t F = l->k.n_filters;
+	size_t S = l->out.w * l->out.h;
 	size_t B = batch_size;
-	size_t out_n = l->out_n;
+	size_t out_n = l->out.n;
 	float SB = (float)(S * B);
 	// calculate means
 	size_t f;
@@ -78,10 +78,10 @@ void backward_batchnorm(layer* l, size_t batch_size) {
 	float* variances = l->variances;
 	float* gammas = l->gammas;
 	float* gamma_grads = l->gamma_grads;
-	size_t out_n = l->out_n;
+	size_t out_n = l->out.n;
 
-	size_t F = l->n_filters;
-	size_t S = l->out_w * l->out_h;
+	size_t F = l->k.n_filters;
+	size_t S = l->out.w * l->out.h;
 	size_t B = batch_size;
 
 	// Calculate gradients wrt gamma, which is dL/da * dznorm/dgamma (dznorm/dgamma is local grad of gamma which is just Z_norm)

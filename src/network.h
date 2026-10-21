@@ -18,6 +18,7 @@ extern "C" {
     typedef struct det_cell det_cell;
     typedef struct det_sample det_sample;
     typedef struct detector_dataset detector_dataset;
+    typedef struct layer_input layer_input;
     typedef struct layer layer;
     typedef struct network network;
     
@@ -104,7 +105,6 @@ extern "C" {
         void(*get_reg_loss)         (network*);
         void(*regularize_weights)   (float*, float*, size_t, float);
         float reg_loss;
-        int batchnorm;  // 1 if any layer has batch norm enabled
         float loss;
         float decay;
         size_t iteration;  // current iteration, one iteration = one batch processed
@@ -136,6 +136,24 @@ extern "C" {
         int abort;
         gpu_network_vars gpu;
     } network;
+
+    typedef struct layer_input_gpu_vars {
+        float* data;
+        float* grads;
+    } layer_input_gpu_vars;
+
+    typedef struct layer_input {
+        float* data;
+        float* grads;
+        size_t n_chunks;
+        size_t chunk_idx;
+        size_t c;
+        size_t n;
+        size_t stride;  // source->out_n
+        int source_id;  // source->id
+        layer* source;
+        layer_input_gpu_vars gpu;
+    } layer_input;
 
     typedef struct gpu_layer_vars {
         float* output;
@@ -170,6 +188,22 @@ extern "C" {
         float** maxpool_addresses;  // addresses of input layer outputs that were max values (for backprop)
     } gpu_layer_vars;
 
+    typedef struct tensor_dims {
+        size_t w;
+        size_t h;
+        size_t c;
+        size_t n;   // w * h * c
+        size_t sp;  // spatial, w * h
+    } tensor_dims;
+
+    typedef struct kernel_params {
+        size_t n_groups;
+        size_t n_filters;
+        size_t ksize;
+        size_t stride;
+        size_t pad;
+    } kernel_params;
+
     typedef struct layer {
         int id;
         LAYER_TYPE type;
@@ -179,19 +213,10 @@ extern "C" {
         void(*backward)  (layer*, network*);
         void(*update)    (layer*, network*);
         void(*get_loss)  (layer*, network*);
-        size_t n_groups;
-        size_t n_filters;
-        size_t ksize;
-        size_t stride;
-        size_t pad;
-        size_t w;
-        size_t h;
-        size_t c;
-        size_t n; // n_inputs = w * h * c
-        size_t out_w; // out_w = ((w + (pad * 2) - ksize) / stride) + 1
-        size_t out_h; // out_h = ((h + (pad * 2) - ksize) / stride) + 1
-        size_t out_c; // out_c = n_filters
-        size_t out_n; // out_n = out_w * out_h * out_c
+        
+        tensor_dims in;
+        tensor_dims out;
+        kernel_params k;
         float* output;
 
         float* weights;
@@ -219,8 +244,8 @@ extern "C" {
         float* weight_velocities;  // momentum adjustment for weights
         float* bias_velocities;  // momentum adjustment for biases
 
-        intarr in_ids;
-        layer** in_layers;
+        size_t n_inputs;  // number of input tensors
+        layer_input* inputs;
 
         LOSS_TYPE loss_type;
         float loss;
@@ -258,7 +283,7 @@ extern "C" {
     } NET_TYPE;
 
     typedef enum LAYER_TYPE {
-        LAYER_INPUT = -1,
+        LAYER_NETWORK_INPUT = -1,
         LAYER_NONE,
         LAYER_CONV,
         LAYER_MAXPOOL,

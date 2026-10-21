@@ -69,11 +69,14 @@ extern "C" {
 	// avgpool.cu
 	void launch_forward_avgpool_global_kernel(float* input, float* output, int spatial, int c, int batch_size);
 	void launch_backward_avgpool_global_kernel(float* grads_x, float* grads_y, int spatial, int c, int batch_size);
+	void launch_forward_avgpool_local_general_kernel(float* src, float* dst, int src_w, int src_h, int dst_w, int dst_h, int dst_n, int ksize, int stride);
+	void launch_forward_avgpool_local_standard_kernel(float* src, float* dst, int src_w, int src_h, int dst_w, int dst_h, int dst_n);
+	void launch_backward_avgpool_local_general_kernel(float* grads_x, float* grads_y, int src_w, int src_h, int dst_w, int dst_h, int dst_n, int ksize, int stride);
+	void launch_backward_avgpool_local_standard_kernel(float* grads_x, float* grads_y, int src_w, int src_h, int dst_w, int dst_h, int dst_n);
 
 	// maxpool.cu
 	void launch_forward_maxpool_general_kernel(float* input, float* output, float* grads, float** max_ptrs, int src_w, int src_h, int dst_w, int dst_h, int dst_n, int ksize, int stride);
 	void launch_forward_maxpool_standard_kernel(float* input, float* output, float* grads, float** max_ptrs, int src_w, int src_h, int dst_w, int dst_h, int dst_n);
-	void launch_forward_maxpool_standard_even_spatial_kernel(float* input, float* output, float* grads, float** max_ptrs, int src_w, int src_h, int dst_w, int dst_h, int dst_n);
 	void launch_backward_maxpool_kernel(float* grads, float** max_ptrs, int n);
 
 	// upsample.cu

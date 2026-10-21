@@ -15,103 +15,48 @@
 #endif
 
 
-// ksize = 2, stride = 2, even width, even height
-__global__ void forward_maxpool_standard_even_spatial_kernel(float* src, float* dst, float* grads, float** max_ptrs, int src_w, int src_h, int dst_w, int dst_h, int dst_n) {
-	int gtid = threadIdx.x + blockIdx.x * blockDim.x;
-	if (gtid < dst_n) {
-		const int ksize = 2;
-
-		int ch = gtid / (dst_w * dst_h);
-		int s = gtid % (dst_w * dst_h);
-		int dst_row = s / dst_w;
-		int dst_col = s % dst_w;
-		int src_row = dst_row * ksize;
-		int src_col = dst_col * ksize;
-		int src_index = ch * (src_w * src_h) + src_w * src_row + src_col;
-
-		float max_val = src[src_index];
-		int max_index = src_index;
-
-		src_index++;
-		float tmp = src[src_index];
-		if (tmp > max_val) {
-			max_val = tmp;
-			max_index = src_index;
-		}
-
-		src_index += src_w;
-		tmp = src[src_index];
-		if (tmp > max_val) {
-			max_val = tmp;
-			max_index = src_index;
-		}
-
-		src_index--;
-		tmp = src[src_index];
-		if (tmp > max_val) {
-			max_val = tmp;
-			max_index = src_index;
-		}
-		dst[gtid] = max_val;
-		max_ptrs[gtid] = &grads[max_index];
-	}
-}
-void launch_forward_maxpool_standard_even_spatial_kernel(float* src, float* dst, float* grads, float** max_ptrs, int src_w, int src_h, int dst_w, int dst_h, int dst_n) {
-	int grid_size = GET_GRIDSIZE(dst_n, BLOCKSIZE);
-	forward_maxpool_standard_even_spatial_kernel KARGS(grid_size, BLOCKSIZE) (src, dst, grads, max_ptrs, src_w, src_h, dst_w, dst_h, dst_n);
-	CHECK_CUDA(cudaPeekAtLastError());
-}
-
-
 // ksize = 2, stride = 2
 __global__ void forward_maxpool_standard_kernel(float* src, float* dst, float* grads, float** max_ptrs, int src_w, int src_h, int dst_w, int dst_h, int dst_n) {
 	int gtid = threadIdx.x + blockIdx.x * blockDim.x;
-
 	if (gtid < dst_n) {
-		const int ksize = 2;
-
 		int ch = gtid / (dst_w * dst_h);
 		int s = gtid % (dst_w * dst_h);
 		int dst_row = s / dst_w;
 		int dst_col = s % dst_w;
-		int src_row = dst_row * ksize;
-		int src_col = dst_col * ksize;
+		int src_row = dst_row * 2;
+		int src_col = dst_col * 2;
 		int src_index = ch * (src_w * src_h) + src_w * src_row + src_col;
 
 		float max_val = src[src_index];
 		int max_index = src_index;
 
-		int col_test = ((src_col + 1) < src_w) ? 1 : 0;
-		int row_test = ((src_row + 1) < src_h) ? 1 : 0;
-
 		src_index++;
 		float tmp = src[src_index];
-		if (col_test && tmp > max_val) {
+		if (tmp > max_val) {
 			max_val = tmp;
 			max_index = src_index;
 		}
 
 		src_index += src_w;
 		tmp = src[src_index];
-		if (row_test && col_test && tmp > max_val) {
+		if (tmp > max_val) {
 			max_val = tmp;
 			max_index = src_index;
 		}
 
 		src_index--;
 		tmp = src[src_index];
-		if (row_test && tmp > max_val) {
+		if (tmp > max_val) {
 			max_val = tmp;
 			max_index = src_index;
 		}
-
 		dst[gtid] = max_val;
 		max_ptrs[gtid] = &grads[max_index];
 	}
 }
 void launch_forward_maxpool_standard_kernel(float* src, float* dst, float* grads, float** max_ptrs, int src_w, int src_h, int dst_w, int dst_h, int dst_n) {
 	int grid_size = GET_GRIDSIZE(dst_n, BLOCKSIZE);
-	forward_maxpool_standard_even_spatial_kernel KARGS(grid_size, BLOCKSIZE) (src, dst, grads, max_ptrs, src_w, src_h, dst_w, dst_h, dst_n);
+	forward_maxpool_standard_kernel KARGS(grid_size, BLOCKSIZE) (src, dst, grads, max_ptrs, src_w, src_h, dst_w, dst_h, dst_n);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
@@ -120,7 +65,6 @@ __global__ void forward_maxpool_general_kernel(float* src, float* dst, float* gr
 	int gtid = threadIdx.x + blockIdx.x * blockDim.x;
 
 	if (gtid < dst_n) {
-
 		int ch = gtid / (dst_w * dst_h);
 		int s = gtid % (dst_w * dst_h);
 		int dst_row = s / dst_w;
@@ -136,12 +80,10 @@ __global__ void forward_maxpool_general_kernel(float* src, float* dst, float* gr
 		for (int krow = 0; krow < ksize; krow++) {
 			int offset = src_index + krow * src_w;
 			for (int kcol = 0; kcol < ksize; kcol++) {
-				if (src_row + krow < src_h && src_col + kcol < src_w) {
-					val = src[offset + kcol];
-					if (val > max_val) {
-						max_val = val;
-						max_index = offset + kcol;
-					}
+				val = src[offset + kcol];
+				if (val > max_val) {
+					max_val = val;
+					max_index = offset + kcol;
 				}
 			}
 		}

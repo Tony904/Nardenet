@@ -7,16 +7,16 @@
 
 
 void forward_classify(layer* l, network* net) {
+	tensor_dims in = l->in;
 	if (net->training) {
 		size_t batch_size = net->batch_size;
-		size_t n = l->n;
 		l->get_loss(l, net);
 		printf("Avg class loss: %f\n", l->loss);
 		for (size_t b = 0; b < batch_size; b++) {
-			size_t offset = b * n;
-			print_top_class_name(&l->truth[offset], n, net->class_names, 0, 0);
+			size_t offset = b * in.n;
+			print_top_class_name(&l->truth[offset], in.n, net->class_names, 0, 0);
 			printf(" : ");
-			print_top_class_name(&l->output[offset], n, net->class_names, 1, 1);
+			print_top_class_name(&l->output[offset], in.n, net->class_names, 1, 1);
 		}
 		if (l->loss < 0.1F || isnan(l->loss)) {
 			printf("\n[DONE]\n");
@@ -24,15 +24,15 @@ void forward_classify(layer* l, network* net) {
 		}
 	}
 	else {
-		print_top_class_name(l->output, l->n, net->class_names, 1, 1);
+		print_top_class_name(l->output, in.n, net->class_names, 1, 1);
 	}
 }
 
 #ifdef GPU
 void forward_classify_gpu(layer* l, network* net) {
+	size_t n = l->in.n;
 	if (net->training) {
 		size_t batch_size = net->batch_size;
-		size_t n = l->n;
 		l->get_loss(l, net);
 		sum_array_gpu(l->gpu.errors, (int)(n * batch_size), l->gpu.loss);
 		CUDA_MEMCPY_D2H(&l->loss, l->gpu.loss, sizeof(float));
@@ -53,7 +53,7 @@ void forward_classify_gpu(layer* l, network* net) {
 		}
 	}
 	else {
-		print_top_class_name(l->output, l->n, net->class_names, 1, 1);
+		print_top_class_name(l->output, n, net->class_names, 1, 1);
 	}
 }
 #else
@@ -76,7 +76,7 @@ void forward_classify_cpu_gpu_compare(layer* l, network* net) {
 	float* grads_gpu = l->gpu.grads;
 	float* truth_gpu = l->gpu.truth;
 
-	size_t size = l->n * batch_size;
+	size_t size = l->in.n * batch_size;
 	compare_cpu_gpu_arrays(errors_cpu, errors_gpu, size, l->id, "forward classify, errors, pre-loss");
 	compare_cpu_gpu_arrays(output_cpu, output_gpu, size, l->id, "forward classify, output, pre-loss");
 	compare_cpu_gpu_arrays(grads_cpu, grads_gpu, size, l->id, "forward clsasify, grads, pre-loss");
@@ -86,7 +86,7 @@ void forward_classify_cpu_gpu_compare(layer* l, network* net) {
 	printf("AVG CLASS LOSS CPU: %f\n", l->loss);
 
 	loss_cce_gpu(l, net);
-	sum_array_gpu(l->gpu.errors, (int)(l->n * batch_size), l->gpu.loss);
+	sum_array_gpu(l->gpu.errors, (int)(l->in.n * batch_size), l->gpu.loss);
 	CUDA_MEMCPY_D2H(&l->loss, l->gpu.loss, sizeof(float));
 	float avg_loss_gpu = l->loss / (float)batch_size;
 	printf("AVG CLASS LOSS GPU: %f\n", avg_loss_gpu);
