@@ -1,8 +1,8 @@
 #ifdef GPU
 
 #include <stdio.h>
-#include "xcuda.h"
 #include <math.h>
+#include "xcuda.h"
 #include "utils.h"
 
 
@@ -91,6 +91,38 @@ __global__ void get_bias_grads_kernel(float* bias_grads, float* grads, int spati
 }
 void get_bias_grads_gpu(float* bias_grads, float* grads, int n_filters, int spatial, int batch_size) {
 	get_bias_grads_kernel2 KARGS(n_filters, BLOCKSIZE) (bias_grads, grads, spatial, batch_size);
+	CHECK_CUDA(cudaPeekAtLastError());
+}
+
+
+__global__ void grid_scaling_kernel(float* src, float* dst,
+	float alpha, float beta,
+	int n_classes, int n_anchors, int n_anchor_params,
+	int spatial, int n, int anchor_stride) {
+
+	int gtid = threadIdx.x + blockIdx.x * blockDim.x;  // gtid = global anchor id
+	int b = gtid / (spatial * n_anchors);
+	int anchor_id = gtid % (spatial * n_anchors);
+	int a = anchor_id / spatial;
+	int s = anchor_id % spatial;
+	int i = b * n + a * anchor_stride + s;
+	src[i] = dst[i];  // w
+	src[i + spatial] = dst[i + spatial];  // h
+	src[i + 2 * spatial] = dst[i + 2 * spatial] * alpha - beta;  // cx
+	src[i + 3 * spatial] = dst[i + 3 * spatial] * alpha - beta;  // cy
+	src[i + 4 * spatial] = dst[i + 4 * spatial];  // objectness
+	for (int k = 0; k < n_classes; k++) {
+		src[i + (n_anchor_params + k) * spatial] = dst[i + (n_anchor_params + k) * spatial];
+	}
+}
+void launch_grid_scaling_kernel(float* src, float* dst,
+	float alpha, float beta,
+	int n_classes, int n_anchors, int n_anchor_params,
+	int spatial, int n, int batch_size, int anchor_stride) {
+
+	n *= batch_size;
+	int grid_size = GET_GRIDSIZE(n, BLOCKSIZE);
+	grid_scaling_kernel KARGS(grid_size, BLOCKSIZE) (src, dst, alpha, beta, n_classes, n_anchors, n_anchor_params, spatial, n, anchor_stride);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 

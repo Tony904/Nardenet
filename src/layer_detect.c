@@ -6,6 +6,7 @@
 #include "image.h"
 #include "activations.h"
 #include "blas.h"
+#include "xcuda.h"
 
 
 #define COORD_MULTI 5.0F
@@ -96,10 +97,10 @@ void forward_detect_batch(const float* const p, float* const grads,
 		// check which anchor has best "possible" overlap with truthbox (the overlap if anchor and tbox centers were equal)
 		for (size_t a = 0; a < n_all_anchors; a++) {
 			bbox anchor = all_anchors[a];
-			float ciou = get_iou(anchor, tbox_shifted);
+			float iou = get_iou(anchor, tbox_shifted);
 			if (anchor.lbl == l_id) l_a++;
-			if (ciou > best_iou) {
-				best_iou = ciou;
+			if (iou > best_iou) {
+				best_iou = iou;
 				if (anchor.lbl != l_id) l_a = 0;
 			}
 		}
@@ -205,17 +206,20 @@ void forward_detect_batch(const float* const p, float* const grads,
 
 void forward_detect(layer* l, network* net) {
 	apply_grid_scaling(l, net);
-	float scale_wh = l->scale_grid * 2.0F;
+	tensor_dims in = l->in;
 	size_t batch_size = net->batch_size;
 	const float* const output = l->output;  // predictions
+	if (net->use_gpu) {
+		CUDA_MEMCPY_D2H(output, l->gpu.output, in.n * batch_size);
+	}
+	float scale_wh = l->scale_grid * 2.0F;
 	const det_sample** const samples = net->data.detector.current_batch;
 	const bbox* const anchors = l->anchors;
 	const bbox* const all_anchors = net->anchors;
 	int l_id = l->id;
-	size_t n_all_anchors = net->n_anchors;
-	tensor_dims in = l->in;
 	size_t n_classes = l->n_classes;
 	size_t n_anchors = l->n_anchors;
+	size_t n_all_anchors = net->n_anchors;
 	float* errors = l->errors;
 	zero_array(errors, batch_size);  // holds iou loss for each batch
 	float* const grads = l->grads;
@@ -286,6 +290,10 @@ void forward_detect(layer* l, network* net) {
 	l->loss = l->obj_loss + l->cls_loss + l->iou_loss;
 	printf("total detect loss: %f\navg obj loss: %f\navg class loss: %f\navg iou loss: %f\n", l->loss, l->obj_loss, l->cls_loss, l->iou_loss);
 	
+	if (net->use_gpu && net->training) {
+		CUDA_MEMCPY_H2D(l->gpu.grads, l->grads, in.n * batch_size);
+	}
+
 	debug_detections(l, net, 1);
 }
 
@@ -485,15 +493,24 @@ void debug_detections(layer* l, network* net, int waitkey) {
 }
 
 void apply_grid_scaling(layer* l, network* net) {
-	float* p = l->inputs[0].data;
-	float* q = l->output;
-	size_t batch_size = net->batch_size;
 	tensor_dims in = l->in;
+	size_t batch_size = net->batch_size;
 	size_t n_classes = net->n_classes;
 	size_t n_anchors = l->n_anchors;
 	size_t A = (NUM_ANCHOR_PARAMS + n_classes) * in.sp;
 	float alpha = l->scale_grid;
 	float beta = (alpha - 1.0F) * 0.5F;
+#ifdef GPU
+	if (net->use_gpu) {
+		launch_grid_scaling_kernel(l->inputs->gpu.data, l->gpu.output,
+			alpha, beta,
+			n_classes, n_anchors, NUM_ANCHOR_PARAMS,
+			in.sp, in.n, batch_size, A);
+		return;
+	}
+#endif
+	float* p = l->inputs->data;
+	float* q = l->output;
 	size_t s;
 #pragma omp parallel for
 	for (s = 0; s < in.sp; s++) {
@@ -506,8 +523,7 @@ void apply_grid_scaling(layer* l, network* net) {
 				q[p_index + 3 * in.sp] = p[p_index + 3 * in.sp] * alpha - beta;  // cy
 				q[p_index + 4 * in.sp] = p[p_index + 4 * in.sp];  // objectness
 				for (size_t k = 0; k < n_classes; k++) {
-					size_t idx = p_index + (NUM_ANCHOR_PARAMS + k) * in.sp;
-					q[idx] = p[idx];
+					q[p_index + (NUM_ANCHOR_PARAMS + k) * in.sp] = p[p_index + (NUM_ANCHOR_PARAMS + k) * in.sp];
 				}
 			}
 		}

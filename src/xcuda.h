@@ -55,6 +55,7 @@ extern "C" {
 	// blas.cu
 	void add_biases_gpu(float* output, float* biases, int n_filters, int spatial, int batch_size);
 	void get_bias_grads_gpu(float* bias_grads, float* grads, int n_filters, int spatial, int batch_size);
+	void launch_grid_scaling_kernel(float* src, float* dst, float alpha, float beta, int n_classes, int n_anchors, int n_anchor_params, int spatial, int n, int batch_size, int anchor_stride);
 	void dot_product_gpu(float* A, float* B, int n, float* result);
 	void sum_array_gpu(float* A, int n, float* sum);
 	void add_arrays_gpu(float* X, float* Y, int n);
