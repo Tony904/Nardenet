@@ -48,7 +48,7 @@ extern "C" {
 
 	cublasHandle_t get_cublas_handle(void);
 	void print_gpu_props(void);
-	void print_gpu_float_array(float* gpu_array, size_t size, char* text);
+	void print_gpu_float_array(float* gpu_array, size_t size, const char* text);
 	void compare_cpu_gpu_arrays(float* cpu_array, float* gpu_array, size_t size, int layer_id, char* text);
 	void print_cpu_gpu_arrays(float* cpu_array, float* gpu_array, size_t size, char* text);
 

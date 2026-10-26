@@ -97,22 +97,22 @@ void get_bias_grads_gpu(float* bias_grads, float* grads, int n_filters, int spat
 
 __global__ void grid_scaling_kernel(float* src, float* dst,
 	float alpha, float beta,
-	int n_classes, int n_anchors, int n_anchor_params,
-	int spatial, int n, int anchor_stride) {
+	int n_classes, int n_anchor_params,
+	int spatial, int anchor_stride, int total_anchors) {
 
 	int gtid = threadIdx.x + blockIdx.x * blockDim.x;  // gtid = global anchor id
-	int b = gtid / (spatial * n_anchors);
-	int anchor_id = gtid % (spatial * n_anchors);
-	int a = anchor_id / spatial;
-	int s = anchor_id % spatial;
-	int i = b * n + a * anchor_stride + s;
-	src[i] = dst[i];  // w
-	src[i + spatial] = dst[i + spatial];  // h
-	src[i + 2 * spatial] = dst[i + 2 * spatial] * alpha - beta;  // cx
-	src[i + 3 * spatial] = dst[i + 3 * spatial] * alpha - beta;  // cy
-	src[i + 4 * spatial] = dst[i + 4 * spatial];  // objectness
-	for (int k = 0; k < n_classes; k++) {
-		src[i + (n_anchor_params + k) * spatial] = dst[i + (n_anchor_params + k) * spatial];
+	if (gtid < total_anchors) {
+		int a = gtid / spatial;
+		int s = gtid % spatial;
+		int i = a * anchor_stride + s;
+		dst[i] = src[i];  // w
+		dst[i + spatial] = src[i + spatial];  // h
+		dst[i + 2 * spatial] = src[i + 2 * spatial] * alpha - beta;  // cx
+		dst[i + 3 * spatial] = src[i + 3 * spatial] * alpha - beta;  // cy
+		dst[i + 4 * spatial] = src[i + 4 * spatial];  // objectness
+		for (int k = 0; k < n_classes; k++) {
+			dst[i + (n_anchor_params + k) * spatial] = src[i + (n_anchor_params + k) * spatial];
+		}
 	}
 }
 void launch_grid_scaling_kernel(float* src, float* dst,
@@ -120,9 +120,9 @@ void launch_grid_scaling_kernel(float* src, float* dst,
 	int n_classes, int n_anchors, int n_anchor_params,
 	int spatial, int n, int batch_size, int anchor_stride) {
 
-	n *= batch_size;
-	int grid_size = GET_GRIDSIZE(n, BLOCKSIZE);
-	grid_scaling_kernel KARGS(grid_size, BLOCKSIZE) (src, dst, alpha, beta, n_classes, n_anchors, n_anchor_params, spatial, n, anchor_stride);
+	int total_anchors = spatial * n_anchors * batch_size;
+	int grid_size = GET_GRIDSIZE(n * batch_size, BLOCKSIZE);
+	grid_scaling_kernel KARGS(grid_size, BLOCKSIZE) (src, dst, alpha, beta, n_classes, n_anchor_params, spatial, anchor_stride, total_anchors);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 

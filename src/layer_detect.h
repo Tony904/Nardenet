@@ -9,6 +9,7 @@ extern "C" {
 
 	void forward_detect(layer* l, network* net);
 	void backward_detect(layer* l, network* net);
+	void backward_detect_gpu(layer* l, network* net);
 
 #ifdef __cplusplus
 }

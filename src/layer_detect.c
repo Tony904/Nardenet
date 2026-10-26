@@ -206,12 +206,11 @@ void forward_detect_batch(const float* const p, float* const grads,
 
 void forward_detect(layer* l, network* net) {
 	apply_grid_scaling(l, net);
+	printf("n = %zu, batchsize = %zu\n", l->in.n, net->batch_size);
+	print_cpu_gpu_arrays(l->output, l->gpu.output, l->in.n * net->batch_size, "after apply grid scaling");
 	tensor_dims in = l->in;
 	size_t batch_size = net->batch_size;
 	const float* const output = l->output;  // predictions
-	if (net->use_gpu) {
-		CUDA_MEMCPY_D2H(output, l->gpu.output, in.n * batch_size);
-	}
 	float scale_wh = l->scale_grid * 2.0F;
 	const det_sample** const samples = net->data.detector.current_batch;
 	const bbox* const anchors = l->anchors;
@@ -504,9 +503,11 @@ void apply_grid_scaling(layer* l, network* net) {
 	if (net->use_gpu) {
 		launch_grid_scaling_kernel(l->inputs->gpu.data, l->gpu.output,
 			alpha, beta,
-			n_classes, n_anchors, NUM_ANCHOR_PARAMS,
-			in.sp, in.n, batch_size, A);
-		return;
+			(int)n_classes, (int)n_anchors, NUM_ANCHOR_PARAMS,
+			(int)in.sp, (int)in.n, (int)batch_size, (int)A);
+
+		//CUDA_MEMCPY_D2H(l->output, l->gpu.output, in.n * batch_size * sizeof(float));
+		//return;
 	}
 #endif
 	float* p = l->inputs->data;
@@ -531,22 +532,21 @@ void apply_grid_scaling(layer* l, network* net) {
 }
 
 void backward_detect(layer* l, network* net) {
-	size_t batch_size = net->batch_size;
-	float* l_grads = l->grads;
-	size_t l_n = l->in.n;
-	size_t b;
+	float* inl_grads = l->inputs->grads;
+	float* grads = l->grads;
+	size_t sp = l->in.sp;
+	size_t c;
 #pragma omp parallel for
-	for (b = 0; b < batch_size; b++) {
-		float* b_grads = &l_grads[b * l_n];
-		for (size_t i = 0; i < l->n_inputs; i++) {
-			layer_input input = l->inputs[i];
-			float* inl_grads = &input.grads[b * input.stride];
-			for (size_t g = 0; g < input.n; g++) {
-				inl_grads[g] = b_grads[g];
-			}
-			b_grads += input.n;
+	for (c = 0; c < l->in.c * net->batch_size; c++) {
+		size_t offset = c * sp;
+		for (size_t s = 0; s < sp; s++) {
+			inl_grads[offset + s] = grads[offset + s];
 		}
 	}
+}
+
+void backward_detect_gpu(layer* l, network* net) {
+	copy_array_gpu(l->gpu.grads, l->inputs->gpu.grads, (int)(net->batch_size * l->in.n));
 }
 
 void pprint_detect_array(float* data, size_t rows, size_t cols, size_t n_classes, size_t n_anchors) {

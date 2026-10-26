@@ -84,7 +84,7 @@ cublasHandle_t get_cublas_handle(void) {
     return cublas_handle;
 }
 
-void print_gpu_float_array(float* gpu_array, size_t size, char* text) {
+void print_gpu_float_array(float* gpu_array, size_t size, const char* text) {
     float* buff = (float*)calloc(size, sizeof(float));
     if (!buff) {
         printf("calloc error");

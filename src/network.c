@@ -189,7 +189,6 @@ void set_input_dimensions(layer* l) {
 	l->in.sp = l->in.w * l->in.h;
 }
 
-/* i = layer index in net->layers */
 void build_conv_layer(layer* l, network* net) {
 	if (!l->k.n_groups) l->k.n_groups = 1;
 	if (!l->k.stride) l->k.stride = 1;
@@ -380,50 +379,6 @@ void build_dense_layer(layer* l, network* net) {
 	set_activate(l, net->use_gpu);
 }
 
-// i = layer index in net->layers
-void build_classify_layer(layer* l, network* net) {
-	if (net->type == NET_NONE || net->type == NET_CLASSIFY) net->type = NET_CLASSIFY;
-	else {
-		printf("Invalid network cfg: Cannot have a classify layer in a non-classifier network.\n");
-		wait_for_key_then_exit();
-	}
-
-	if (l->n_classes == 0) l->n_classes = net->n_classes;
-
-	if (l->n_inputs > 1) {
-		printf("Classify layers cannot have multiple input layers. (layer %d)\n", l->id);
-	}
-	set_layer_inputs(l, net);
-	set_input_dimensions(l);
-
-	if (l->in.w != 1 || l->in.h != 1 || l->in.c != l->n_classes) {
-		printf("The layer outputting to a classify layer must have a width, height, and depth of 1x1x%zu. (is %zux%zux%zu)\n", l->n_classes, l->in.w, l->in.h, l->in.c);
-		wait_for_key_then_exit();
-	}
-
-	l->output = l->inputs[0].source->output;
-	l->grads = l->inputs[0].source->grads;
-	l->gpu.output = l->inputs[0].source->gpu.output;
-	l->gpu.grads = l->inputs[0].source->gpu.grads;
-
-	l->truth = (float*)xcalloc(l->n_classes * net->batch_size, sizeof(float));
-	l->errors = (float*)xcalloc(l->n_classes * net->batch_size, sizeof(float));
-	if (net->use_gpu) {
-		CUDA_MALLOC(&l->gpu.truth, l->n_classes * net->batch_size, sizeof(float));
-		CUDA_MALLOC(&l->gpu.errors, l->n_classes * net->batch_size, sizeof(float));
-		CUDA_MALLOC(&l->gpu.loss, 1, sizeof(float));
-	}
-
-	if (net->use_gpu == 2) l->forward = forward_classify_cpu_gpu_compare;
-	else if (net->use_gpu == 1) l->forward = forward_classify_gpu;
-	else l->forward = forward_classify;
-	l->backward = backward_none;  // all backprop stuff is done in forward pass
-	l->update = update_none;
-
-	set_loss(l, net->use_gpu);
-}
-
-/* i = layer index in net->layers */
 void build_maxpool_layer(layer* l, network* net) {
 	set_layer_inputs(l, net);
 	set_input_dimensions(l);
@@ -656,6 +611,49 @@ void build_upsample_layer(layer* l, network* net) {
 	set_activate(l, net->use_gpu);
 }
 
+// i = layer index in net->layers
+void build_classify_layer(layer* l, network* net) {
+	if (net->type == NET_NONE || net->type == NET_CLASSIFY) net->type = NET_CLASSIFY;
+	else {
+		printf("Invalid network cfg: Cannot have a classify layer in a non-classifier network.\n");
+		wait_for_key_then_exit();
+	}
+
+	if (l->n_classes == 0) l->n_classes = net->n_classes;
+
+	if (l->n_inputs > 1) {
+		printf("Classify layers cannot have multiple input layers. (layer %d)\n", l->id);
+	}
+	set_layer_inputs(l, net);
+	set_input_dimensions(l);
+
+	if (l->in.w != 1 || l->in.h != 1 || l->in.c != l->n_classes) {
+		printf("The layer outputting to a classify layer must have a width, height, and depth of 1x1x%zu. (is %zux%zux%zu)\n", l->n_classes, l->in.w, l->in.h, l->in.c);
+		wait_for_key_then_exit();
+	}
+
+	l->output = l->inputs[0].source->output;
+	l->grads = l->inputs[0].source->grads;
+	l->gpu.output = l->inputs[0].source->gpu.output;
+	l->gpu.grads = l->inputs[0].source->gpu.grads;
+
+	l->truth = (float*)xcalloc(l->n_classes * net->batch_size, sizeof(float));
+	l->errors = (float*)xcalloc(l->n_classes * net->batch_size, sizeof(float));
+	if (net->use_gpu) {
+		CUDA_MALLOC(&l->gpu.truth, l->n_classes * net->batch_size, sizeof(float));
+		CUDA_MALLOC(&l->gpu.errors, l->n_classes * net->batch_size, sizeof(float));
+		CUDA_MALLOC(&l->gpu.loss, 1, sizeof(float));
+	}
+
+	if (net->use_gpu == 2) l->forward = forward_classify_cpu_gpu_compare;
+	else if (net->use_gpu == 1) l->forward = forward_classify_gpu;
+	else l->forward = forward_classify;
+	l->backward = backward_none;  // all backprop stuff is done in forward pass
+	l->update = update_none;
+
+	set_loss(l, net->use_gpu);
+}
+
 void build_detect_layer(layer* l, network* net) {
 	if (net->type != NET_DETECT) {
 		printf("Invalid network cfg: Cannot have a detect layer in a non-detector network.\n");
@@ -675,16 +673,20 @@ void build_detect_layer(layer* l, network* net) {
 		wait_for_key_then_exit();
 	}
 
+	l->output = (float*)xcalloc(l->in.n * net->batch_size, sizeof(float));
 	l->grads = (float*)xcalloc(l->in.n * net->batch_size, sizeof(float));
+	if (net->use_gpu) {
+		CUDA_MALLOC(&l->gpu.output, l->in.n * net->batch_size, sizeof(float));
+		CUDA_MALLOC(&l->gpu.grads, l->in.n * net->batch_size, sizeof(float));
+	}
 	l->errors = (float*)xcalloc(net->batch_size, sizeof(float));  // only used for storing iou losses
 
 	l->forward = forward_detect;
-	l->backward = backward_detect;
+	if (net->use_gpu) l->backward = backward_detect_gpu;
+	else l->backward = backward_detect;
 	l->update = update_none;
 
 	l->activation = ACT_NONE;
-
-	l->output = (float*)xcalloc(l->in.n * net->batch_size, sizeof(float));
 
 	// set anchors
 	if (net->w != net->h || l->in.w != l->in.h) {

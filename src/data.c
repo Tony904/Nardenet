@@ -41,6 +41,9 @@ void detector_get_next_batch(network* net) {
 		normalize_image(&img);
 		randomize_colorspace(&img, brightness_lower, brightness_upper, contrast_lower, contrast_upper, saturation_lower, saturation_upper, hue_lower, hue_upper);
 	}
+	if (net->use_gpu) {
+		CUDA_MEMCPY_H2D(net->input->gpu.output, net->input->output, n * net->batch_size * sizeof(float));
+	}
 }
 
 det_sample* detector_dataset_get_next_sample(detector_dataset* dataset, image* dst) {
@@ -117,7 +120,6 @@ void classifier_get_next_batch(network* net) {
 		CUDA_MEMCPY_H2D(input_layer->gpu.output, data, n * net->batch_size * sizeof(float));
 		CUDA_MEMCPY_H2D(cls_layer->gpu.truth, truth, n_classes * net->batch_size * sizeof(float));
 	}
-	
 }
 
 void classifier_dataset_get_next_image(classifier_dataset* dataset, image* dst, float* truth) {
