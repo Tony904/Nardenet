@@ -22,7 +22,7 @@ static inline float clamp_x(float x, float thresh) {
 
 
 void get_class_grads(size_t cls_index, size_t n_classes, float* const grads, const float* const output, bbox truth_box, size_t spatial);
-void debug_detections(layer* l, network* net, int waitkey);
+void show_detections(layer* l, network* net, int waitkey);
 void get_detections(layer* l, network* net, size_t b);
 void nms(layer* l);
 void draw_detections(bbox** dets, size_t n_dets, image* img, float thresh);
@@ -206,8 +206,10 @@ void forward_detect_batch(const float* const p, float* const grads,
 
 void forward_detect(layer* l, network* net) {
 	apply_grid_scaling(l, net);
-	printf("n = %zu, batchsize = %zu\n", l->in.n, net->batch_size);
-	print_cpu_gpu_arrays(l->output, l->gpu.output, l->in.n * net->batch_size, "after apply grid scaling");
+	if (!net->training) {
+		show_detections(l, net, 0);
+		return;
+	}
 	tensor_dims in = l->in;
 	size_t batch_size = net->batch_size;
 	const float* const output = l->output;  // predictions
@@ -288,12 +290,8 @@ void forward_detect(layer* l, network* net) {
 	l->iou_loss = iou_loss / (float)n_iou_loss;	
 	l->loss = l->obj_loss + l->cls_loss + l->iou_loss;
 	printf("total detect loss: %f\navg obj loss: %f\navg class loss: %f\navg iou loss: %f\n", l->loss, l->obj_loss, l->cls_loss, l->iou_loss);
-	
-	if (net->use_gpu && net->training) {
-		CUDA_MEMCPY_H2D(l->gpu.grads, l->grads, in.n * batch_size);
-	}
 
-	debug_detections(l, net, 1);
+	//show_detections(l, net, 1);
 }
 
 void get_class_grads(size_t cls_index, size_t n_classes, float* const grads, const float* const output, bbox truth_box, size_t spatial) {
@@ -483,7 +481,7 @@ void draw_detections(bbox** dets, size_t n_dets, image* img, float thresh) {
 	}
 }
 
-void debug_detections(layer* l, network* net, int waitkey) {
+void show_detections(layer* l, network* net, int waitkey) {
 	for (size_t b = 0; b < net->batch_size; b++) {
 		get_detections(l, net, b);
 		nms(l);
@@ -506,8 +504,8 @@ void apply_grid_scaling(layer* l, network* net) {
 			(int)n_classes, (int)n_anchors, NUM_ANCHOR_PARAMS,
 			(int)in.sp, (int)in.n, (int)batch_size, (int)A);
 
-		//CUDA_MEMCPY_D2H(l->output, l->gpu.output, in.n * batch_size * sizeof(float));
-		//return;
+		CUDA_MEMCPY_D2H(l->output, l->gpu.output, in.n * batch_size * sizeof(float));
+		return;
 	}
 #endif
 	float* p = l->inputs->data;
@@ -546,7 +544,9 @@ void backward_detect(layer* l, network* net) {
 }
 
 void backward_detect_gpu(layer* l, network* net) {
-	copy_array_gpu(l->gpu.grads, l->inputs->gpu.grads, (int)(net->batch_size * l->in.n));
+	int n = (int)(l->in.n * net->batch_size);
+	CUDA_MEMCPY_H2D(l->gpu.grads, l->grads, n * sizeof(float));
+	copy_array_gpu(l->gpu.grads, l->inputs->gpu.grads, n);
 }
 
 void pprint_detect_array(float* data, size_t rows, size_t cols, size_t n_classes, size_t n_anchors) {

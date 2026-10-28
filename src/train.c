@@ -67,13 +67,7 @@ void train_classifer(network* net) {
 			noed = noed->next;
 			n++;
 		}
-		noed = lst->first;
-		while (noed) {
-			node* next = noed->next;
-			free(noed);
-			noed = next;
-		}
-		free(lst);
+		free_list(lst, 0);
 		printf("# of class directories found: %zu\n", net->n_classes);
 	}
 	load_classifier_dataset(&net->data.classifier, train_dir, net->class_names, net->n_classes, "images\\");
@@ -82,9 +76,9 @@ void train_classifer(network* net) {
 	size_t save_frequency = net->save_frequency;
 	layer* layers = net->layers;
 	size_t n_layers = net->n_layers;
-	print_network(net);
+	//print_network(net);
 	print_network_summary(net, 1);
-	print_network_structure(net);
+	//print_network_structure(net);
 	for (size_t iter = 0; iter < max_iterations; iter++) {
 		printf("\nIteration: %zu\n", iter + 1);
 		update_current_learning_rate(net, iter);

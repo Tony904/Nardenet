@@ -386,8 +386,8 @@ list* get_files_list(char* dir, char* extensions) {
 }
 
 list* get_folders_list(char* dir, int include_path) {
-	list* paths = (list*)calloc(1, sizeof(list));
-	if (!paths) exit(EXIT_FAILURE);
+	list* paths = (list*)xcalloc(1, sizeof(list));
+	//if (!paths) exit(EXIT_FAILURE);
 	size_t count = 0;
 	char fullpath[MAX_PATH] = { 0 };
 #ifdef IS_WIN
@@ -401,7 +401,7 @@ list* get_folders_list(char* dir, int include_path) {
 	if (handle == INVALID_HANDLE_VALUE) {
 		if (GetLastError() == ERROR_NO_MORE_FILES) {
 			printf("No items found in directory %s\n", dir);
-			free(paths);
+			xfree(&paths);
 			return (list*)0;
 		}
 		printf("Unexpected error occured while searching for first item in directory %s\nDirectory may be empty or does not exist.", dir);
@@ -424,10 +424,11 @@ list* get_folders_list(char* dir, int include_path) {
 				if (include_path) snprintf(fullpath, sizeof(fullpath), "%s%s", dir, foldername);
 				else strcpy(fullpath, foldername);
 				size_t length = strlen(fullpath);
-				char* path = (char*)calloc(length + 1, sizeof(char));
-				if (!path) exit(EXIT_FAILURE);
+				char* path = (char*)xcalloc(length + 1, sizeof(char));
+				//if (!path) exit(EXIT_FAILURE);
 				strcpy(path, fullpath);
-				list_append_calloc(paths, path);
+				//list_append_calloc(paths, path);
+				list_append(paths, path);
 				count++;
 			}
 		}
@@ -440,7 +441,8 @@ list* get_folders_list(char* dir, int include_path) {
 	DIR* dp = opendir(dir);
 	if (dp == NULL) {
 		perror("opendir");
-		return;
+		xfree(&paths);
+		return (list*)0;
 	}
 	while (entry = readdir(dp)) {
 		if (entry->d_type != DT_DIR) continue;
